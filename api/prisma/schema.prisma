@@ -1,0 +1,176 @@
+// Source of truth: .claude/skills/architecture — extend only via migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PayMethod {
+  ONLINE
+  WAFACASH
+}
+
+enum PayStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum BlockType {
+  IMAGE
+  TEXT
+  LIST
+  INFOBOX
+  AUDIO
+}
+
+enum Platform {
+  YOUTUBE
+  FACEBOOK
+  TIKTOK
+  INSTAGRAM
+}
+
+enum LiveStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  phone        String?   @unique
+  passwordHash String
+  role         Role      @default(USER)
+  isPremium    Boolean   @default(false)
+  premiumUntil DateTime?
+  createdAt    DateTime  @default(now())
+  payments     Payment[]
+  attempts     Attempt[]
+  devices      Device[]
+}
+
+// Max 2 devices/user enforced in service layer.
+model Device {
+  id         String   @id @default(uuid())
+  userId     String
+  deviceId   String
+  pushToken  String?
+  lastSeenAt DateTime
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, deviceId])
+}
+
+model Series {
+  id        Int        @id @default(autoincrement())
+  title     String
+  orderNum  Int
+  isPremium Boolean    @default(true)
+  questions Question[]
+}
+
+model Question {
+  id             Int      @id @default(autoincrement())
+  seriesId       Int
+  orderNum       Int
+  answersCount   Int      @default(4)
+  correctAnswers Json // e.g. [2,3]
+  imageKey       String
+  audioKey       String
+  updatedAt      DateTime @updatedAt
+  series         Series   @relation(fields: [seriesId], references: [id])
+
+  @@unique([seriesId, orderNum])
+}
+
+model LessonCategory {
+  id        Int              @id @default(autoincrement())
+  parentId  Int?
+  title     String
+  iconKey   String?
+  orderNum  Int
+  isPremium Boolean          @default(false)
+  parent    LessonCategory?  @relation("Tree", fields: [parentId], references: [id])
+  children  LessonCategory[] @relation("Tree")
+  lessons   Lesson[]
+}
+
+model Lesson {
+  id         Int            @id @default(autoincrement())
+  categoryId Int
+  title      String
+  orderNum   Int
+  updatedAt  DateTime       @updatedAt
+  category   LessonCategory @relation(fields: [categoryId], references: [id])
+  blocks     LessonBlock[]
+}
+
+// payload: TEXT {text} · LIST {items[]} · INFOBOX {title,text,tone} · IMAGE/AUDIO {caption}
+model LessonBlock {
+  id       Int       @id @default(autoincrement())
+  lessonId Int
+  orderNum Int
+  type     BlockType
+  payload  Json
+  mediaKey String?
+  lesson   Lesson    @relation(fields: [lessonId], references: [id])
+}
+
+model Payment {
+  id           String    @id @default(uuid())
+  userId       String
+  method       PayMethod
+  amount       Decimal
+  currency     String    @default("MAD")
+  status       PayStatus @default(PENDING)
+  wafacashCode String?   @unique
+  payzoneRef   String?
+  paidAt       DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id])
+}
+
+model Attempt {
+  id          String   @id @default(uuid())
+  userId      String
+  seriesId    Int
+  score       Int
+  total       Int      @default(40)
+  passed      Boolean
+  detailsJson Json
+  finishedAt  DateTime
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model ContentVersion {
+  id        Int      @id @default(1)
+  version   Int
+  updatedAt DateTime @updatedAt
+}
+
+model LiveEvent {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  platform    Platform
+  url         String
+  scheduledAt DateTime
+  status      LiveStatus @default(SCHEDULED)
+  notifiedT15 Boolean    @default(false)
+  notifiedAt0 Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+}

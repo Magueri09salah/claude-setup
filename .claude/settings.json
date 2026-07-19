@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:CI='1'; npx --yes create-expo-app@latest mobile --template default)",
+      "PowerShell(Copy-Item api\\\\.env.example api\\\\.env)",
+      "PowerShell(npm --prefix api install)",
+      "PowerShell(npm --prefix admin install)"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "moroccan-driving-app",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "typecheck": "npm --prefix api run typecheck && npm --prefix admin run typecheck && npm --prefix mobile run typecheck"
+  }
+}
