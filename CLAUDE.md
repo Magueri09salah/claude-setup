@@ -1,0 +1,44 @@
+# Moroccan Driving Education App — Project Memory
+
+## What this is
+Driving-license exam prep app (Morocco, Arabic/Darija, RTL). Monorepo:
+- `/mobile` — Expo (React Native) + TypeScript + Expo Router. Offline-first.
+- `/api` — Express + TypeScript + Prisma + PostgreSQL.
+- `/admin` — React + Vite + TypeScript + Mantine. Web admin panel.
+
+## Skills — read the relevant one BEFORE coding in its area
+- `architecture` — Prisma schema (source of truth), API endpoints, sync engine, folder structure. Read before ANY backend/schema/sync work.
+- `ui-design` — design system: tokens, colors, typography, components, motion. Read before creating ANY screen or component.
+- `quiz-engine` — exact quiz rules (timer, toggles, scoring, results). Read before touching quiz/results/progress.
+- `sync-payments` — Payzone/Wafacash flows, premium gating, webhook rules. Read before payment work.
+- `security` — non-negotiable security checklist. Read at the START of every milestone.
+
+## Docs (reference, do not load unless asked)
+- `docs/PRD.md` — product requirements, features F1–F9, metrics.
+
+## Commands
+- Mobile dev: `cd mobile && npx expo start`
+- API dev: `cd api && npm run dev` · migrate: `npx prisma migrate dev`
+- Admin dev: `cd admin && npm run dev`
+- Typecheck all: `npm run typecheck` (run after every task, fix all errors)
+
+## Hard rules (always)
+- TypeScript strict everywhere. Validate all API input with zod.
+- RTL-first: every mobile screen must work in RTL with Arabic text.
+- Mobile learning screens load media from LOCAL paths only — never remote URLs.
+- Premium is granted ONLY by the verified payment webhook, never by the client.
+- Secrets in .env only (keep .env.example updated). Never commit secrets.
+- DB stores UTC; display timezone Africa/Casablanca.
+- After each milestone: typecheck, summarize what was built + how to test it.
+
+## Milestones (work strictly one at a time)
+M1 api: schema+auth+R2+admin guards · admin: login, Series, QuestionEditor, Publish
+M2 mobile: init, RTL, auth screens, Home, SQLite, sync engine (resumable)
+M3 mobile: quiz engine + results + attempts + progress
+M4 lessons: block renderer (mobile) + LessonEditor (admin)
+M5 payments: Payzone sandbox, Wafacash codes, webhook, gating, payment screens
+M6 lives: CRUD + cron + Expo push + home banner + polish + EAS builds
+
+## Current status
+<!-- UPDATE THIS after each milestone, keep 3 lines max -->
+Not started. Next: M1.
