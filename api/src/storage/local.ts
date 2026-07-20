@@ -34,6 +34,16 @@ export class LocalStorage implements StorageService {
     await fs.writeFile(abs, body);
   }
 
+  async exists(key: string): Promise<boolean> {
+    assertSafeKey(key);
+    try {
+      await fs.access(path.join(UPLOADS_DIR, key));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async getSignedUrl(key: string): Promise<string> {
     assertSafeKey(key);
     const exp = Math.floor(Date.now() / 1000) + SIGNED_URL_TTL_SEC;

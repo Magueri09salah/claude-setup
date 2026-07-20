@@ -10,7 +10,10 @@
       "PowerShell(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.dependencies||{},null,1\\)\\); console.log\\(JSON.stringify\\(p.devDependencies||{},null,1\\)\\)\")",
       "PowerShell(npm run typecheck)",
       "PowerShell($conns = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue; if \\($conns\\) { $conns | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -Confirm:$false }; \"dev server stopped\" } else { \"nothing listening on 4000\" })",
-      "PowerShell(git add -A)"
+      "PowerShell(git add -A)",
+      "PowerShell(Copy-Item admin\\\\.env.example admin\\\\.env -Force)",
+      "PowerShell(\"admin/.env created\")",
+      "PowerShell(npm --prefix admin run typecheck)"
     ]
   }
 }

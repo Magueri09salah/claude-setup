@@ -37,8 +37,15 @@ M2 mobile: init, RTL, auth screens, Home, SQLite, sync engine (resumable)
 M3 mobile: quiz engine + results + attempts + progress
 M4 lessons: block renderer (mobile) + LessonEditor (admin)
 M5 payments: Payzone sandbox, Wafacash codes, webhook, gating, payment screens
-M6 lives: CRUD + cron + Expo push + home banner + polish + EAS builds
+   + admin Payments page (transactions w/ status filter, pending Wafacash codes)
+M6 lives: CRUD + cron + Expo push + home banner
+   + admin Users page (search, premium, device count, block) + Dashboard
+     (users, revenue, attempts, push reach)
+   + mobile settings: "إعادة تحميل المحتوى" repair button (wipe local + full resync)
+   + privacy policy page (Arabic + French, law 09-08 basics) as static HTML for the domain
+   + RTL/Arabic audit, EAS build profiles, store submission checklist
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-Not started. Next: M1.
+M1 done — api: schema+migration (Neon), auth (JWT+rotation), R2/local storage, seed, admin CRUD+upload+publish · admin: Arabic RTL panel (login, Series, QuestionEditor, Publish).
+Next: M2 (mobile init, RTL, auth screens, Home, SQLite, sync engine).

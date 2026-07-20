@@ -33,6 +33,20 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({ error: "Invalid JSON body" });
     return;
   }
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { name?: string }).name === "MulterError"
+  ) {
+    const code = (err as { code?: string }).code;
+    res.status(code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+      error:
+        code === "LIMIT_FILE_SIZE"
+          ? "File too large"
+          : `Upload rejected (${code ?? "invalid multipart request"})`,
+    });
+    return;
+  }
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
 };

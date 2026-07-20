@@ -8,6 +8,7 @@ export const SIGNED_URL_TTL_SEC = 15 * 60;
 export interface StorageService {
   readonly kind: "r2" | "local";
   put(key: string, body: Buffer, contentType: string): Promise<void>;
+  exists(key: string): Promise<boolean>;
   getSignedUrl(key: string): Promise<string>;
 }
 

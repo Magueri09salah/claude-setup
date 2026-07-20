@@ -1,5 +1,6 @@
 # PRD — Moroccan Driving Education App
-**Version:** 1.0 · **Date:** July 2026 · **Status:** Draft for development
+**Version:** 1.1 · **Date:** July 2026 · **Status:** Ready for development
+**Changelog v1.1:** milestone scopes made explicit (admin Payments/Users/Dashboard pages placed in M5/M6; repair-content button and privacy policy page placed in M6) so each milestone is fully self-contained.
 
 ---
 
@@ -106,8 +107,10 @@ through content quality, live sessions integration, and cash-payment accessibili
 - **Reliability:** sync resumable & idempotent; no partial content states.
 - **Security:** bcrypt/argon2 passwords; short-lived JWT; webhook signature checks;
   signed URLs for premium media; rate limiting on auth & payments; codes expire.
-- **Compliance:** Moroccan law 09-08 (personal data / CNDP declaration); store
-  policies; content disclaimer: independent educational app, official source NARSA.
+- **Compliance:** Moroccan law 09-08 (personal data / CNDP declaration — client files
+  the declaration; the app ships a privacy policy page in Arabic + French, hosted on
+  the project domain and linked in both stores); store policies; content disclaimer:
+  independent educational app, official source NARSA.
 - **Content pipeline:** all questions/images/audio are original or licensed —
   no copying from existing apps (Siya9a, Code Rousseau).
 
@@ -127,8 +130,8 @@ Hosting: Railway/Render (API+DB), Cloudflare Pages (admin), R2 (media).
 | M2 | Mobile foundation | Auth screens, home, sync engine, SQLite | 3–4 |
 | M3 | Quiz | Engine, results, attempts, progress | 5 |
 | M4 | Lessons | Block renderer + lesson editor | 6 |
-| M5 | Payments | Payzone sandbox → production, Wafacash codes, gating | 7 |
-| M6 | Lives + polish | Push, banner, cron; RTL audit; EAS builds; store submission | 8 |
+| M5 | Payments | Payzone sandbox → production, Wafacash codes, gating, payment screens; **admin Payments page** (transactions + pending codes) | 7 |
+| M6 | Lives + polish | Push, banner, cron; **admin Users page + Dashboard**; **repair-content button** (settings); **privacy policy page (AR/FR)**; RTL audit; EAS builds; store submission | 8 |
 | M7 | Content production | Parallel track from M1: series images + audio recording | 1–8 |
 
 ## 9. Risks & Mitigations
@@ -141,6 +144,7 @@ Hosting: Railway/Render (API+DB), Cloudflare Pages (admin), R2 (media).
 | Account sharing erodes revenue | Device limit + periodic online license re-check (30 days) |
 | Notification opt-out | Strict notification budget; value-first messages |
 | Copyright claims from competitors | 100% original content; legal review of assets |
+| Store rejection for missing privacy policy | Privacy policy page delivered in M6, hosted on domain, linked in store listings |
 
 ## 10. Open Questions
 

@@ -12,9 +12,11 @@
   "dependencies": {
     "@mantine/core": "^8.0.0",
     "@mantine/hooks": "^8.0.0",
+    "@mantine/notifications": "^8.3.18",
     "moroccan-driving-app": "file:..",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

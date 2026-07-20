@@ -1,5 +1,6 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -37,6 +38,26 @@ export class R2Storage implements StorageService {
         ContentType: contentType,
       }),
     );
+  }
+
+  async exists(key: string): Promise<boolean> {
+    try {
+      await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return true;
+    } catch (e) {
+      if (
+        typeof e === "object" &&
+        e !== null &&
+        ((e as { name?: string }).name === "NotFound" ||
+          (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+            ?.httpStatusCode === 404)
+      ) {
+        return false;
+      }
+      throw e;
+    }
   }
 
   getSignedUrl(key: string): Promise<string> {
