@@ -13,7 +13,10 @@
       "PowerShell(git add -A)",
       "PowerShell(Copy-Item admin\\\\.env.example admin\\\\.env -Force)",
       "PowerShell(\"admin/.env created\")",
-      "PowerShell(npm --prefix admin run typecheck)"
+      "PowerShell(npm --prefix admin run typecheck)",
+      "WebFetch(domain:docs.expo.dev)",
+      "PowerShell(npm --prefix mobile run typecheck)",
+      "PowerShell(\\(Get-Item C:\\\\Users\\\\T14s\\\\Desktop\\\\claude-setup\\\\claude-setup\\\\api\\\\src\\\\index.ts\\).LastWriteTime = Get-Date; Start-Sleep -Seconds 3; \"touched, waiting for tsx restart\")"
     ]
   }
 }

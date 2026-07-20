@@ -4,6 +4,7 @@ import { env } from "./env";
 import { errorHandler } from "./middleware/errors";
 import { adminRouter } from "./modules/admin/admin.router";
 import { authRouter } from "./modules/auth/auth.router";
+import { contentRouter } from "./modules/content/content.router";
 import { storage } from "./storage";
 import { localMediaRouter } from "./storage/local";
 
@@ -18,6 +19,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/admin", adminRouter);
+app.use("/content", contentRouter);
 if (storage.kind === "local") {
   app.use("/media/local", localMediaRouter);
 }
