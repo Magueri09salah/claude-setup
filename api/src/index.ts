@@ -1,20 +1,31 @@
-import "dotenv/config";
+import cors from "cors";
 import express from "express";
-import { z } from "zod";
-
-const env = z
-  .object({
-    PORT: z.coerce.number().int().positive().default(4000),
-  })
-  .parse(process.env);
+import { env } from "./env";
+import { errorHandler } from "./middleware/errors";
+import { adminRouter } from "./modules/admin/admin.router";
+import { authRouter } from "./modules/auth/auth.router";
+import { storage } from "./storage";
+import { localMediaRouter } from "./storage/local";
 
 const app = express();
-app.use(express.json());
+
+app.use(cors({ origin: ["http://localhost:5173"] }));
+app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, storage: storage.kind });
 });
 
+app.use("/auth", authRouter);
+app.use("/admin", adminRouter);
+if (storage.kind === "local") {
+  app.use("/media/local", localMediaRouter);
+}
+
+app.use(errorHandler);
+
 app.listen(env.PORT, () => {
-  console.log(`API listening on http://localhost:${env.PORT}`);
+  console.log(
+    `API listening on http://localhost:${env.PORT} (storage: ${storage.kind})`,
+  );
 });

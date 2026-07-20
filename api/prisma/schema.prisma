@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 enum Role {
@@ -57,9 +58,24 @@ model User {
   isPremium    Boolean   @default(false)
   premiumUntil DateTime?
   createdAt    DateTime  @default(now())
-  payments     Payment[]
-  attempts     Attempt[]
-  devices      Device[]
+  payments      Payment[]
+  attempts      Attempt[]
+  devices       Device[]
+  refreshTokens RefreshToken[]
+}
+
+// Refresh tokens stored hashed (sha256), rotated on every /auth/refresh.
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  replacedBy String? // tokenHash of the successor token (rotation chain)
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 // Max 2 devices/user enforced in service layer.
