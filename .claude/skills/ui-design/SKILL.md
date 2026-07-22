@@ -11,33 +11,52 @@ Duolingo/Revolut? If not, simplify.
 
 ## 1. Design tokens (single source — put in `mobile/src/theme/tokens.ts`)
 
+Identity: **"Night Drive"** (owner decision, 2026-07-22; replaced Duolingo).
+The app is named طريق — "road" — so the design IS the road: asphalt ground,
+lane-paint yellow as the SINGLE hero accent, signal green/red semantic only.
+
 ```ts
 export const colors = {
-  // Base — deep navy, but softer & layered (no flat #00F blue walls)
-  bg:        '#0B1B3A',   // screen background
-  bgSoft:    '#122650',   // elevated sections
-  surface:   '#FFFFFF',   // cards
-  surfaceAlt:'#F4F6FB',   // secondary cards / list rows
-  // Brand accents (one accent per feature area — never mix on one card)
-  exam:      '#E64545',   // سلاسل الامتحان
-  lessons:   '#F5A623',   // الدروس النظرية
-  series:    '#2F80ED',   // سلاسل الدروس / answer buttons
-  success:   '#27AE60',   // ✓ / pass / correct
-  danger:    '#EB5757',   // ✗ / fail / wrong
-  premium:   '#8E5BE8',   // 🔒 premium / upsell
-  // Text
-  textOnDark:'#FFFFFF', textOnDarkDim:'rgba(255,255,255,0.64)',
-  text:      '#101828', textDim:'#667085',
-  border:    'rgba(16,24,40,0.08)',
+  // Base — asphalt
+  bg:        '#141519',   // screen background
+  bgSoft:    '#1B1D23',   // gradient partner / elevated sections
+  surface:   '#22242B',   // cards
+  surfaceAlt:'#2A2D35',   // inputs / secondary rows / placeholders
+  chipBg:    'rgba(255,255,255,0.10)', // subtle control fill (pills, chips)
+  // Feature-area accents — used as card EDGE + icon tint, NOT full backgrounds
+  exam:      '#4FA8F0',   // سلاسل الامتحان — headlight blue
+  lessons:   '#FFD348',   // الدروس النظرية — lane-paint yellow (hero accent)
+  series:    '#2FBF71',   // سلاسل الدروس — signal green
+  success:   '#2FBF71',   // ✓ / pass / correct
+  danger:    '#E5484D',   // ✗ / fail / wrong
+  premium:   '#FFD348',   // 🔒 premium — painted gold
+  // Ink on light accent fills (yellow/green/blue buttons)
+  onAccent:  '#141519', onAccentDim:'rgba(20,21,25,0.65)',
+  // Text on asphalt / dark surfaces
+  text:      '#F2F3F5', textDim:'rgba(242,243,245,0.55)',
+  border:    'rgba(255,255,255,0.07)',
 };
-export const radius = { sm: 10, md: 16, lg: 22, xl: 28, pill: 999 };
+export const radius = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 };
 export const space  = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
-export const shadow = { card: { shadowColor:'#0B1B3A', shadowOpacity:0.10,
-  shadowRadius:16, shadowOffset:{width:0,height:6}, elevation:5 } };
+export const shadow = { card: { shadowColor:'#000', shadowOpacity:0.35,
+  shadowRadius:18, shadowOffset:{width:0,height:6}, elevation:6 } };
 ```
 
-Background treatment: vertical gradient `bg → bgSoft` + the road-sign pattern
-watermark at 5% opacity max (subtle texture, never competing with content).
+Rules: cards are dark `surface` with 1px `border` hairline and a **4px accent
+edge on the icon (left) side** — the road-sign post. Accents fill a background
+ONLY on primary buttons and the mock-exam card (lane yellow + `onAccent` ink).
+Answer buttons: `surface` + hairline; SELECTED = lane-yellow fill + asphalt
+numeral. Results tiles: `surface` + 2px green/red border + colored numeral
+(never white-on-green fills). Primary buttons = lane yellow + `onAccent`.
+StatusBar `light`. Signature: TimerPill = asphalt pill, lane-yellow digits,
+flips to danger red + pulse under 10s.
+
+Motion (design-eng, Reanimated): presses = spring scale 0.97 via
+`PressableScale` (duration 200, no bounce) — never a bare style-swap. Answer
+toggles are INSTANT (high-frequency = no animation). Results tiles stagger in
+30ms apart (FadeInDown 250ms, ease-out cubic-bezier(0.23,1,0.32,1)). The one
+celebration: lane-paint dashed line draws across results on the FIRST-ever pass
+of a series. Nothing else animates.
 
 ## 2. Typography (Arabic-first)
 
@@ -58,10 +77,11 @@ never justify Arabic body text · numerals use Latin digits (matches exam style)
 (home) = accent background + white icon chip (44px, radius.md, 20% white overlay)
 + title 20/800 white + subtitle 13/400 white 75% + chevron. Height ~112px.
 
-**Buttons** — primary: accent bg, radius.pill, height 56, label 16/700; pressed:
-scale 0.97 (reanimated spring). Answer buttons (quiz): series blue, radius.md,
-numeral 34/800 white; SELECTED state: white bg + blue border 3px + blue numeral
-(clear toggle affordance). Correct flash: success bg; wrong flash: danger bg.
+**Buttons** — primary: accent bg, radius.pill, height 56, label 16/700 onAccent;
+pressed: scale 0.97 (reanimated spring). Answer buttons (quiz): series green,
+radius.md, numeral 34/800 onAccent; SELECTED state: white bg + green border 3px +
+green numeral (clear toggle affordance). No per-question correction flash (see
+quiz-engine skill) — corrections show only on the results grid.
 
 **Quiz screen** — top bar minimal (44px icons); status row: timer pill (dark,
 amber text, turns danger + gentle pulse under 10s), series chip, counter chip;
@@ -90,14 +110,18 @@ Press scale 0.97 spring · screen transitions default Expo Router · answer feed
 timer pulse only under 10s. NOTHING animates longer than 800ms. No confetti except
 first-ever pass of a series (one time, it earns it).
 
-## 5. RTL & accessibility
-I18nManager.forceRTL(true) at app entry (document the required restart) · use
-start/end paddings & flex only, NEVER left/right · icons that imply direction
-(chevrons, arrows) must flip · touch targets ≥ 44px, answer buttons ≥ 56px ·
-contrast: textOnDarkDim only for meta, never for primary content.
+## 5. RTL & accessibility (owner decision, 2026-07-22)
+Do NOT use I18nManager.forceRTL or `direction:"rtl"` (unreliable in Expo Go on
+iOS and it flips icons to the wrong side). The app's RTL convention is instead:
+**LTR layout, icons/chips/affordances on the LEFT, Arabic text right-aligned
+(`textAlign:"right"`) filling the rest.** Rows that pair text with a control put
+the control FIRST in JSX (renders left) and the text block after. Back arrows
+are `‹` on the left. Latin inputs (email/password) stay left-aligned LTR.
+Touch targets ≥ 44px, answer buttons ≥ 56px · dim text only for meta, never for
+primary content.
 
 ## 6. Admin panel (Mantine)
-Light theme, primary = series blue, Tajawal for Arabic content previews, LTR UI is
+Light theme, primary = lane yellow (#FFD348, autoContrast dark ink), Tajawal for Arabic content previews, LTR UI is
 fine (admin is technical) but content preview components render RTL. Data-dense
 tables > cards. Every destructive action gets a confirm modal.
 

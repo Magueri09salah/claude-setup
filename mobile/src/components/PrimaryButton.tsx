@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, StyleSheet, Text } from "react-native";
 import { colors, font, radius } from "../theme/tokens";
+import { PressableScale } from "./PressableScale";
 
 interface Props {
   label: string;
@@ -9,29 +10,29 @@ interface Props {
   accent?: string;
 }
 
+// Primary action = lane-paint yellow with asphalt ink (Night Drive).
 export function PrimaryButton({
   label,
   onPress,
   loading = false,
   disabled = false,
-  accent = colors.series,
+  accent = colors.lessons,
 }: Props) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         { backgroundColor: accent, opacity: disabled ? 0.5 : 1 },
-        pressed && { transform: [{ scale: 0.97 }] },
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.textOnDark} />
+        <ActivityIndicator color={colors.onAccent} />
       ) : (
         <Text style={styles.label}>{label}</Text>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -45,6 +46,6 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: font.bold,
     fontSize: 16,
-    color: colors.textOnDark,
+    color: colors.onAccent,
   },
 });

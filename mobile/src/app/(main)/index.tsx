@@ -1,4 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,7 +19,7 @@ import {
   type SyncProgress,
   type SyncResult,
 } from "@/sync/engine";
-import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { colors, radius, shadow, space, type } from "@/theme/tokens";
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
@@ -50,13 +51,18 @@ export default function HomeScreen() {
     <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
+          <View style={styles.headerActions}>
+            <Pressable onPress={() => void logout()} hitSlop={8}>
+              <Text style={styles.logout}>خروج</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/progress")} hitSlop={8}>
+              <Text style={styles.progressLink}>تقدّمي</Text>
+            </Pressable>
+          </View>
           <View style={styles.headerTexts}>
             <Text style={styles.hello}>أهلاً 👋</Text>
             <Text style={styles.email}>{user?.email}</Text>
           </View>
-          <Pressable onPress={() => void logout()} hitSlop={8}>
-            <Text style={styles.logout}>خروج</Text>
-          </Pressable>
         </View>
 
         <Text style={styles.title}>القائمة الرئيسية</Text>
@@ -67,6 +73,7 @@ export default function HomeScreen() {
             subtitle="40 سؤالاً في كل سلسلة، مثل الامتحان الرسمي"
             emoji="🚦"
             accent={colors.exam}
+            onPress={() => router.push("/exam")}
           />
           <FeatureCard
             title="الدروس النظرية"
@@ -83,18 +90,18 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>السلاسل</Text>
           <Pressable
             onPress={() => void doSync()}
             disabled={syncing}
             style={styles.syncButton}
           >
             {syncing ? (
-              <ActivityIndicator size="small" color={colors.textOnDark} />
+              <ActivityIndicator size="small" color={colors.text} />
             ) : (
               <Text style={styles.syncLabel}>تحديث ⟳</Text>
             )}
           </Pressable>
+          <Text style={styles.sectionTitle}>السلاسل</Text>
         </View>
 
         {syncing && progress?.phase === "media" && progress.total > 0 && (
@@ -116,19 +123,26 @@ export default function HomeScreen() {
           series.map((s) => {
             const locked = s.locked === 1;
             return (
-              <View key={s.id} style={[styles.seriesCard, locked && styles.lockedCard]}>
+              <Pressable
+                key={s.id}
+                disabled={locked}
+                onPress={() => router.push(`/quiz/${s.id}`)}
+                style={({ pressed }) => [
+                  styles.seriesCard,
+                  locked && styles.lockedCard,
+                  pressed && !locked && { transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                {locked && (
+                  <View style={styles.lockChip}>
+                    <Text style={styles.lockChipText}>🔒 افتح المحتوى الكامل</Text>
+                  </View>
+                )}
                 <View style={styles.seriesTexts}>
                   <Text style={styles.seriesTitle}>{s.title}</Text>
                   <Text style={styles.seriesMeta}>{s.question_count} سؤال</Text>
                 </View>
-                {locked ? (
-                  <View style={styles.lockChip}>
-                    <Text style={styles.lockChipText}>🔒 افتح المحتوى الكامل</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.seriesChevron}>‹</Text>
-                )}
-              </View>
+              </Pressable>
             );
           })
         )}
@@ -146,13 +160,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerTexts: { gap: 2 },
-  hello: { ...type.label, color: colors.textOnDarkDim, textAlign: "left" },
-  email: { ...type.label, color: colors.textOnDark, textAlign: "left" },
+  hello: { ...type.label, color: colors.textDim, textAlign: "right" },
+  email: { ...type.label, color: colors.text, textAlign: "right" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: space.md },
+  progressLink: { ...type.label, color: colors.lessons },
   logout: { ...type.label, color: colors.danger },
   title: {
     ...type.display,
-    color: colors.textOnDark,
-    textAlign: "left",
+    color: colors.text,
+    textAlign: "right",
     marginTop: space.sm,
   },
   cards: { gap: space.md },
@@ -162,22 +178,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: space.lg,
   },
-  sectionTitle: { ...type.title, color: colors.textOnDark, textAlign: "left" },
+  sectionTitle: { ...type.title, color: colors.text, textAlign: "right" },
   syncButton: {
     paddingHorizontal: space.md,
     height: 36,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: colors.chipBg,
     alignItems: "center",
     justifyContent: "center",
   },
-  syncLabel: { ...type.label, color: colors.textOnDark },
-  syncProgress: { ...type.label, color: colors.textOnDarkDim, textAlign: "left" },
-  offline: { ...type.label, color: colors.lessons, textAlign: "left" },
+  syncLabel: { ...type.label, color: colors.text },
+  syncProgress: { ...type.label, color: colors.textDim, textAlign: "right" },
+  offline: { ...type.label, color: colors.text, textAlign: "right" },
   empty: {
     ...type.body,
-    color: colors.textOnDarkDim,
-    textAlign: "left",
+    color: colors.textDim,
+    textAlign: "right",
     marginTop: space.sm,
   },
   seriesCard: {
@@ -191,15 +207,10 @@ const styles = StyleSheet.create({
   },
   lockedCard: { opacity: 0.6 },
   seriesTexts: { gap: 2, flex: 1 },
-  seriesTitle: { ...type.title, color: colors.text, textAlign: "left" },
-  seriesMeta: { ...type.label, color: colors.textDim, textAlign: "left" },
-  seriesChevron: {
-    fontFamily: font.extraBold,
-    fontSize: 24,
-    color: colors.textDim,
-  },
+  seriesTitle: { ...type.title, color: colors.text, textAlign: "right" },
+  seriesMeta: { ...type.label, color: colors.textDim, textAlign: "right" },
   lockChip: {
-    backgroundColor: "rgba(142,91,232,0.14)",
+    backgroundColor: "rgba(255,211,72,0.14)",
     borderRadius: radius.pill,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,

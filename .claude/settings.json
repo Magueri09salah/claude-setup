@@ -16,7 +16,15 @@
       "PowerShell(npm --prefix admin run typecheck)",
       "WebFetch(domain:docs.expo.dev)",
       "PowerShell(npm --prefix mobile run typecheck)",
-      "PowerShell(\\(Get-Item C:\\\\Users\\\\T14s\\\\Desktop\\\\claude-setup\\\\claude-setup\\\\api\\\\src\\\\index.ts\\).LastWriteTime = Get-Date; Start-Sleep -Seconds 3; \"touched, waiting for tsx restart\")"
+      "PowerShell(\\(Get-Item C:\\\\Users\\\\T14s\\\\Desktop\\\\claude-setup\\\\claude-setup\\\\api\\\\src\\\\index.ts\\).LastWriteTime = Get-Date; Start-Sleep -Seconds 3; \"touched, waiting for tsx restart\")",
+      "PowerShell(git status --short 2>&1 | Select-Object -First 40; \"---\"; \\(git status --short | Measure-Object -Line\\).Lines)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Edit(/.claude/skills/ui-design/**)",
+      "PowerShell(npm --prefix mobile run typecheck 2>&1)",
+      "Bash(cd /c/Users/T14s/Desktop/claude-setup/claude-setup/mobile/src/app && find . -type f | sort && echo \"---\" && ls ../components/quiz ../db ../quiz)",
+      "Read(//c/Users/T14s/Desktop/claude-setup/components/**)",
+      "PowerShell(Set-Location C:\\\\Users\\\\T14s\\\\Desktop\\\\claude-setup\\\\claude-setup; npm run typecheck 2>&1 | Select-String \"error TS\"; \"typecheck-exit: $LASTEXITCODE\")"
     ]
   }
 }

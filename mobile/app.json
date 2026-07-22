@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tariq",
-    "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0B1B3A",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#141519",
     "extra": {
       "supportsRTL": true
     },
@@ -16,7 +16,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0B1B3A",
+        "backgroundColor": "#FFD348",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -32,13 +32,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B1B3A",
+          "backgroundColor": "#141519",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
       ],
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": false,

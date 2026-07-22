@@ -19,7 +19,8 @@ export function FirstSyncScreen({ progress }: { progress: SyncProgress | null })
       <Text style={styles.title}>جاري تحميل المحتوى لأول مرة…</Text>
       <Text style={styles.phase}>{phaseLabel}</Text>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.round(ratio * 100)}%` }]} />
+        {/* scaleX transform instead of width: no layout work per tick */}
+        <View style={[styles.fill, { transform: [{ scaleX: ratio }] }]} />
       </View>
       {progress && progress.phase === "media" && progress.total > 0 && (
         <Text style={styles.counter}>
@@ -42,36 +43,38 @@ const styles = StyleSheet.create({
   logo: {
     fontFamily: font.extraBold,
     fontSize: 44,
-    color: colors.textOnDark,
+    color: colors.lessons,
     marginBottom: space.lg,
   },
   title: {
     fontFamily: font.bold,
     fontSize: 18,
-    color: colors.textOnDark,
+    color: colors.text,
     textAlign: "center",
   },
   phase: {
     fontFamily: font.regular,
     fontSize: 14,
-    color: colors.textOnDarkDim,
+    color: colors.textDim,
   },
   track: {
     width: "100%",
     height: 10,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: colors.chipBg,
     overflow: "hidden",
     marginTop: space.sm,
   },
   fill: {
+    width: "100%",
     height: "100%",
     borderRadius: radius.pill,
-    backgroundColor: colors.series,
+    backgroundColor: colors.lessons,
+    transformOrigin: "left",
   },
   counter: {
     fontFamily: font.extraBold,
     fontSize: 22,
-    color: colors.textOnDark,
+    color: colors.text,
   },
 });

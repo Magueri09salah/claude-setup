@@ -47,5 +47,5 @@ M6 lives: CRUD + cron + Expo push + home banner
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-M1 done — api: schema+migration (Neon), auth (JWT+rotation), R2/local storage, seed, admin CRUD+upload+publish · admin: Arabic RTL panel (login, Series, QuestionEditor, Publish).
-Next: M2 (mobile init, RTL, auth screens, Home, SQLite, sync engine).
+M1 + M2 done. M3 done — mobile: quiz engine (30s timer, toggle multi-select, ✓/timeout auto-submit, exact-set scoring, 1.5s feedback), results (score ring, verdict, review), progress (best/history/weakest), attempts→SQLite + POST /attempts (idempotent). Pinned to Expo SDK 54 (owner's iPhone Expo Go).
+Next: M4 (lessons: block renderer mobile + LessonEditor admin).

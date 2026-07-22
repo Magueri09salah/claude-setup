@@ -14,8 +14,10 @@ description: Exact behavioral rules for the exam quiz — timer, multi-select to
    Empty selection at timeout = wrong, flag timedOut=true. ✗ = skip = wrong.
 6. Scoring: EXACT set equality — sort(selected) === sort(correctAnswers).
    No partial credit ever.
-7. Feedback overlay 1.5s: correct buttons flash success, wrong picks flash danger.
-8. Auto-advance. After question 40 → save attempt → results screen.
+7. NO per-question correction. Submitting advances immediately with no
+   right/wrong reveal — the exam never tells you mid-test (owner decision,
+   2026-07-21). Corrections are shown only on the results grid at the end.
+8. After the last question → save attempt → results screen.
 
 ## Data
 QuestionResult = { questionId, order, selected:number[], correct:number[],
@@ -23,8 +25,10 @@ isCorrect, timedOut }. Attempt = { seriesId, score, total:40, passed: score>=32,
 finishedAt, detailsJson: QuestionResult[] } → SQLite always; POST /attempts when online.
 
 ## Results screen
-Score /40 + pass verdict (mark = 32) + circular ring + review list (tap row →
-reopen question image with the user's picks overlaid red, correct answers green).
+Score /40 + pass verdict (mark = 32) + a numbered tile grid (5 cols, tile per
+question showing its number, green = correct / red = wrong). Tap a tile → reopen
+that question image with the user's picks overlaid red, correct answers green.
+Bottom actions: back to home + share result.
 
 ## Progress screen (all offline from local attempts)
 Per-series best score + attempt count + last result · overall pass rate ·

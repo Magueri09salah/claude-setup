@@ -1,22 +1,25 @@
 import { createTheme, type MantineColorsTuple } from "@mantine/core";
 
-// Primary = series blue #2F80ED from the Tariq design tokens (shade index 5).
+// Primary = lane-paint yellow #FFD348 from the Tariq "Night Drive" tokens
+// (shade 5). autoContrast flips button text to dark ink on the light shades.
 const brand: MantineColorsTuple = [
-  "#e9f1fd",
-  "#d3e3fb",
-  "#a5c7f7",
-  "#77aaf3",
-  "#4f92f0",
-  "#2F80ED",
-  "#2371d6",
-  "#1b60b8",
-  "#144f99",
-  "#0c3d78",
+  "#fff9e6",
+  "#fff2cc",
+  "#ffe9a3",
+  "#ffe075",
+  "#ffd95c",
+  "#FFD348",
+  "#e6bb35",
+  "#bf9a24",
+  "#997a17",
+  "#735a0c",
 ];
 
 export const theme = createTheme({
   primaryColor: "brand",
   colors: { brand },
+  autoContrast: true,
+  luminanceThreshold: 0.45,
   defaultRadius: "md",
   fontFamily: "Tajawal, sans-serif",
   headings: { fontFamily: "Tajawal, sans-serif" },

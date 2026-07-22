@@ -9,15 +9,9 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { I18nManager } from "react-native";
 import { AuthProvider, useAuth } from "@/auth/AuthContext";
 import { migrate } from "@/db";
 import { colors } from "@/theme/tokens";
-
-// RTL-first: forced at entry. In Expo Go the very first launch may need one
-// reload for the flip to apply natively.
-I18nManager.allowRTL(true);
-if (!I18nManager.isRTL) I18nManager.forceRTL(true);
 
 migrate();
 
