@@ -4,18 +4,52 @@ import {
   Button,
   Card,
   Checkbox,
+  Divider,
   FileButton,
   Grid,
   Group,
   Image,
   Modal,
   Select,
+  SimpleGrid,
   Stack,
   Table,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
+import {
+  IconBook2,
+  IconFolder,
+  IconFolderPlus,
+  IconSubtask,
+} from "@tabler/icons-react";
+import type { ComponentType } from "react";
+import type { IconProps } from "@tabler/icons-react";
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: ComponentType<IconProps>;
+}) {
+  return (
+    <Card padding="md">
+      <Group justify="space-between" align="flex-start">
+        <Text fz="sm" c="dimmed">
+          {label}
+        </Text>
+        <Icon size={18} color="var(--zinc-500)" stroke={1.75} />
+      </Group>
+      <Text fz={28} fw={700} lh={1.2} mt={4}>
+        {value}
+      </Text>
+    </Card>
+  );
+}
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Category, Lesson, Sign } from "../api/types";
@@ -206,22 +240,44 @@ export function LessonsPage() {
   };
 
   const topCats = categories.filter((c) => !c.parentId);
+  const subCats = categories.filter((c) => c.parentId);
   const childrenOf = (id: number) => categories.filter((c) => c.parentId === id);
+  const totalLessons = categories.reduce(
+    (sum, c) => sum + (c._count?.lessons ?? 0),
+    0,
+  );
 
   return (
     <Stack>
-      <Group justify="space-between">
-        <Title order={3}>الدروس</Title>
-        <Button onClick={() => setCatModal(true)}>فئة جديدة</Button>
+      <Group justify="space-between" align="flex-end">
+        <div>
+          <Title order={3}>الدروس</Title>
+          <Text c="dimmed" size="sm">
+            نظّم الفئات والدروس وعلامات الطريق
+          </Text>
+        </div>
+        <Button
+          leftSection={<IconFolderPlus size={16} />}
+          onClick={() => setCatModal(true)}
+        >
+          فئة جديدة
+        </Button>
       </Group>
+
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+        <StatCard label="الفئات" value={topCats.length} icon={IconFolder} />
+        <StatCard label="الأقسام الفرعية" value={subCats.length} icon={IconSubtask} />
+        <StatCard label="الدروس" value={totalLessons} icon={IconBook2} />
+      </SimpleGrid>
 
       <Grid gutter="lg">
         {/* Categories tree */}
         <Grid.Col span={{ base: 12, md: 3 }}>
-          <Card withBorder radius="lg" padding="md">
-            <Text fw={700} mb="sm">
+          <Card mih={540}>
+            <Text fw={600} fz="sm">
               الفئات
             </Text>
+            <Divider my="sm" />
             <Stack gap={4}>
               {topCats.map((c) => (
                 <div key={c.id}>
@@ -229,7 +285,7 @@ export function LessonsPage() {
                     fullWidth
                     justify="space-between"
                     variant={selectedCat?.id === c.id ? "light" : "subtle"}
-                    color={c.isPremium ? "yellow" : undefined}
+                    color="gray"
                     onClick={() => void selectCategory(c)}
                   >
                     {c.title} {c.isPremium ? "🔒" : ""}
@@ -260,9 +316,11 @@ export function LessonsPage() {
 
         {/* Lessons of category */}
         <Grid.Col span={{ base: 12, md: 3 }}>
-          <Card withBorder radius="lg" padding="md">
-            <Group justify="space-between" mb="sm">
-              <Text fw={700}>دروس {selectedCat ? `«${selectedCat.title}»` : ""}</Text>
+          <Card mih={540}>
+            <Group justify="space-between">
+              <Text fw={600} fz="sm">
+                {selectedCat ? `دروس «${selectedCat.title}»` : "الدروس"}
+              </Text>
               <Button
                 size="compact-sm"
                 variant="light"
@@ -272,6 +330,7 @@ export function LessonsPage() {
                 + درس
               </Button>
             </Group>
+            <Divider my="sm" />
             <Stack gap={4}>
               {lessons.map((l) => (
                 <Button
@@ -298,10 +357,17 @@ export function LessonsPage() {
 
         {/* Sign editor */}
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder radius="lg" padding="lg">
-            <Text fw={700} mb="sm">
-              علامات {selectedLesson ? `«${selectedLesson.title}»` : "— اختر درساً"}
+          <Card mih={540} padding="lg">
+            <Text fw={600} fz="sm">
+              {selectedLesson ? `علامات «${selectedLesson.title}»` : "العلامات"}
             </Text>
+            <Divider my="sm" />
+
+            {!selectedLesson && (
+              <Text c="dimmed" size="sm" ta="center" mt="xl">
+                اختر درساً من القائمة لإضافة العلامات.
+              </Text>
+            )}
 
             {selectedLesson && (
               <>

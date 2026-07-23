@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
+import "./admin.css";
 import { AuthProvider, useAuth } from "./auth";
 import { Shell } from "./components/Shell";
 import { LessonsPage } from "./pages/LessonsPage";

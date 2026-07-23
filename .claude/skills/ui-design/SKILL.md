@@ -100,10 +100,14 @@ text right-aligned (textAlign:"right")**; controls come FIRST in JSX. No
 decorative chevrons on cards (back button ‹ only). Latin inputs stay LTR-left.
 Touch targets ≥ 44px, answer buttons ≥ 56px · dim text only for meta.
 
-## 6. Admin panel (Mantine)
-Light theme, primary = series blue, Tajawal for Arabic content previews, LTR UI is
-fine (admin is technical) but content preview components render RTL. Data-dense
-tables > cards. Every destructive action gets a confirm modal.
+## 6. Admin panel (Mantine) — shadcn/ui look (owner decision, 2026-07-23)
+The admin is its OWN neutral tool, NOT the Night Drive product palette. Match
+shadcn/ui: zinc neutral scale (`gray` + `primary` both = zinc), near-black
+primary (primaryShade light 9), hairline borders (separation by border, not
+shadow — Card withBorder + no shadow), 8px radius, Tajawal font. Light sidebar
+(#fafafa) with ghost nav items (muted → zinc-100 fill + near-black on hover/
+active, no color accent). KPI stat cards atop data pages. RTL content, Tabler
+icons. Every destructive action gets a confirm modal. No brand yellow in admin.
 
 ## 7. Consistency checklist (run mentally on every new screen)
 tokens only (no hex literals in components) · one accent per surface · spacing from

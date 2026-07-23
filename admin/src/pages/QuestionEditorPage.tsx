@@ -273,7 +273,7 @@ export function QuestionEditorPage() {
                         key={q.id}
                         bg={
                           q.id === editingId
-                            ? "var(--mantine-color-brand-0)"
+                            ? "var(--mantine-color-zinc-1)"
                             : undefined
                         }
                       >

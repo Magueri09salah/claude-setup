@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -11,6 +12,7 @@ import {
   clearSession,
   getRefreshToken,
   getStoredUser,
+  SESSION_EXPIRED_EVENT,
   storeSession,
   type SessionUser,
 } from "./api/client";
@@ -26,6 +28,14 @@ const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(getStoredUser);
+
+  // When the API client gives up on a dead session, drop the user so the
+  // guarded routes redirect to /login instead of stranding a tokenless panel.
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api<LoginResponse>("/auth/login", {

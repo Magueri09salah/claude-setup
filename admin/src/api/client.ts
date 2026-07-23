@@ -53,6 +53,15 @@ export function clearSession(): void {
   localStorage.removeItem(REFRESH_KEY);
 }
 
+export const SESSION_EXPIRED_EVENT = "tariq:session-expired";
+
+// Session is unrecoverable — clear it AND signal React to redirect to login,
+// so a dead session never leaves the panel making tokenless requests.
+function expireSession(): void {
+  clearSession();
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+}
+
 // Single-flight: concurrent 401s must share one refresh call, because the API
 // rotates refresh tokens and treats reuse of an old one as theft.
 let refreshInFlight: Promise<void> | null = null;
@@ -65,10 +74,7 @@ async function refreshSession(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
   });
-  if (!res.ok) {
-    clearSession();
-    throw new ApiError(401, "Session expired — please log in again");
-  }
+  if (!res.ok) throw new ApiError(401, "Session expired");
   const data = (await res.json()) as {
     accessToken: string;
     refreshToken: string;
@@ -106,19 +112,24 @@ export async function api<T>(
     body,
   });
 
-  if (
-    res.status === 401 &&
-    !retried &&
-    !path.startsWith("/auth/") &&
-    localStorage.getItem(REFRESH_KEY)
-  ) {
-    refreshInFlight =
-      refreshInFlight ??
-      refreshSession().finally(() => {
-        refreshInFlight = null;
-      });
-    await refreshInFlight;
-    return api<T>(path, opts, true);
+  if (res.status === 401 && !path.startsWith("/auth/")) {
+    const canRefresh = !retried && !!localStorage.getItem(REFRESH_KEY);
+    if (canRefresh) {
+      refreshInFlight =
+        refreshInFlight ??
+        refreshSession().finally(() => {
+          refreshInFlight = null;
+        });
+      try {
+        await refreshInFlight;
+        return await api<T>(path, opts, true);
+      } catch {
+        // refresh failed — fall through to expire below
+      }
+    }
+    // No refresh token, or refresh/retry still unauthorized → session is dead.
+    expireSession();
+    throw new ApiError(401, "انتهت الجلسة — سجّل الدخول من جديد");
   }
 
   if (res.status === 204) return undefined as T;

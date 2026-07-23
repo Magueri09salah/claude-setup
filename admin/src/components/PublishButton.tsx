@@ -1,4 +1,5 @@
 import { Badge, Button, Group, Modal, Text } from "@mantine/core";
+import { IconCloudUpload } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { notifyError, notifySuccess } from "../notify";
@@ -34,11 +35,15 @@ export function PublishButton() {
     <>
       <Group gap="xs">
         {version !== null && (
-          <Badge variant="outline" radius="sm">
+          <Badge variant="default" c="dimmed">
             v{version}
           </Badge>
         )}
-        <Button size="xs" onClick={() => setOpened(true)}>
+        <Button
+          size="sm"
+          leftSection={<IconCloudUpload size={16} />}
+          onClick={() => setOpened(true)}
+        >
           نشر
         </Button>
       </Group>

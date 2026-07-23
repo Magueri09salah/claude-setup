@@ -1,0 +1,53 @@
+/* shadcn/ui-style admin chrome. Light, neutral, border-based. */
+
+:root {
+  --admin-bg: #f9f9fb; /* main canvas */
+  --admin-sidebar: #fafafa; /* sidebar */
+  --zinc-100: #f4f4f5;
+  --zinc-500: #71717a;
+  --zinc-900: #18181b;
+}
+
+/* Sidebar nav — ghost items: muted, hover/active = zinc-100 fill + near-black. */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--zinc-500);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+.nav-item svg {
+  color: var(--zinc-500);
+  transition: color 150ms ease;
+}
+.nav-item:hover {
+  background-color: var(--zinc-100);
+  color: var(--zinc-900);
+}
+.nav-item:hover svg {
+  color: var(--zinc-900);
+}
+.nav-item-active,
+.nav-item-active:hover {
+  background-color: var(--zinc-100);
+  color: var(--zinc-900);
+  font-weight: 600;
+}
+.nav-item-active svg {
+  color: var(--zinc-900);
+}
+
+.nav-eyebrow {
+  font-size: 12px;
+  color: var(--zinc-500);
+  font-weight: 500;
+  padding: 0 10px;
+  margin-bottom: 8px;
+}
