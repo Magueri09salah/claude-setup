@@ -40,8 +40,14 @@ M4 lessons: block renderer (mobile) + LessonEditor (admin).
    sub-category cards, and all 5 block types (IMAGE/TEXT/LIST/INFOBOX/AUDIO) must
    use design tokens only (no hex literals), the component recipes, and pass the
    ui-design consistency checklist. Design is a deliverable of M4, not a polish pass.
-M5 payments: Payzone sandbox, Wafacash codes, webhook, gating, payment screens
-   + admin Payments page (transactions w/ status filter, pending Wafacash codes)
+M5 payments (MOCK PHASE — gateway credentials not yet received):
+   full structure with a MockProvider behind a PaymentProvider interface;
+   mobile payment screens (choose card / Wafacash cash code) as FINAL UI;
+   premium gating end-to-end; webhook route + idempotent handler;
+   + admin Users page (all registered users w/ payment status badge, filters)
+   + admin Payments page (transactions, pending Wafacash codes)
+   + admin "mark as paid" manual confirmation (audited) = simulates the webhook
+   PayzoneProvider stays a TODO stub until the client provides merchant docs.
 M6 lives: CRUD + cron + Expo push + home banner
    + admin Users page (search, premium, device count, block) + Dashboard
      (users, revenue, attempts, push reach)
@@ -51,5 +57,4 @@ M6 lives: CRUD + cron + Expo push + home banner
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-M1–M3 done + "Night Drive" design system (see git log; SDK 54 pinned for owner's Expo Go).
-M4 done — lessons: categories/sub-cats + lesson = GRID of sign flashcards (image+name+audio, offline, RTL); admin LessonEditor (categories tree + signs w/ image/audio upload, reorder, delete) + seeded lesson. (Reworked from block/article to sign-grid per owner, 2026-07-22.) Next: M5 (payments).
+Not started. Next: M1.
