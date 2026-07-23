@@ -35,7 +35,11 @@ Driving-license exam prep app (Morocco, Arabic/Darija, RTL). Monorepo:
 M1 api: schema+auth+R2+admin guards · admin: login, Series, QuestionEditor, Publish
 M2 mobile: init, RTL, auth screens, Home, SQLite, sync engine (resumable)
 M3 mobile: quiz engine + results + attempts + progress
-M4 lessons: block renderer (mobile) + LessonEditor (admin)
+M4 lessons: block renderer (mobile) + LessonEditor (admin).
+   MANDATORY: apply the ui-design skill to EVERY lessons screen — category grid,
+   sub-category cards, and all 5 block types (IMAGE/TEXT/LIST/INFOBOX/AUDIO) must
+   use design tokens only (no hex literals), the component recipes, and pass the
+   ui-design consistency checklist. Design is a deliverable of M4, not a polish pass.
 M5 payments: Payzone sandbox, Wafacash codes, webhook, gating, payment screens
    + admin Payments page (transactions w/ status filter, pending Wafacash codes)
 M6 lives: CRUD + cron + Expo push + home banner
@@ -47,5 +51,5 @@ M6 lives: CRUD + cron + Expo push + home banner
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-M1 + M2 done. M3 done — mobile: quiz engine (30s timer, toggle multi-select, ✓/timeout auto-submit, exact-set scoring, 1.5s feedback), results (score ring, verdict, review), progress (best/history/weakest), attempts→SQLite + POST /attempts (idempotent). Pinned to Expo SDK 54 (owner's iPhone Expo Go).
-Next: M4 (lessons: block renderer mobile + LessonEditor admin).
+M1–M3 done + "Night Drive" design system (see git log; SDK 54 pinned for owner's Expo Go).
+M4 done — lessons: categories/sub-cats + lesson = GRID of sign flashcards (image+name+audio, offline, RTL); admin LessonEditor (categories tree + signs w/ image/audio upload, reorder, delete) + seeded lesson. (Reworked from block/article to sign-grid per owner, 2026-07-22.) Next: M5 (payments).

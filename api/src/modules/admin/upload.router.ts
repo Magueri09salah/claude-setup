@@ -40,13 +40,30 @@ uploadRouter.post("/", upload.single("file"), async (req, res) => {
     );
   }
 
-  const series = await prisma.series.findUnique({
-    where: { id: fields.seriesId },
-  });
-  if (!series) throw new ApiError(404, "Series not found");
+  // Resolve the target and its immutable base key.
+  let base: string;
+  if (fields.seriesId !== undefined) {
+    const series = await prisma.series.findUnique({
+      where: { id: fields.seriesId },
+    });
+    if (!series) throw new ApiError(404, "Series not found");
+    base = `questions/${fields.seriesId}/${fields.orderNum}`;
+  } else if (fields.lessonId !== undefined) {
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: fields.lessonId },
+    });
+    if (!lesson) throw new ApiError(404, "Lesson not found");
+    base = `lessons/${fields.lessonId}/${fields.slot}`;
+  } else {
+    const category = await prisma.lessonCategory.findUnique({
+      where: { id: fields.categoryId! },
+    });
+    if (!category) throw new ApiError(404, "Category not found");
+    // Icons stay visible to free users (locked teasers), so they get their own prefix.
+    base = `lessons/icons/${fields.categoryId}`;
+  }
 
   // Media convention: keys are immutable. Replacements get _v2, _v3, …
-  const base = `questions/${fields.seriesId}/${fields.orderNum}`;
   let key = `${base}.${spec.ext}`;
   for (let v = 2; await storage.exists(key); v++) {
     key = `${base}_v${v}.${spec.ext}`;

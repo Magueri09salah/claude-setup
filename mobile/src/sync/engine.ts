@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { api, apiFetch } from "../api/client";
-import type { ApiQuestion, Manifest } from "../api/types";
+import type { ApiQuestion, ApiSign, Manifest } from "../api/types";
 import { db, getMeta, setMeta, type QuestionRow } from "../db";
 
 // Sync engine (see architecture skill):
@@ -112,6 +112,16 @@ export async function runSync(
 
     // 2. Upsert series and prune anything absent from the manifest.
     const since = getMeta("last_sync");
+    // Captured BEFORE the upsert so we can detect changed lessons afterwards.
+    const localLessonState = new Map(
+      db
+        .getAllSync<{ id: number; updated_at: string; n: number }>(
+          `SELECT l.id, l.updated_at, COUNT(s.id) AS n
+             FROM lessons l LEFT JOIN lesson_signs s ON s.lesson_id = l.id
+            GROUP BY l.id`,
+        )
+        .map((r) => [r.id, r]),
+    );
     const serverIds = manifest.series.map((s) => s.id);
     db.withTransactionSync(() => {
       if (serverIds.length === 0) {
@@ -148,6 +158,88 @@ export async function runSync(
       if (lockedIds.length > 0) {
         const ph = lockedIds.map(() => "?").join(",");
         db.runSync(`DELETE FROM questions WHERE series_id IN (${ph})`, ...lockedIds);
+      }
+
+      // Lesson categories: upsert + prune (teaser rows stay for locked ones).
+      const catIds = manifest.lessonCategories.map((c) => c.id);
+      if (catIds.length === 0) {
+        db.runSync("DELETE FROM lesson_blocks");
+        db.runSync("DELETE FROM lessons");
+        db.runSync("DELETE FROM lesson_categories");
+      } else {
+        const ph = catIds.map(() => "?").join(",");
+        db.runSync(
+          `DELETE FROM lesson_categories WHERE id NOT IN (${ph})`,
+          ...catIds,
+        );
+      }
+      for (const c of manifest.lessonCategories) {
+        db.runSync(
+          `INSERT INTO lesson_categories
+             (id, parent_id, title, icon_key, order_num, is_premium, locked)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             parent_id = excluded.parent_id,
+             title = excluded.title,
+             icon_path = CASE WHEN lesson_categories.icon_key = excluded.icon_key
+                              THEN lesson_categories.icon_path ELSE NULL END,
+             icon_key = excluded.icon_key,
+             order_num = excluded.order_num,
+             is_premium = excluded.is_premium,
+             locked = excluded.locked`,
+          c.id,
+          c.parentId,
+          c.title,
+          c.iconKey,
+          c.orderNum,
+          c.isPremium ? 1 : 0,
+          c.locked ? 1 : 0,
+        );
+      }
+
+      // Lessons: upsert + prune; locked lessons keep the row, lose the signs.
+      const lessonIds = manifest.lessons.map((l) => l.id);
+      if (lessonIds.length === 0) {
+        db.runSync("DELETE FROM lesson_signs");
+        db.runSync("DELETE FROM lessons");
+      } else {
+        const ph = lessonIds.map(() => "?").join(",");
+        db.runSync(
+          `DELETE FROM lesson_signs WHERE lesson_id NOT IN (${ph})`,
+          ...lessonIds,
+        );
+        db.runSync(`DELETE FROM lessons WHERE id NOT IN (${ph})`, ...lessonIds);
+      }
+      for (const l of manifest.lessons) {
+        db.runSync(
+          `INSERT INTO lessons
+             (id, category_id, title, order_num, updated_at, sign_count, locked)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             category_id = excluded.category_id,
+             title = excluded.title,
+             order_num = excluded.order_num,
+             updated_at = excluded.updated_at,
+             sign_count = excluded.sign_count,
+             locked = excluded.locked`,
+          l.id,
+          l.categoryId,
+          l.title,
+          l.orderNum,
+          l.updatedAt,
+          l.signCount,
+          l.locked ? 1 : 0,
+        );
+      }
+      const lockedLessonIds = manifest.lessons
+        .filter((l) => l.locked)
+        .map((l) => l.id);
+      if (lockedLessonIds.length > 0) {
+        const ph = lockedLessonIds.map(() => "?").join(",");
+        db.runSync(
+          `DELETE FROM lesson_signs WHERE lesson_id IN (${ph})`,
+          ...lockedLessonIds,
+        );
       }
     });
 
@@ -190,14 +282,77 @@ export async function runSync(
       onProgress?.({ phase: "data", done: fetched, total: unlocked.length });
     }
 
+    // 3b. Fetch signs for new/changed unlocked lessons (full replace per lesson).
+    for (const l of manifest.lessons.filter((x) => !x.locked)) {
+      const prev = localLessonState.get(l.id);
+      const changed =
+        !prev || prev.updated_at !== l.updatedAt || prev.n !== l.signCount;
+      if (!changed) continue;
+      const { signs } = await api<{ signs: ApiSign[] }>(
+        `/content/lessons/${l.id}/signs`,
+      );
+      db.withTransactionSync(() => {
+        db.runSync("DELETE FROM lesson_signs WHERE lesson_id = ?", l.id);
+        for (const s of signs) {
+          db.runSync(
+            `INSERT INTO lesson_signs
+               (id, lesson_id, order_num, name, image_key, audio_key, image_path, audio_path)
+             VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)`,
+            s.id,
+            s.lessonId,
+            s.orderNum,
+            s.name,
+            s.imageKey,
+            s.audioKey,
+          );
+        }
+      });
+    }
+
     // 4. Download missing media, batching signed URLs 20 keys at a time.
     const pending = db.getAllSync<QuestionRow>(
       "SELECT * FROM questions WHERE downloaded = 0",
     );
-    const jobs: { questionId: number; key: string; kind: "image" | "audio" }[] = [];
+    // A job = one file to fetch + the UPDATE that records its local path.
+    const jobs: { key: string; sql: string; id: number }[] = [];
     for (const q of pending) {
-      jobs.push({ questionId: q.id, key: q.image_key, kind: "image" });
-      jobs.push({ questionId: q.id, key: q.audio_key, kind: "audio" });
+      jobs.push({
+        key: q.image_key,
+        sql: "UPDATE questions SET image_path = ? WHERE id = ?",
+        id: q.id,
+      });
+      jobs.push({
+        key: q.audio_key,
+        sql: "UPDATE questions SET audio_path = ? WHERE id = ?",
+        id: q.id,
+      });
+    }
+    for (const s of db.getAllSync<{ id: number; image_key: string }>(
+      "SELECT id, image_key FROM lesson_signs WHERE image_path IS NULL",
+    )) {
+      jobs.push({
+        key: s.image_key,
+        sql: "UPDATE lesson_signs SET image_path = ? WHERE id = ?",
+        id: s.id,
+      });
+    }
+    for (const s of db.getAllSync<{ id: number; audio_key: string }>(
+      "SELECT id, audio_key FROM lesson_signs WHERE audio_key IS NOT NULL AND audio_path IS NULL",
+    )) {
+      jobs.push({
+        key: s.audio_key,
+        sql: "UPDATE lesson_signs SET audio_path = ? WHERE id = ?",
+        id: s.id,
+      });
+    }
+    for (const c of db.getAllSync<{ id: number; icon_key: string }>(
+      "SELECT id, icon_key FROM lesson_categories WHERE icon_key IS NOT NULL AND icon_path IS NULL",
+    )) {
+      jobs.push({
+        key: c.icon_key,
+        sql: "UPDATE lesson_categories SET icon_path = ? WHERE id = ?",
+        id: c.id,
+      });
     }
     const total = jobs.length;
     let done = 0;
@@ -224,11 +379,7 @@ export async function runSync(
             if (!url) throw new Error("missing url");
             await File.downloadFileAsync(url, file);
           }
-          db.runSync(
-            `UPDATE questions SET ${job.kind === "image" ? "image_path" : "audio_path"} = ? WHERE id = ?`,
-            file.uri,
-            job.questionId,
-          );
+          db.runSync(job.sql, file.uri, job.id);
         } catch {
           failed += 1;
         }
@@ -244,7 +395,12 @@ export async function runSync(
     // 5. Flip the local version ONLY when everything is on disk.
     const remaining =
       db.getFirstSync<{ n: number }>(
-        "SELECT COUNT(*) AS n FROM questions WHERE downloaded = 0",
+        `SELECT (SELECT COUNT(*) FROM questions WHERE downloaded = 0)
+              + (SELECT COUNT(*) FROM lesson_signs WHERE image_path IS NULL)
+              + (SELECT COUNT(*) FROM lesson_signs
+                  WHERE audio_key IS NOT NULL AND audio_path IS NULL)
+              + (SELECT COUNT(*) FROM lesson_categories
+                  WHERE icon_key IS NOT NULL AND icon_path IS NULL) AS n`,
       )?.n ?? 0;
     if (failed === 0 && remaining === 0) {
       setMeta("content_version", String(manifest.version));

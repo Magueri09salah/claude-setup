@@ -80,6 +80,7 @@ export default function HomeScreen() {
             subtitle="قواعد السير مشروحة بالدارجة"
             emoji="📖"
             accent={colors.lessons}
+            onPress={() => router.push("/lessons")}
           />
           <FeatureCard
             title="سلاسل الدروس"

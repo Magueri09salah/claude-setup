@@ -15,11 +15,40 @@ export interface ManifestSeries {
   questionCount: number;
 }
 
+export interface ManifestCategory {
+  id: number;
+  parentId: number | null;
+  title: string;
+  iconKey: string | null;
+  orderNum: number;
+  isPremium: boolean;
+  locked: boolean;
+}
+
+export interface ManifestLesson {
+  id: number;
+  categoryId: number;
+  title: string;
+  orderNum: number;
+  updatedAt: string;
+  signCount: number;
+  locked: boolean;
+}
+
 export interface Manifest {
   version: number;
   series: ManifestSeries[];
-  lessonCategories: unknown[];
-  lessons: unknown[];
+  lessonCategories: ManifestCategory[];
+  lessons: ManifestLesson[];
+}
+
+export interface ApiSign {
+  id: number;
+  lessonId: number;
+  orderNum: number;
+  name: string;
+  imageKey: string;
+  audioKey: string | null;
 }
 
 export interface ApiQuestion {

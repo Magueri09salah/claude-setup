@@ -6,6 +6,7 @@ import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { AuthProvider, useAuth } from "./auth";
 import { Shell } from "./components/Shell";
+import { LessonsPage } from "./pages/LessonsPage";
 import { LoginPage } from "./pages/Login";
 import { QuestionEditorPage } from "./pages/QuestionEditorPage";
 import { SeriesPage } from "./pages/SeriesPage";
@@ -35,6 +36,7 @@ export default function App() {
               >
                 <Route path="/series" element={<SeriesPage />} />
                 <Route path="/questions" element={<QuestionEditorPage />} />
+                <Route path="/lessons" element={<LessonsPage />} />
                 <Route path="/" element={<Navigate to="/series" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

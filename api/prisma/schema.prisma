@@ -27,14 +27,6 @@ enum PayStatus {
   EXPIRED
 }
 
-enum BlockType {
-  IMAGE
-  TEXT
-  LIST
-  INFOBOX
-  AUDIO
-}
-
 enum Platform {
   YOUTUBE
   FACEBOOK
@@ -131,18 +123,21 @@ model Lesson {
   orderNum   Int
   updatedAt  DateTime       @updatedAt
   category   LessonCategory @relation(fields: [categoryId], references: [id])
-  blocks     LessonBlock[]
+  signs      LessonSign[]
 }
 
-// payload: TEXT {text} · LIST {items[]} · INFOBOX {title,text,tone} · IMAGE/AUDIO {caption}
-model LessonBlock {
-  id       Int       @id @default(autoincrement())
+// A lesson is a grid of sign flashcards: image + Arabic name + audio explanation
+// (owner decision, 2026-07-22; replaced the earlier block/article model).
+model LessonSign {
+  id       Int     @id @default(autoincrement())
   lessonId Int
   orderNum Int
-  type     BlockType
-  payload  Json
-  mediaKey String?
-  lesson   Lesson    @relation(fields: [lessonId], references: [id])
+  name     String
+  imageKey String
+  audioKey String?
+  lesson   Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
 }
 
 model Payment {

@@ -82,8 +82,73 @@ async function main() {
     });
   }
 
+  // ---- M4: lesson categories + one lesson with all 5 block types ----
+  let signage = await prisma.lessonCategory.findFirst({
+    where: { title: "التشوير" },
+  });
+  signage ??= await prisma.lessonCategory.create({
+    data: { title: "التشوير", orderNum: 1, isPremium: false },
+  });
+  let prohibition = await prisma.lessonCategory.findFirst({
+    where: { title: "علامات المنع" },
+  });
+  prohibition ??= await prisma.lessonCategory.create({
+    data: {
+      title: "علامات المنع",
+      parentId: signage.id,
+      orderNum: 2,
+      isPremium: false,
+    },
+  });
+
+  // Teaser icons for both categories (visible even when locked).
+  for (const cat of [signage, prohibition]) {
+    const iconKey = `lessons/icons/${cat.id}.webp`;
+    await storage.put(iconKey, PLACEHOLDER_WEBP, "image/webp");
+    await prisma.lessonCategory.update({
+      where: { id: cat.id },
+      data: { iconKey },
+    });
+  }
+
+  // A lesson = a grid of sign flashcards (image + name + audio).
+  let lesson = await prisma.lesson.findFirst({
+    where: { categoryId: prohibition.id },
+  });
+  lesson ??= await prisma.lesson.create({
+    data: { categoryId: prohibition.id, title: "علامات المنع", orderNum: 1 },
+  });
+  const existingSigns = await prisma.lessonSign.count({
+    where: { lessonId: lesson.id },
+  });
+  if (existingSigns === 0) {
+    const signSpecs = [
+      "ممنوع تجاوز 60 كلم",
+      "ممنوع تجاوز 80 كلم",
+      "ممنوع الانعطاف نحو اليمين",
+      "ممنوع الوقوف",
+    ];
+    let slot = 1;
+    const data = [];
+    for (const [i, name] of signSpecs.entries()) {
+      const imageKey = `lessons/${lesson.id}/${slot++}.webp`;
+      const audioKey = `lessons/${lesson.id}/${slot++}.mp3`;
+      await storage.put(imageKey, PLACEHOLDER_WEBP, "image/webp");
+      await storage.put(audioKey, mp3, "audio/mpeg");
+      data.push({ lessonId: lesson.id, orderNum: i + 1, name, imageKey, audioKey });
+    }
+    await prisma.lessonSign.createMany({ data });
+    // Bump the content version so already-synced phones fetch the new lessons.
+    await prisma.contentVersion.upsert({
+      where: { id: 1 },
+      update: { version: { increment: 1 } },
+      create: { id: 1, version: 1 },
+    });
+  }
+
+  const signCount = await prisma.lessonSign.count({ where: { lessonId: lesson.id } });
   console.log(
-    `Seeded: admin ${adminEmail}, ${series.length} series, ${questionSpecs.length} questions (storage: ${storage.kind})`,
+    `Seeded: admin ${adminEmail}, ${series.length} series, ${questionSpecs.length} questions, 2 categories + lesson "${lesson.title}" with ${signCount} signs (storage: ${storage.kind})`,
   );
 }
 

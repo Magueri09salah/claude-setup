@@ -36,8 +36,10 @@ export function migrate(): void {
       parent_id INTEGER,
       title TEXT NOT NULL,
       icon_key TEXT,
+      icon_path TEXT,
       order_num INTEGER NOT NULL,
-      is_premium INTEGER NOT NULL DEFAULT 0
+      is_premium INTEGER NOT NULL DEFAULT 0,
+      locked INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS lessons (
@@ -45,18 +47,22 @@ export function migrate(): void {
       category_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       order_num INTEGER NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      sign_count INTEGER NOT NULL DEFAULT 0,
+      locked INTEGER NOT NULL DEFAULT 0
     );
 
-    CREATE TABLE IF NOT EXISTS lesson_blocks (
+    CREATE TABLE IF NOT EXISTS lesson_signs (
       id INTEGER PRIMARY KEY,
       lesson_id INTEGER NOT NULL,
       order_num INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      payload TEXT NOT NULL,
-      media_key TEXT,
-      media_path TEXT
+      name TEXT NOT NULL,
+      image_key TEXT NOT NULL,
+      audio_key TEXT,
+      image_path TEXT,
+      audio_path TEXT
     );
+    CREATE INDEX IF NOT EXISTS idx_signs_lesson ON lesson_signs(lesson_id);
 
     CREATE TABLE IF NOT EXISTS attempts (
       id TEXT PRIMARY KEY,
@@ -74,6 +80,23 @@ export function migrate(): void {
       value TEXT NOT NULL
     );
   `);
+
+  // Columns added in M4 — guarded ALTERs for databases created by M2 installs.
+  for (const ddl of [
+    "ALTER TABLE lesson_categories ADD COLUMN icon_path TEXT",
+    "ALTER TABLE lesson_categories ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE lessons ADD COLUMN block_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE lessons ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
+    // M4 v2: lessons are grids of signs, not blocks.
+    "ALTER TABLE lessons ADD COLUMN sign_count INTEGER NOT NULL DEFAULT 0",
+    "DROP TABLE IF EXISTS lesson_blocks",
+  ]) {
+    try {
+      db.execSync(ddl);
+    } catch {
+      // column already exists / table already gone
+    }
+  }
 }
 
 export function getMeta(key: string): string | null {

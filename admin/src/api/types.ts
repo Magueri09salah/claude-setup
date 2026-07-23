@@ -24,3 +24,30 @@ export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface Category {
+  id: number;
+  parentId: number | null;
+  title: string;
+  iconKey: string | null;
+  orderNum: number;
+  isPremium: boolean;
+  _count?: { lessons: number; children: number };
+}
+
+export interface Lesson {
+  id: number;
+  categoryId: number;
+  title: string;
+  orderNum: number;
+  _count?: { signs: number };
+}
+
+export interface Sign {
+  id: number;
+  lessonId: number;
+  orderNum: number;
+  name: string;
+  imageKey: string;
+  audioKey: string | null;
+}

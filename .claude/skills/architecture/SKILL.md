@@ -11,7 +11,6 @@ description: Source of truth for the driving-app backend and data layer — full
 enum Role { USER ADMIN }
 enum PayMethod { ONLINE WAFACASH }
 enum PayStatus { PENDING PAID FAILED EXPIRED }
-enum BlockType { IMAGE TEXT LIST INFOBOX AUDIO }
 enum Platform { YOUTUBE FACEBOOK TIKTOK INSTAGRAM }
 enum LiveStatus { SCHEDULED LIVE ENDED CANCELLED }
 
@@ -42,12 +41,14 @@ model LessonCategory { id Int @id @default(autoincrement())  parentId Int?
 model Lesson { id Int @id @default(autoincrement())  categoryId Int  title String
   orderNum Int  updatedAt DateTime @updatedAt
   category LessonCategory @relation(fields:[categoryId], references:[id])
-  blocks LessonBlock[] }
+  signs LessonSign[] }
 
-model LessonBlock { id Int @id @default(autoincrement())  lessonId Int  orderNum Int
-  type BlockType  payload Json  mediaKey String?
-  lesson Lesson @relation(fields:[lessonId], references:[id]) }
-  // payload: TEXT {text} · LIST {items[]} · INFOBOX {title,text,tone} · IMAGE/AUDIO {caption}
+// A lesson is a GRID of sign flashcards: image + Arabic name + audio explanation
+// (owner decision 2026-07-22; replaced the earlier LessonBlock/article model).
+model LessonSign { id Int @id @default(autoincrement())  lessonId Int  orderNum Int
+  name String  imageKey String  audioKey String?
+  lesson Lesson @relation(fields:[lessonId], references:[id], onDelete: Cascade)
+  @@index([lessonId]) }
 
 model Payment { id String @id @default(uuid())  userId String  method PayMethod
   amount Decimal  currency String @default("MAD")  status PayStatus @default(PENDING)

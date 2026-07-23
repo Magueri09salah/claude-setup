@@ -32,10 +32,21 @@ contentRouter.get("/manifest", async (req, res) => {
     return;
   }
 
-  const series = await prisma.series.findMany({
-    orderBy: { orderNum: "asc" },
-    include: { _count: { select: { questions: true } } },
-  });
+  const [series, categories, lessons] = await Promise.all([
+    prisma.series.findMany({
+      orderBy: { orderNum: "asc" },
+      include: { _count: { select: { questions: true } } },
+    }),
+    prisma.lessonCategory.findMany({ orderBy: { orderNum: "asc" } }),
+    prisma.lesson.findMany({
+      orderBy: { orderNum: "asc" },
+      include: { _count: { select: { signs: true } } },
+    }),
+  ]);
+
+  const lockedCategoryIds = new Set(
+    categories.filter((c) => c.isPremium && !premium).map((c) => c.id),
+  );
 
   res.json({
     version,
@@ -47,10 +58,50 @@ contentRouter.get("/manifest", async (req, res) => {
       locked: s.isPremium && !premium,
       questionCount: s._count.questions,
     })),
-    // Lessons land in M4 — empty for now so the client shape is stable.
-    lessonCategories: [],
-    lessons: [],
+    lessonCategories: categories.map((c) => ({
+      id: c.id,
+      parentId: c.parentId,
+      title: c.title,
+      iconKey: c.iconKey,
+      orderNum: c.orderNum,
+      isPremium: c.isPremium,
+      locked: lockedCategoryIds.has(c.id),
+    })),
+    lessons: lessons.map((l) => ({
+      id: l.id,
+      categoryId: l.categoryId,
+      title: l.title,
+      orderNum: l.orderNum,
+      updatedAt: l.updatedAt,
+      signCount: l._count.signs,
+      locked: lockedCategoryIds.has(l.categoryId),
+    })),
   });
+});
+
+contentRouter.get("/lessons/:id/signs", async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const lesson = await prisma.lesson.findUnique({
+    where: { id },
+    include: { category: { select: { isPremium: true } } },
+  });
+  if (!lesson) throw new ApiError(404, "Lesson not found");
+  if (lesson.category.isPremium && !(await getPremiumStatus(req.auth!.userId))) {
+    throw new ApiError(403, "Premium content locked");
+  }
+  const signs = await prisma.lessonSign.findMany({
+    where: { lessonId: id },
+    orderBy: { orderNum: "asc" },
+    select: {
+      id: true,
+      lessonId: true,
+      orderNum: true,
+      name: true,
+      imageKey: true,
+      audioKey: true,
+    },
+  });
+  res.json({ signs });
 });
 
 const questionsQuery = z.strictObject({
@@ -90,7 +141,12 @@ contentRouter.get("/series/:id/questions", async (req, res) => {
 // Sync engine requests signed URLs in batches of 20.
 const mediaUrlsSchema = z.strictObject({
   keys: z
-    .array(z.string().max(300).regex(/^questions\/\d+\/[A-Za-z0-9._-]+$/))
+    .array(
+      z
+        .string()
+        .max(300)
+        .regex(/^(questions|lessons)\/[A-Za-z0-9/_.-]+$/),
+    )
     .min(1)
     .max(20),
 });
@@ -99,24 +155,38 @@ contentRouter.post("/media-urls", async (req, res) => {
   const { keys } = mediaUrlsSchema.parse(req.body);
   const premium = await getPremiumStatus(req.auth!.userId);
 
-  const questions = await prisma.question.findMany({
-    where: {
-      OR: [{ imageKey: { in: keys } }, { audioKey: { in: keys } }],
-    },
-    select: {
-      imageKey: true,
-      audioKey: true,
-      series: { select: { isPremium: true } },
-    },
-  });
+  const [questions, signs] = await Promise.all([
+    prisma.question.findMany({
+      where: { OR: [{ imageKey: { in: keys } }, { audioKey: { in: keys } }] },
+      select: {
+        imageKey: true,
+        audioKey: true,
+        series: { select: { isPremium: true } },
+      },
+    }),
+    prisma.lessonSign.findMany({
+      where: { OR: [{ imageKey: { in: keys } }, { audioKey: { in: keys } }] },
+      select: {
+        imageKey: true,
+        audioKey: true,
+        lesson: { select: { category: { select: { isPremium: true } } } },
+      },
+    }),
+  ]);
 
   const keyPremium = new Map<string, boolean>();
   for (const q of questions) {
     keyPremium.set(q.imageKey, q.series.isPremium);
     keyPremium.set(q.audioKey, q.series.isPremium);
   }
+  for (const s of signs) {
+    keyPremium.set(s.imageKey, s.lesson.category.isPremium);
+    if (s.audioKey) keyPremium.set(s.audioKey, s.lesson.category.isPremium);
+  }
 
   for (const key of keys) {
+    // Category icons are teaser-visible to everyone (locked cards show them).
+    if (key.startsWith("lessons/icons/")) continue;
     const isPremiumKey = keyPremium.get(key);
     if (isPremiumKey === undefined) throw new ApiError(404, `Unknown key: ${key}`);
     // Security checklist: signed URLs only for keys the user is entitled to.

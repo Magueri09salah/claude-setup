@@ -6,6 +6,7 @@ import { PublishButton } from "./PublishButton";
 const NAV = [
   { to: "/series", label: "السلاسل" },
   { to: "/questions", label: "محرر الأسئلة" },
+  { to: "/lessons", label: "الدروس" },
 ];
 
 export function Shell() {
