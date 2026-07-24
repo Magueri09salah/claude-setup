@@ -167,6 +167,31 @@ model Attempt {
   user        User     @relation(fields: [userId], references: [id])
 }
 
+// Every admin action that changes money/premium state is recorded here.
+model AuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String // mark_paid | grant_premium | revoke_premium
+  targetType String // payment | user
+  targetId   String
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+}
+
+// Webhook idempotency + payload log. Same (provider,eventId) twice = one effect.
+model WebhookEvent {
+  id        String   @id @default(uuid())
+  provider  String
+  eventId   String
+  payload   Json
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+}
+
 model ContentVersion {
   id        Int      @id @default(1)
   version   Int

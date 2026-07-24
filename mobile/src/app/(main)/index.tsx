@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -42,6 +42,13 @@ export default function HomeScreen() {
   useEffect(() => {
     void doSync();
   }, [doSync]);
+
+  // Re-read local content on focus so a premium unlock (after payment) shows.
+  useFocusEffect(
+    useCallback(() => {
+      setSeries(listSeries());
+    }, []),
+  );
 
   if (firstLaunch && syncing) {
     return <FirstSyncScreen progress={progress} />;
@@ -126,12 +133,13 @@ export default function HomeScreen() {
             return (
               <Pressable
                 key={s.id}
-                disabled={locked}
-                onPress={() => router.push(`/quiz/${s.id}`)}
+                onPress={() =>
+                  router.push(locked ? "/payment" : `/quiz/${s.id}`)
+                }
                 style={({ pressed }) => [
                   styles.seriesCard,
                   locked && styles.lockedCard,
-                  pressed && !locked && { transform: [{ scale: 0.98 }] },
+                  pressed && { transform: [{ scale: 0.98 }] },
                 ]}
               >
                 {locked && (

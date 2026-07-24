@@ -12,6 +12,7 @@ import {
   getRefreshToken,
   hydrateSession,
   storeSession,
+  updateStoredUser,
   type SessionUser,
 } from "../api/client";
 import type { LoginResponse } from "../api/types";
@@ -22,6 +23,8 @@ interface AuthValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, phone?: string) => Promise<void>;
   logout: () => Promise<void>;
+  // Re-fetch the current user (premium may have flipped after a payment).
+  refreshUser: () => Promise<SessionUser | null>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -69,8 +72,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await api<{ user: SessionUser }>("/auth/me");
+      await updateStoredUser(res.user);
+      setUser(res.user);
+      return res.user;
+    } catch {
+      return null;
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, hydrated, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, hydrated, login, register, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -18,6 +18,13 @@ const envSchema = z.object({
   R2_ACCESS_KEY_ID: optionalVar,
   R2_SECRET_ACCESS_KEY: optionalVar,
   R2_BUCKET: optionalVar,
+  // Payments (mock phase). PayzoneProvider plugs in later without screen changes.
+  PAYMENT_PROVIDER: z.enum(["mock", "payzone"]).default("mock"),
+  MOCK_WEBHOOK_SECRET: z.string().min(8).default("dev-mock-webhook-secret"),
+  PRICE_AMOUNT: z.coerce.number().positive().default(99),
+  PRICE_CURRENCY: z.string().default("MAD"),
+  // Access duration in days; 0 = lifetime (placeholder until client confirms).
+  PRICE_DURATION_DAYS: z.coerce.number().int().min(0).default(0),
 });
 
 export const env = envSchema.parse(process.env);

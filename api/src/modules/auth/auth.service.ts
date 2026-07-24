@@ -23,8 +23,17 @@ function publicUser(user: User) {
     email: user.email,
     phone: user.phone,
     role: user.role,
-    isPremium: user.isPremium,
+    // Effective premium: active flag AND unexpired (premiumUntil null = lifetime).
+    isPremium:
+      user.isPremium &&
+      (user.premiumUntil === null || user.premiumUntil > new Date()),
   };
+}
+
+export async function getMe(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new ApiError(401, "Unknown user");
+  return publicUser(user);
 }
 
 function signAccessToken(user: Pick<User, "id" | "role">): string {

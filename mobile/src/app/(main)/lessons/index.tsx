@@ -37,8 +37,9 @@ export default function LessonsHomeScreen() {
             return (
               <PressableScale
                 key={c.id}
-                disabled={locked}
-                onPress={() => openCategory(c.id)}
+                onPress={() =>
+                  locked ? router.push("/payment") : openCategory(c.id)
+                }
                 style={[styles.row, locked && styles.lockedRow]}
               >
                 <View style={[styles.chip, { backgroundColor: `${accent}26` }]}>

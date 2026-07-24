@@ -51,3 +51,35 @@ export interface Sign {
   imageKey: string;
   audioKey: string | null;
 }
+
+export type UserStatus = "paid" | "pending" | "free";
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  phone: string | null;
+  role: "USER" | "ADMIN";
+  isPremium: boolean;
+  premiumUntil: string | null;
+  createdAt: string;
+  deviceCount: number;
+  status: UserStatus;
+  method: "ONLINE" | "WAFACASH" | null;
+  lastPaidAt: string | null;
+}
+
+export type PayStatus = "PENDING" | "PAID" | "FAILED" | "EXPIRED";
+
+export interface AdminPayment {
+  id: string;
+  userEmail: string;
+  userPhone: string | null;
+  method: "ONLINE" | "WAFACASH";
+  amount: number;
+  currency: string;
+  status: PayStatus;
+  wafacashCode: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  expiresAt: string | null;
+}

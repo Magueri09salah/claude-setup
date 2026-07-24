@@ -57,4 +57,5 @@ M6 lives: CRUD + cron + Expo push + home banner
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-Not started. Next: M1.
+M1–M4 done + Night Drive design (mobile) / shadcn admin. SDK 54 pinned for owner's Expo Go.
+M5 done (MOCK PHASE): PaymentProvider+MockProvider (fake pay page) / PayzoneProvider stub via PAYMENT_PROVIDER env; mobile payment screens (card + Wafacash); premium gating (manifest + signed-URL refusal); idempotent webhook; admin Users+Payments pages + audited mark-paid. Next: M6 (lives) OR implement PayzoneProvider when merchant docs arrive.

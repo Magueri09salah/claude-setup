@@ -36,8 +36,9 @@ export default function CategoryScreen() {
               return (
                 <PressableScale
                   key={c.id}
-                  disabled={locked}
-                  onPress={() => openCategory(c.id)}
+                  onPress={() =>
+                    locked ? router.push("/payment") : openCategory(c.id)
+                  }
                   style={[styles.gridCard, locked && styles.locked]}
                 >
                   {c.icon_path ? (
@@ -68,8 +69,9 @@ export default function CategoryScreen() {
           return (
             <PressableScale
               key={l.id}
-              disabled={locked}
-              onPress={() => router.push(`/lesson/${l.id}`)}
+              onPress={() =>
+                locked ? router.push("/payment") : router.push(`/lesson/${l.id}`)
+              }
               style={[styles.lessonRow, locked && styles.locked]}
             >
               <View style={styles.lessonChip}>

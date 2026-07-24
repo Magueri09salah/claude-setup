@@ -9,8 +9,7 @@ export default function ExamListScreen() {
   const series = listSeries();
 
   const open = (s: SeriesRow) => {
-    if (s.locked === 1) return;
-    router.push(`/quiz/${s.id}`);
+    router.push(s.locked === 1 ? "/payment" : `/quiz/${s.id}`);
   };
 
   return (

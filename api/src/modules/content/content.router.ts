@@ -12,10 +12,14 @@ contentRouter.use(requireAuth);
 async function getPremiumStatus(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isPremium: true },
+    select: { isPremium: true, premiumUntil: true },
   });
   if (!user) throw new ApiError(401, "Unknown user");
-  return user.isPremium;
+  // Premium is active only while unexpired (premiumUntil null = lifetime).
+  return (
+    user.isPremium &&
+    (user.premiumUntil === null || user.premiumUntil > new Date())
+  );
 }
 
 // Manifest: everything the client needs to decide what to sync. Premium items

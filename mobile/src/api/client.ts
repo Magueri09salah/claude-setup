@@ -59,6 +59,11 @@ export async function storeSession(
   ]);
 }
 
+// Update just the stored user (e.g. premium flipped after a payment settles).
+export async function updateStoredUser(user: SessionUser): Promise<void> {
+  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+}
+
 export async function clearSession(): Promise<void> {
   accessToken = null;
   refreshToken = null;

@@ -9,8 +9,10 @@ import { AuthProvider, useAuth } from "./auth";
 import { Shell } from "./components/Shell";
 import { LessonsPage } from "./pages/LessonsPage";
 import { LoginPage } from "./pages/Login";
+import { PaymentsPage } from "./pages/PaymentsPage";
 import { QuestionEditorPage } from "./pages/QuestionEditorPage";
 import { SeriesPage } from "./pages/SeriesPage";
+import { UsersPage } from "./pages/UsersPage";
 import { theme } from "./theme";
 
 function RequireAdmin({ children }: { children: ReactNode }) {
@@ -38,6 +40,8 @@ export default function App() {
                 <Route path="/series" element={<SeriesPage />} />
                 <Route path="/questions" element={<QuestionEditorPage />} />
                 <Route path="/lessons" element={<LessonsPage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/payments" element={<PaymentsPage />} />
                 <Route path="/" element={<Navigate to="/series" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

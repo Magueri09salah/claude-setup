@@ -1,9 +1,11 @@
 import { AppShell, Badge, Button, Group, Stack, Text, UnstyledButton } from "@mantine/core";
 import {
   IconBook2,
+  IconCreditCard,
   IconLayoutGrid,
   IconLogout,
   IconPencil,
+  IconUsers,
   type IconProps,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
@@ -15,6 +17,8 @@ const NAV: { to: string; label: string; icon: ComponentType<IconProps> }[] = [
   { to: "/series", label: "السلاسل", icon: IconLayoutGrid },
   { to: "/questions", label: "محرر الأسئلة", icon: IconPencil },
   { to: "/lessons", label: "الدروس", icon: IconBook2 },
+  { to: "/users", label: "المستخدمون", icon: IconUsers },
+  { to: "/payments", label: "المدفوعات", icon: IconCreditCard },
 ];
 
 export function Shell() {
