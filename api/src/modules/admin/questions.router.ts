@@ -75,3 +75,11 @@ questionsRouter.patch("/:id", async (req, res) => {
     throw e;
   }
 });
+
+questionsRouter.delete("/:id", async (req, res) => {
+  const id = idParam.parse(req.params.id);
+  const existing = await prisma.question.findUnique({ where: { id } });
+  if (!existing) throw new ApiError(404, "Question not found");
+  await prisma.question.delete({ where: { id } });
+  res.status(204).end();
+});

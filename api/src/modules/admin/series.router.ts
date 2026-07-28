@@ -61,3 +61,16 @@ seriesRouter.patch("/:id", async (req, res) => {
     throw e;
   }
 });
+
+// Deletes the series AND all its questions (questions FK-reference it). Old
+// attempts keep their historical seriesId (no FK). Publish to propagate.
+seriesRouter.delete("/:id", async (req, res) => {
+  const id = idParam.parse(req.params.id);
+  const series = await prisma.series.findUnique({ where: { id } });
+  if (!series) throw new ApiError(404, "Series not found");
+  await prisma.$transaction([
+    prisma.question.deleteMany({ where: { seriesId: id } }),
+    prisma.series.delete({ where: { id } }),
+  ]);
+  res.status(204).end();
+});

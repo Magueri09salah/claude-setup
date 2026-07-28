@@ -1,12 +1,23 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { listSeries, type SeriesRow } from "@/db";
+import { bestScoresBySeries, type BestScore } from "@/db/attempts";
 import { countDownloaded } from "@/db/questions";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 
 export default function ExamListScreen() {
-  const series = listSeries();
+  const [series, setSeries] = useState<SeriesRow[]>([]);
+  const [best, setBest] = useState<Map<number, BestScore>>(new Map());
+
+  // Re-read on focus so a new best score shows right after finishing a quiz.
+  useFocusEffect(
+    useCallback(() => {
+      setSeries(listSeries());
+      setBest(bestScoresBySeries());
+    }, []),
+  );
 
   const open = (s: SeriesRow) => {
     router.push(s.locked === 1 ? "/payment" : `/quiz/${s.id}`);
@@ -30,6 +41,7 @@ export default function ExamListScreen() {
           series.map((s) => {
             const locked = s.locked === 1;
             const ready = countDownloaded(s.id);
+            const score = best.get(s.id);
             return (
               <Pressable
                 key={s.id}
@@ -45,12 +57,39 @@ export default function ExamListScreen() {
                     <Text style={styles.lockChipText}>🔒 مدفوع</Text>
                   </View>
                 ) : (
-                  <Text style={styles.play}>ابدأ</Text>
+                  <View style={styles.left}>
+                    {score ? (
+                      <View
+                        style={[
+                          styles.scoreBadge,
+                          score.passed && styles.scoreBadgePass,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.scoreText,
+                            score.passed && styles.scoreTextPass,
+                          ]}
+                        >
+                          {score.score}/{score.total}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.scoreBadgeEmpty}>
+                        <Text style={styles.scoreEmptyText}>—</Text>
+                      </View>
+                    )}
+                    <Text style={styles.play}>ابدأ</Text>
+                  </View>
                 )}
                 <View style={styles.cardTexts}>
                   <Text style={styles.cardTitle}>{s.title}</Text>
                   <Text style={styles.cardMeta}>
-                    {locked ? `${s.question_count} سؤال` : `${ready} سؤال جاهز`}
+                    {locked
+                      ? `${s.question_count} سؤال`
+                      : score
+                        ? `أفضل نتيجة · ${ready} سؤال`
+                        : `${ready} سؤال جاهز`}
                   </Text>
                 </View>
               </Pressable>
@@ -103,7 +142,30 @@ const styles = StyleSheet.create({
   cardTexts: { gap: 2, flex: 1 },
   cardTitle: { ...type.title, color: colors.text, textAlign: "right" },
   cardMeta: { ...type.label, color: colors.textDim, textAlign: "right" },
-  play: { fontFamily: font.bold, fontSize: 16, color: colors.exam },
+  left: { alignItems: "center", gap: space.xs, minWidth: 56 },
+  play: { fontFamily: font.bold, fontSize: 14, color: colors.exam },
+  scoreBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
+  scoreBadgePass: {
+    backgroundColor: "rgba(47,191,113,0.16)",
+    borderColor: colors.success,
+  },
+  scoreBadgeEmpty: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
+  scoreText: { fontFamily: font.extraBold, fontSize: 16, color: colors.text },
+  scoreTextPass: { color: colors.success },
+  scoreEmptyText: { fontFamily: font.bold, fontSize: 16, color: colors.textDim },
   lockChip: {
     backgroundColor: "rgba(255,211,72,0.14)",
     borderRadius: radius.pill,

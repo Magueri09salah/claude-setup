@@ -49,13 +49,12 @@ M5 payments (MOCK PHASE — gateway credentials not yet received):
    + admin "mark as paid" manual confirmation (audited) = simulates the webhook
    PayzoneProvider stays a TODO stub until the client provides merchant docs.
 M6 lives: CRUD + cron + Expo push + home banner
-   + admin Users page (search, premium, device count, block) + Dashboard
-     (users, revenue, attempts, push reach)
+   + admin Dashboard (users, revenue, attempts, push reach)
+     [Users + Payments pages already delivered in M5 — do not rebuild]
    + mobile settings: "إعادة تحميل المحتوى" repair button (wipe local + full resync)
    + privacy policy page (Arabic + French, law 09-08 basics) as static HTML for the domain
    + RTL/Arabic audit, EAS build profiles, store submission checklist
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-M1–M4 done + Night Drive design (mobile) / shadcn admin. SDK 54 pinned for owner's Expo Go.
-M5 done (MOCK PHASE): PaymentProvider+MockProvider (fake pay page) / PayzoneProvider stub via PAYMENT_PROVIDER env; mobile payment screens (card + Wafacash); premium gating (manifest + signed-URL refusal); idempotent webhook; admin Users+Payments pages + audited mark-paid. Next: M6 (lives) OR implement PayzoneProvider when merchant docs arrive.
+M1-M5 complete (payments in mock phase). Next: M6.

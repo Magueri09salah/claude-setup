@@ -13,17 +13,21 @@ import { useAuth } from "@/auth/AuthContext";
 import { FeatureCard } from "@/components/FeatureCard";
 import { FirstSyncScreen } from "@/components/FirstSyncScreen";
 import { listSeries, type SeriesRow } from "@/db";
+import { bestScoresBySeries, type BestScore } from "@/db/attempts";
 import {
   hasLocalContent,
   runSync,
   type SyncProgress,
   type SyncResult,
 } from "@/sync/engine";
-import { colors, radius, shadow, space, type } from "@/theme/tokens";
+import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
   const [series, setSeries] = useState<SeriesRow[]>(() => listSeries());
+  const [best, setBest] = useState<Map<number, BestScore>>(() =>
+    bestScoresBySeries(),
+  );
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
@@ -34,6 +38,7 @@ export default function HomeScreen() {
     setProgress(null);
     const result = await runSync(setProgress);
     setSeries(listSeries());
+    setBest(bestScoresBySeries());
     setLastResult(result);
     setSyncing(false);
   }, []);
@@ -43,10 +48,12 @@ export default function HomeScreen() {
     void doSync();
   }, [doSync]);
 
-  // Re-read local content on focus so a premium unlock (after payment) shows.
+  // Re-read local content on focus so a premium unlock (after payment) and a
+  // new best score (after a quiz) both show.
   useFocusEffect(
     useCallback(() => {
       setSeries(listSeries());
+      setBest(bestScoresBySeries());
     }, []),
   );
 
@@ -130,6 +137,7 @@ export default function HomeScreen() {
         ) : (
           series.map((s) => {
             const locked = s.locked === 1;
+            const score = best.get(s.id);
             return (
               <Pressable
                 key={s.id}
@@ -142,11 +150,27 @@ export default function HomeScreen() {
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
               >
-                {locked && (
+                {locked ? (
                   <View style={styles.lockChip}>
                     <Text style={styles.lockChipText}>🔒 افتح المحتوى الكامل</Text>
                   </View>
-                )}
+                ) : score ? (
+                  <View
+                    style={[
+                      styles.scoreBadge,
+                      score.passed && styles.scoreBadgePass,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.scoreText,
+                        score.passed && styles.scoreTextPass,
+                      ]}
+                    >
+                      {score.score}/{score.total}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.seriesTexts}>
                   <Text style={styles.seriesTitle}>{s.title}</Text>
                   <Text style={styles.seriesMeta}>{s.question_count} سؤال</Text>
@@ -225,4 +249,18 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   lockChipText: { ...type.label, fontSize: 12, color: colors.premium },
+  scoreBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
+  scoreBadgePass: {
+    backgroundColor: "rgba(47,191,113,0.16)",
+    borderColor: colors.success,
+  },
+  scoreText: { fontFamily: font.extraBold, fontSize: 16, color: colors.text },
+  scoreTextPass: { color: colors.success },
 });

@@ -7,6 +7,7 @@ import {
   Grid,
   Group,
   Image,
+  Modal,
   NumberInput,
   SegmentedControl,
   Select,
@@ -40,6 +41,8 @@ export function QuestionEditorPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Question | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const selectedSeries =
     seriesList?.find((s) => String(s.id) === seriesId) ?? null;
@@ -197,6 +200,25 @@ export function QuestionEditorPage() {
     }
   };
 
+  const remove = async () => {
+    if (!deleteTarget || !seriesId) return;
+    setDeleting(true);
+    try {
+      await api(`/admin/questions/${deleteTarget.id}`, { method: "DELETE" });
+      notifySuccess("تم الحذف", `حُذف السؤال رقم ${deleteTarget.orderNum}`);
+      if (editingId === deleteTarget.id) resetForm(questions ?? []);
+      setDeleteTarget(null);
+      const list = await api<{ questions: Question[] }>(
+        `/admin/questions?seriesId=${seriesId}`,
+      );
+      setQuestions(list.questions);
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const answerOptions = Array.from(
     { length: Number(answersCount) },
     (_, i) => String(i + 1),
@@ -264,7 +286,7 @@ export function QuestionEditorPage() {
                       <Table.Th w={50}>#</Table.Th>
                       <Table.Th>الأجوبة الصحيحة</Table.Th>
                       <Table.Th w={100}>عدد الأجوبة</Table.Th>
-                      <Table.Th w={80} />
+                      <Table.Th w={120} />
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -289,13 +311,23 @@ export function QuestionEditorPage() {
                         </Table.Td>
                         <Table.Td>{q.answersCount}</Table.Td>
                         <Table.Td>
-                          <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            onClick={() => editQuestion(q)}
-                          >
-                            تعديل
-                          </Button>
+                          <Group gap={2} wrap="nowrap">
+                            <Button
+                              size="compact-xs"
+                              variant="subtle"
+                              onClick={() => editQuestion(q)}
+                            >
+                              تعديل
+                            </Button>
+                            <Button
+                              size="compact-xs"
+                              variant="subtle"
+                              color="red"
+                              onClick={() => setDeleteTarget(q)}
+                            >
+                              حذف
+                            </Button>
+                          </Group>
                         </Table.Td>
                       </Table.Tr>
                     ))}
@@ -435,6 +467,26 @@ export function QuestionEditorPage() {
           </Grid.Col>
         </Grid>
       )}
+
+      <Modal
+        opened={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="حذف السؤال"
+        centered
+      >
+        <Text size="sm">
+          سيتم حذف السؤال رقم <b>{deleteTarget?.orderNum}</b> نهائياً. لا يمكن
+          التراجع. اضغط «نشر» بعد الحذف لتحديث التطبيقات.
+        </Text>
+        <Group justify="flex-end" mt="lg">
+          <Button variant="default" onClick={() => setDeleteTarget(null)}>
+            إلغاء
+          </Button>
+          <Button color="red" loading={deleting} onClick={() => void remove()}>
+            حذف نهائي
+          </Button>
+        </Group>
+      </Modal>
     </Stack>
   );
 }

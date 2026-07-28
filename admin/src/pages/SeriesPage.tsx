@@ -23,6 +23,8 @@ export function SeriesPage() {
   const [title, setTitle] = useState("");
   const [isPremium, setIsPremium] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -108,6 +110,21 @@ export function SeriesPage() {
     }
   };
 
+  const remove = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api(`/admin/series/${deleteTarget.id}`, { method: "DELETE" });
+      notifySuccess("تم الحذف", "حُذفت السلسلة وأسئلتها");
+      setDeleteTarget(null);
+      await load();
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Stack>
       <Group justify="space-between">
@@ -176,6 +193,14 @@ export function SeriesPage() {
                     >
                       تعديل
                     </Button>
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      color="red"
+                      onClick={() => setDeleteTarget(s)}
+                    >
+                      حذف
+                    </Button>
                   </Group>
                 </Table.Td>
               </Table.Tr>
@@ -214,6 +239,27 @@ export function SeriesPage() {
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      <Modal
+        opened={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="حذف السلسلة"
+        centered
+      >
+        <Text size="sm">
+          سيتم حذف «{deleteTarget?.title}» مع{" "}
+          <b>{deleteTarget?._count?.questions ?? 0} سؤالاً</b> بشكل نهائي. لا يمكن
+          التراجع. اضغط «نشر» بعد الحذف لتحديث التطبيقات.
+        </Text>
+        <Group justify="flex-end" mt="lg">
+          <Button variant="default" onClick={() => setDeleteTarget(null)}>
+            إلغاء
+          </Button>
+          <Button color="red" loading={deleting} onClick={() => void remove()}>
+            حذف نهائي
+          </Button>
+        </Group>
       </Modal>
     </Stack>
   );

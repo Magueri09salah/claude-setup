@@ -69,6 +69,37 @@ export function countPassedAttempts(seriesId: number): number {
   );
 }
 
+// Best (highest-scoring) attempt per series — shown on the series card so the
+// user always sees their personal best (e.g. 1/3, 3/3, 2/3 → 3/3).
+export interface BestScore {
+  score: number;
+  total: number;
+  passed: boolean;
+}
+
+export function bestScoresBySeries(): Map<number, BestScore> {
+  const rows = db.getAllSync<{
+    series_id: number;
+    score: number;
+    total: number;
+    passed: number;
+  }>(
+    `SELECT series_id, score, total, passed
+       FROM attempts a
+      WHERE score = (SELECT MAX(score) FROM attempts b WHERE b.series_id = a.series_id)
+      GROUP BY series_id`,
+  );
+  const map = new Map<number, BestScore>();
+  for (const r of rows) {
+    map.set(r.series_id, {
+      score: r.score,
+      total: r.total,
+      passed: r.passed === 1,
+    });
+  }
+  return map;
+}
+
 export function getAttempt(id: string): AttemptRecord | null {
   const row = db.getFirstSync<AttemptRow>(
     "SELECT * FROM attempts WHERE id = ?",
