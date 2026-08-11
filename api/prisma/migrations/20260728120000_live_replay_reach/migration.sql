@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "LiveEvent" ADD COLUMN "replayUrl" TEXT;
+ALTER TABLE "LiveEvent" ADD COLUMN "pushReach" INTEGER NOT NULL DEFAULT 0;

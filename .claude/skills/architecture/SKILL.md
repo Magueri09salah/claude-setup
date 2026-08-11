@@ -24,12 +24,22 @@ model Device { id String @id @default(uuid())  userId String  deviceId String
   user User @relation(fields:[userId], references:[id])
   @@unique([userId, deviceId]) }   // max 2 devices/user enforced in service layer
 
+// Licence categories: B = car (default, all pre-existing content),
+// A = moto, C = truck, D = bus. orderNum restarts at 1 PER CATEGORY, so any
+// series query must be scoped to one category or the numbering is meaningless.
+enum LicenceCategory { B  A  C  D }
+
 model Series { id Int @id @default(autoincrement())  title String  orderNum Int
-  isPremium Boolean @default(true)  questions Question[] }
+  isPremium Boolean @default(true)
+  category LicenceCategory @default(B)
+  questions Question[]
+  @@index([category, orderNum]) }
 
 model Question { id Int @id @default(autoincrement())  seriesId Int  orderNum Int
   answersCount Int @default(4)  correctAnswers Json   // e.g. [2,3]
   imageKey String  audioKey String  updatedAt DateTime @updatedAt
+  // Shown ONLY in the end-of-quiz review, never while answering.
+  correctionText String?  correctionAudioKey String?
   series Series @relation(fields:[seriesId], references:[id])
   @@unique([seriesId, orderNum]) }
 
@@ -45,6 +55,19 @@ model Lesson { id Int @id @default(autoincrement())  categoryId Int  title Strin
 
 // A lesson is a GRID of sign flashcards: image + Arabic name + audio explanation
 // (owner decision 2026-07-22; replaced the earlier LessonBlock/article model).
+// A lesson holds EITHER sign flashcards OR videos, never both.
+enum LessonKind { SIGNS  VIDEOS }
+
+// Videos are STREAMED, never synced: they are orders of magnitude larger than
+// every other asset, so /content/lessons/:id/videos returns fresh signed urls
+// on open instead of the sync engine downloading them. Uploaded via
+// POST /admin/lessons/:id/videos (multipart, multer diskStorage → storage
+// .putFile, max 500MB) — NEVER through the Buffer-based `put`.
+model LessonVideo { id Int @id @default(autoincrement())  lessonId Int  orderNum Int
+  title String  videoKey String  sizeBytes Int?
+  lesson Lesson @relation(fields:[lessonId], references:[id], onDelete: Cascade)
+  @@index([lessonId, orderNum]) }
+
 model LessonSign { id Int @id @default(autoincrement())  lessonId Int  orderNum Int
   name String  imageKey String  audioKey String?
   lesson Lesson @relation(fields:[lessonId], references:[id], onDelete: Cascade)
@@ -92,6 +115,16 @@ Flow: manifest w/ If-None-Match → 304 = done. Else: fetch rows updatedAt > las
 prune local IDs absent from manifest; signed URLs in batches of 20; download via
 expo-file-system with per-item `downloaded` flag (RESUMABLE); progress UI "45/120";
 flip local content_version ONLY when all files are on disk. Silent-fail offline.
+
+The manifest body is generated LIVE from the DB — `contentVersion` only feeds the
+ETag. So new content is invisible to already-synced apps until **نشر** bumps the
+version and changes the ETag. Two consequences, both bite in practice:
+1. Any content change needs a publish, or clients keep getting 304.
+2. When the MOBILE schema gains a column that must be backfilled from the server,
+   a guarded ALTER leaves existing rows on their DEFAULT and the unchanged ETag
+   would freeze them there forever. Bump `LOCAL_SCHEMA_VERSION` (mobile/src/db):
+   the sync ignores its cached etag until one full fetch has repopulated the new
+   columns, then records `synced_schema_version`.
 
 Mobile SQLite tables: series, questions (correct_answers JSON, image_path, audio_path),
 lesson_categories, lessons, lesson_blocks (payload JSON, media_path), attempts

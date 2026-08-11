@@ -5,6 +5,23 @@ description: Payment flows (mock provider now, Payzone/Wafacash later), premium 
 
 # Payments & Premium Gating
 
+## Premium sources (owner decision 2026-08-07)
+Premium has exactly TWO legitimate sources, both server-side. The client never
+asserts entitlement — it supplies a phone number and the API decides.
+1. A verified payment webhook (idempotent, see below).
+2. `PremiumPhone` — an admin-managed phone ALLOWLIST for partner-group members
+   (a driving school's cohort). Granted at registration when the number matches,
+   and retroactively when the admin adds a number an existing account already
+   uses. Both write an AuditLog `grant_premium_allowlist`.
+
+Phone matching MUST go through `modules/premium/phone.ts` — Moroccan numbers are
+written as 0612345678 / +212612345678 / 00212 612 345 678 and only match after
+normalizing to the local `0XXXXXXXXX` form. Registration accepts human spacing
+and normalizes before validating; a strict regex there silently locked out group
+members whose number was on the list.
+Deleting an allowlist row does NOT revoke premium already granted — revocation
+is an explicit action on the Users page.
+
 ## Iron rule (applies in mock phase too)
 Premium is granted ONLY by the server. The client can request, poll, and display —
 never decide. No client-side flag grants access to premium media (server refuses

@@ -34,6 +34,21 @@ export class LocalStorage implements StorageService {
     await fs.writeFile(abs, body);
   }
 
+  // Streams by moving the temp file into place — nothing is read into memory,
+  // so a 300MB video costs the same as a 30KB one. Falls back to copy+unlink
+  // when the temp dir sits on another volume (rename fails with EXDEV).
+  async putFile(key: string, filePath: string, _contentType: string): Promise<void> {
+    assertSafeKey(key);
+    const abs = path.join(UPLOADS_DIR, key);
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    try {
+      await fs.rename(filePath, abs);
+    } catch {
+      await fs.copyFile(filePath, abs);
+      await fs.unlink(filePath).catch(() => undefined);
+    }
+  }
+
   async exists(key: string): Promise<boolean> {
     assertSafeKey(key);
     try {
@@ -44,11 +59,17 @@ export class LocalStorage implements StorageService {
     }
   }
 
+  // Returns a RELATIVE url when APP_BASE_URL is unset (the dev default), so the
+  // link never hardcodes a LAN IP — clients resolve it against the host they
+  // already reached the API on. Set APP_BASE_URL in production for absolute urls.
   async getSignedUrl(key: string): Promise<string> {
     assertSafeKey(key);
     const exp = Math.floor(Date.now() / 1000) + SIGNED_URL_TTL_SEC;
     const sig = sign(key, exp);
-    return `${appBaseUrl}/media/local?key=${encodeURIComponent(key)}&exp=${exp}&sig=${sig}`;
+    const query = `key=${encodeURIComponent(key)}&exp=${exp}&sig=${sig}`;
+    return env.APP_BASE_URL
+      ? `${appBaseUrl}/media/local?${query}`
+      : `/media/local?${query}`;
   }
 }
 

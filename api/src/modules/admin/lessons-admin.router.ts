@@ -81,7 +81,7 @@ lessonsAdminRouter.get("/lessons", async (req, res) => {
   const lessons = await prisma.lesson.findMany({
     where: { categoryId },
     orderBy: { orderNum: "asc" },
-    include: { _count: { select: { signs: true } } },
+    include: { _count: { select: { signs: true, videos: true } } },
   });
   res.json({ lessons });
 });
@@ -100,6 +100,8 @@ lessonsAdminRouter.post("/lessons", async (req, res) => {
     data: {
       categoryId: input.categoryId,
       title: input.title,
+      imageKey: input.imageKey ?? null,
+      kind: input.kind,
       orderNum: (max._max.orderNum ?? 0) + 1,
     },
   });

@@ -16,12 +16,18 @@ import {
   type SessionUser,
 } from "../api/client";
 import type { LoginResponse } from "../api/types";
+import { registerPushToken, unregisterPushToken } from "../notifications/push";
 
 interface AuthValue {
   user: SessionUser | null;
   hydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, phone?: string) => Promise<void>;
+  register: (
+    fullName: string,
+    email: string,
+    password: string,
+    phone?: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   // Re-fetch the current user (premium may have flipped after a payment).
   refreshUser: () => Promise<SessionUser | null>;
@@ -47,21 +53,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     await storeSession(res.user, res.accessToken, res.refreshToken);
     setUser(res.user);
+    void registerPushToken();
   }, []);
 
   const register = useCallback(
-    async (email: string, password: string, phone?: string) => {
+    async (fullName: string, email: string, password: string, phone?: string) => {
       const res = await api<LoginResponse>("/auth/register", {
         method: "POST",
-        json: phone ? { email, password, phone } : { email, password },
+        json: phone
+          ? { fullName, email, password, phone }
+          : { fullName, email, password },
       });
       await storeSession(res.user, res.accessToken, res.refreshToken);
       setUser(res.user);
+      void registerPushToken();
     },
     [],
   );
 
   const logout = useCallback(async () => {
+    await unregisterPushToken();
     const refreshToken = getRefreshToken();
     if (refreshToken) {
       await api("/auth/logout", { method: "POST", json: { refreshToken } }).catch(

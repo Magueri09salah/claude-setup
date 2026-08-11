@@ -122,7 +122,7 @@ export function UsersPage() {
       <Card padding="lg">
         <Group justify="space-between" mb="md">
           <TextInput
-            placeholder="بحث بالبريد أو الهاتف…"
+            placeholder="بحث بالاسم أو البريد أو الهاتف…"
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -144,6 +144,7 @@ export function UsersPage() {
           <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
+                <Table.Th>الاسم</Table.Th>
                 <Table.Th>المستخدم</Table.Th>
                 <Table.Th>الحالة</Table.Th>
                 <Table.Th>الطريقة</Table.Th>
@@ -156,7 +157,12 @@ export function UsersPage() {
               {users.map((u) => (
                 <Table.Tr key={u.id}>
                   <Table.Td>
-                    <Text size="sm" fw={500} style={{ direction: "ltr" }}>
+                    <Text size="sm" fw={500}>
+                      {u.fullName ?? "—"}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" style={{ direction: "ltr" }}>
                       {u.email}
                     </Text>
                     {u.phone && (
@@ -195,7 +201,7 @@ export function UsersPage() {
               ))}
               {users.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={7}>
                     <Text c="dimmed" size="sm" ta="center" py="md">
                       لا يوجد مستخدمون مطابقون.
                     </Text>

@@ -16,6 +16,7 @@ import { colors, font, space, type } from "@/theme/tokens";
 
 export default function RegisterScreen() {
   const { register } = useAuth();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -24,13 +25,22 @@ export default function RegisterScreen() {
 
   const submit = async () => {
     setError(null);
+    if (fullName.trim().length < 3) {
+      setError("أدخل اسمك الكامل (3 أحرف على الأقل)");
+      return;
+    }
     if (password.length < 8) {
       setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
       return;
     }
     setLoading(true);
     try {
-      await register(email.trim(), password, phone.trim() || undefined);
+      await register(
+        fullName.trim(),
+        email.trim(),
+        password,
+        phone.trim() || undefined,
+      );
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setError("هذا البريد الإلكتروني أو الهاتف مسجل مسبقاً");
@@ -66,6 +76,12 @@ export default function RegisterScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
 
           <AppTextInput
+            label="الاسم الكامل"
+            autoComplete="name"
+            value={fullName}
+            onChangeText={setFullName}
+          />
+          <AppTextInput
             label="البريد الإلكتروني"
             ltr
             autoCapitalize="none"
@@ -92,7 +108,7 @@ export default function RegisterScreen() {
           <PrimaryButton
             label="إنشاء الحساب"
             loading={loading}
-            disabled={!email.trim() || !password}
+            disabled={!fullName.trim() || !email.trim() || !password}
             onPress={() => void submit()}
           />
 

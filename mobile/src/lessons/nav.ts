@@ -1,15 +1,9 @@
 import { router } from "expo-router";
-import { listChildCategories, listLessons } from "../db/lessons";
 
-// Open a category directly to its sign grid when it's a leaf with one lesson
-// (matches the reference app: sub-category → signs, no lesson-list layer).
+// Always land on the category page. An earlier version skipped straight to the
+// signs when a category held exactly one lesson, but the owner's 3-page flow
+// (categories → numbered lessons → content, sketch 2026-08-07) needs the middle
+// level to be predictable — a shortcut that fires only sometimes is confusing.
 export function openCategory(id: number): void {
-  if (listChildCategories(id).length === 0) {
-    const lessons = listLessons(id);
-    if (lessons.length === 1) {
-      router.push(`/lesson/${lessons[0]!.id}`);
-      return;
-    }
-  }
   router.push(`/lessons/${id}`);
 }

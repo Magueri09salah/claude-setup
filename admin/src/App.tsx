@@ -7,7 +7,10 @@ import "@mantine/notifications/styles.css";
 import "./admin.css";
 import { AuthProvider, useAuth } from "./auth";
 import { Shell } from "./components/Shell";
+import { AllowlistPage } from "./pages/AllowlistPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import { LessonsPage } from "./pages/LessonsPage";
+import { LivesPage } from "./pages/LivesPage";
 import { LoginPage } from "./pages/Login";
 import { PaymentsPage } from "./pages/PaymentsPage";
 import { QuestionEditorPage } from "./pages/QuestionEditorPage";
@@ -41,8 +44,11 @@ export default function App() {
                 <Route path="/questions" element={<QuestionEditorPage />} />
                 <Route path="/lessons" element={<LessonsPage />} />
                 <Route path="/users" element={<UsersPage />} />
+                <Route path="/allowlist" element={<AllowlistPage />} />
                 <Route path="/payments" element={<PaymentsPage />} />
-                <Route path="/" element={<Navigate to="/series" replace />} />
+                <Route path="/lives" element={<LivesPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

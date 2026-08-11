@@ -38,13 +38,13 @@ contentRouter.get("/manifest", async (req, res) => {
 
   const [series, categories, lessons] = await Promise.all([
     prisma.series.findMany({
-      orderBy: { orderNum: "asc" },
+      orderBy: [{ category: "asc" }, { orderNum: "asc" }],
       include: { _count: { select: { questions: true } } },
     }),
     prisma.lessonCategory.findMany({ orderBy: { orderNum: "asc" } }),
     prisma.lesson.findMany({
       orderBy: { orderNum: "asc" },
-      include: { _count: { select: { signs: true } } },
+      include: { _count: { select: { signs: true, videos: true } } },
     }),
   ]);
 
@@ -59,6 +59,7 @@ contentRouter.get("/manifest", async (req, res) => {
       title: s.title,
       orderNum: s.orderNum,
       isPremium: s.isPremium,
+      category: s.category,
       locked: s.isPremium && !premium,
       questionCount: s._count.questions,
     })),
@@ -75,9 +76,12 @@ contentRouter.get("/manifest", async (req, res) => {
       id: l.id,
       categoryId: l.categoryId,
       title: l.title,
+      imageKey: l.imageKey,
+      kind: l.kind,
       orderNum: l.orderNum,
       updatedAt: l.updatedAt,
       signCount: l._count.signs,
+      videoCount: l._count.videos,
       locked: lockedCategoryIds.has(l.categoryId),
     })),
   });
@@ -108,6 +112,36 @@ contentRouter.get("/lessons/:id/signs", async (req, res) => {
   res.json({ signs });
 });
 
+// Videos are STREAMED, not synced: they are orders of magnitude bigger than
+// every other asset, so the app asks for fresh signed urls when the viewer
+// opens the lesson instead of downloading them all up front.
+contentRouter.get("/lessons/:id/videos", async (req, res) => {
+  const id = z.coerce.number().int().positive().parse(req.params.id);
+  const lesson = await prisma.lesson.findUnique({
+    where: { id },
+    include: { category: { select: { isPremium: true } } },
+  });
+  if (!lesson) throw new ApiError(404, "Lesson not found");
+  if (lesson.category.isPremium && !(await getPremiumStatus(req.auth!.userId))) {
+    throw new ApiError(403, "Premium content locked");
+  }
+  const rows = await prisma.lessonVideo.findMany({
+    where: { lessonId: id },
+    orderBy: { orderNum: "asc" },
+  });
+  const videos = await Promise.all(
+    rows.map(async (v) => ({
+      id: v.id,
+      lessonId: v.lessonId,
+      orderNum: v.orderNum,
+      title: v.title,
+      sizeBytes: v.sizeBytes,
+      url: await storage.getSignedUrl(v.videoKey),
+    })),
+  );
+  res.json({ videos });
+});
+
 const questionsQuery = z.strictObject({
   since: z.iso.datetime().optional(),
 });
@@ -136,6 +170,8 @@ contentRouter.get("/series/:id/questions", async (req, res) => {
       correctAnswers: true,
       imageKey: true,
       audioKey: true,
+      correctionText: true,
+      correctionAudioKey: true,
       updatedAt: true,
     },
   });
@@ -159,12 +195,19 @@ contentRouter.post("/media-urls", async (req, res) => {
   const { keys } = mediaUrlsSchema.parse(req.body);
   const premium = await getPremiumStatus(req.auth!.userId);
 
-  const [questions, signs] = await Promise.all([
+  const [questions, signs, lessonCovers] = await Promise.all([
     prisma.question.findMany({
-      where: { OR: [{ imageKey: { in: keys } }, { audioKey: { in: keys } }] },
+      where: {
+        OR: [
+          { imageKey: { in: keys } },
+          { audioKey: { in: keys } },
+          { correctionAudioKey: { in: keys } },
+        ],
+      },
       select: {
         imageKey: true,
         audioKey: true,
+        correctionAudioKey: true,
         series: { select: { isPremium: true } },
       },
     }),
@@ -176,16 +219,31 @@ contentRouter.post("/media-urls", async (req, res) => {
         lesson: { select: { category: { select: { isPremium: true } } } },
       },
     }),
+    prisma.lesson.findMany({
+      where: { imageKey: { in: keys } },
+      select: {
+        imageKey: true,
+        category: { select: { isPremium: true } },
+      },
+    }),
   ]);
 
   const keyPremium = new Map<string, boolean>();
   for (const q of questions) {
     keyPremium.set(q.imageKey, q.series.isPremium);
     keyPremium.set(q.audioKey, q.series.isPremium);
+    if (q.correctionAudioKey) {
+      keyPremium.set(q.correctionAudioKey, q.series.isPremium);
+    }
   }
   for (const s of signs) {
     keyPremium.set(s.imageKey, s.lesson.category.isPremium);
     if (s.audioKey) keyPremium.set(s.audioKey, s.lesson.category.isPremium);
+  }
+  // Lesson covers are teasers: a locked lesson still shows its picture on the
+  // card, the same way locked category icons do.
+  for (const l of lessonCovers) {
+    if (l.imageKey) keyPremium.set(l.imageKey, false);
   }
 
   for (const key of keys) {

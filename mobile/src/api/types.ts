@@ -6,6 +6,9 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+/** Moroccan licence categories: B = car, A = moto, C = truck, D = bus. */
+export type LicenceCategory = "B" | "A" | "C" | "D";
+
 export interface ManifestSeries {
   id: number;
   title: string;
@@ -13,6 +16,7 @@ export interface ManifestSeries {
   isPremium: boolean;
   locked: boolean;
   questionCount: number;
+  category?: LicenceCategory;
 }
 
 export interface ManifestCategory {
@@ -29,10 +33,23 @@ export interface ManifestLesson {
   id: number;
   categoryId: number;
   title: string;
+  imageKey?: string | null;
+  kind?: "SIGNS" | "VIDEOS";
   orderNum: number;
   updatedAt: string;
   signCount: number;
+  videoCount?: number;
   locked: boolean;
+}
+
+/** Streamed, never stored locally — see /content/lessons/:id/videos. */
+export interface ApiLessonVideo {
+  id: number;
+  lessonId: number;
+  orderNum: number;
+  title: string;
+  sizeBytes: number | null;
+  url: string;
 }
 
 export interface Manifest {
@@ -59,5 +76,7 @@ export interface ApiQuestion {
   correctAnswers: number[];
   imageKey: string;
   audioKey: string;
+  correctionText: string | null;
+  correctionAudioKey: string | null;
   updatedAt: string;
 }

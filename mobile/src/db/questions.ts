@@ -8,6 +8,9 @@ export interface LocalQuestion {
   correctAnswers: number[];
   imagePath: string | null;
   audioPath: string | null;
+  // Shown only in the end-of-quiz review, never while answering.
+  correctionText: string | null;
+  correctionAudioPath: string | null;
 }
 
 function fromRow(r: QuestionRow): LocalQuestion {
@@ -19,6 +22,8 @@ function fromRow(r: QuestionRow): LocalQuestion {
     correctAnswers: JSON.parse(r.correct_answers) as number[],
     imagePath: r.image_path,
     audioPath: r.audio_path,
+    correctionText: r.correction_text,
+    correctionAudioPath: r.correction_audio_path,
   };
 }
 

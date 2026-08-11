@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import { env } from "../../env";
 import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
+import { applyAllowlistOnRegister } from "../premium/allowlist.service";
+import { normalizePhone } from "../premium/phone";
 
 const BCRYPT_COST = 12;
 const ACCESS_TTL = "15m";
@@ -21,6 +23,7 @@ function publicUser(user: User) {
   return {
     id: user.id,
     email: user.email,
+    fullName: user.fullName,
     phone: user.phone,
     role: user.role,
     // Effective premium: active flag AND unexpired (premiumUntil null = lifetime).
@@ -59,16 +62,32 @@ async function issueRefreshToken(userId: string): Promise<string> {
 }
 
 export async function register(input: {
+  fullName: string;
   email: string;
   password: string;
   phone?: string;
 }) {
   const email = input.email.trim().toLowerCase();
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
+  // Stored canonical so the allowlist, and any later lookup, can match it.
+  const phone = input.phone ? normalizePhone(input.phone) : null;
   try {
-    const user = await prisma.user.create({
-      data: { email, passwordHash, phone: input.phone ?? null },
+    const created = await prisma.user.create({
+      data: {
+        email,
+        fullName: input.fullName,
+        passwordHash,
+        phone,
+      },
     });
+
+    // Group members (a partner school's list) are premium from the first
+    // launch — decided here on the server, never claimed by the client.
+    const granted = await applyAllowlistOnRegister(created.id, phone);
+    const user = granted
+      ? ((await prisma.user.findUnique({ where: { id: created.id } })) ?? created)
+      : created;
+
     return {
       user: publicUser(user),
       accessToken: signAccessToken(user),

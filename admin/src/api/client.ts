@@ -14,6 +14,12 @@ export interface SessionUser {
   isPremium: boolean;
 }
 
+// Local-storage signed urls are relative — resolve them against the API host.
+export function mediaUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  return url.startsWith("/") ? `${API_URL}${url}` : url;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -81,6 +87,52 @@ async function refreshSession(): Promise<void> {
   };
   localStorage.setItem(ACCESS_KEY, data.accessToken);
   localStorage.setItem(REFRESH_KEY, data.refreshToken);
+}
+
+/**
+ * Upload with progress. `api()` uses fetch, which cannot report upload
+ * progress — fine for a 2MB image, unusable for a 300MB video where the admin
+ * would stare at a frozen button for minutes. XHR is the only browser API that
+ * exposes upload progress, so video uploads go through here.
+ */
+export function uploadWithProgress<T>(
+  path: string,
+  formData: FormData,
+  onProgress: (fraction: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}${path}`);
+    const accessToken = localStorage.getItem(ACCESS_KEY);
+    if (accessToken) {
+      xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body: unknown = {};
+      try {
+        body = JSON.parse(xhr.responseText) as unknown;
+      } catch {
+        // non-JSON error page
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as T);
+      } else {
+        reject(
+          new ApiError(
+            xhr.status,
+            (body as { error?: string }).error ??
+              `Upload failed (${xhr.status})`,
+          ),
+        );
+      }
+    };
+    xhr.onerror = () => reject(new ApiError(0, "تعذّر الاتصال بالخادم"));
+    xhr.onabort = () => reject(new ApiError(0, "أُلغي الرفع"));
+    xhr.send(formData);
+  });
 }
 
 export interface RequestOptions {

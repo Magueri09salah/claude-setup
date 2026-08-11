@@ -8,6 +8,12 @@ export const SIGNED_URL_TTL_SEC = 15 * 60;
 export interface StorageService {
   readonly kind: "r2" | "local";
   put(key: string, body: Buffer, contentType: string): Promise<void>;
+  /**
+   * Store a file already on disk, streaming it. Videos are hundreds of MB —
+   * `put` would hold the whole thing in memory. The source file is consumed
+   * (moved or streamed then deleted) by the implementation.
+   */
+  putFile(key: string, filePath: string, contentType: string): Promise<void>;
   exists(key: string): Promise<boolean>;
   getSignedUrl(key: string): Promise<string>;
 }

@@ -5,15 +5,19 @@ import { prisma } from "../../prisma";
 import {
   createSeriesSchema,
   idParam,
+  listSeriesQuery,
   reorderSeriesSchema,
   updateSeriesSchema,
 } from "./admin.schemas";
 
 export const seriesRouter = Router();
 
-seriesRouter.get("/", async (_req, res) => {
+// `category` filters to one licence (A/B/C/D); omitted returns all of them.
+seriesRouter.get("/", async (req, res) => {
+  const { category } = listSeriesQuery.parse(req.query);
   const series = await prisma.series.findMany({
-    orderBy: { orderNum: "asc" },
+    where: category ? { category } : {},
+    orderBy: [{ category: "asc" }, { orderNum: "asc" }],
     include: { _count: { select: { questions: true } } },
   });
   res.json({ series });
@@ -21,7 +25,11 @@ seriesRouter.get("/", async (_req, res) => {
 
 seriesRouter.post("/", async (req, res) => {
   const input = createSeriesSchema.parse(req.body);
-  const max = await prisma.series.aggregate({ _max: { orderNum: true } });
+  // Numbering restarts per licence, so each category has its own 1, 2, 3…
+  const max = await prisma.series.aggregate({
+    where: { category: input.category },
+    _max: { orderNum: true },
+  });
   const series = await prisma.series.create({
     data: { ...input, orderNum: (max._max.orderNum ?? 0) + 1 },
   });

@@ -4,13 +4,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
+import { Icon } from "@/components/Icon";
+import { ProgressBorder } from "@/components/lessons/ProgressBorder";
 import { PressableScale } from "@/components/PressableScale";
 import { getLesson, listSigns, type SignRow } from "@/db/lessons";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 
+const AUDIO_TICK_MS = 100;
+
 // Lesson = a 2-column grid of sign flashcards (image + Arabic name + audio),
 // per owner decision 2026-07-22. Tapping a card plays its audio explanation
-// from the LOCAL path; one shared player, swapped per sign.
+// from the LOCAL path; one shared player, swapped per sign. The playing card's
+// border fills as the audio advances (owner request 2026-08-07).
 export default function LessonScreen() {
   const params = useLocalSearchParams<{ lessonId: string }>();
   const id = Number(params.lessonId);
@@ -19,8 +25,19 @@ export default function LessonScreen() {
 
   const [activeId, setActiveId] = useState<number | null>(null);
   const active = signs.find((s) => s.id === activeId) ?? null;
-  const player = useAudioPlayer(active?.audio_path ? { uri: active.audio_path } : null);
+  // 100ms ticks so the card's border sweeps smoothly rather than stepping.
+  const player = useAudioPlayer(
+    active?.audio_path ? { uri: active.audio_path } : null,
+    { updateInterval: AUDIO_TICK_MS },
+  );
   const status = useAudioPlayerStatus(player);
+  // Fraction of the explanation already played — drives the border fill.
+  const progress =
+    status.duration > 0
+      ? Math.min(1, status.currentTime / status.duration)
+      : 0;
+  // Same rule as the quiz: leaving the screen silences it.
+  usePausedOnBlur(player);
 
   // Auto-play whenever the active sign changes.
   useEffect(() => {
@@ -71,33 +88,45 @@ export default function LessonScreen() {
               const playing = isActive && status.playing;
               const hasAudio = !!s.audio_path;
               return (
-                <PressableScale
+                <ProgressBorder
                   key={s.id}
-                  onPress={() => onCardPress(s)}
-                  style={[styles.card, isActive && styles.cardActive]}
+                  active={isActive}
+                  progress={progress}
+                  radius={radius.lg}
+                  stepMs={AUDIO_TICK_MS}
+                  style={styles.cardWrap}
                 >
-                  <View style={styles.imageWrap}>
-                    {s.image_path ? (
-                      <Image
-                        source={{ uri: s.image_path }}
-                        style={styles.image}
-                        contentFit="contain"
-                      />
-                    ) : (
-                      <View style={[styles.image, styles.imageMissing]}>
-                        <Text style={styles.missingText}>—</Text>
-                      </View>
-                    )}
-                    {hasAudio && (
-                      <View style={styles.playBadge}>
-                        <Text style={styles.playIcon}>{playing ? "⏸" : "▶"}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.signName} numberOfLines={2}>
-                    {s.name}
-                  </Text>
-                </PressableScale>
+                  <PressableScale
+                    onPress={() => onCardPress(s)}
+                    style={styles.card}
+                  >
+                    <View style={styles.imageWrap}>
+                      {s.image_path ? (
+                        <Image
+                          source={{ uri: s.image_path }}
+                          style={styles.image}
+                          contentFit="contain"
+                        />
+                      ) : (
+                        <View style={[styles.image, styles.imageMissing]}>
+                          <Text style={styles.missingText}>—</Text>
+                        </View>
+                      )}
+                      {hasAudio && (
+                        <View style={styles.playBadge}>
+                          <Icon
+                            name={playing ? "pause" : "play"}
+                            size={15}
+                            color={colors.text}
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.signName} numberOfLines={2}>
+                      {s.name}
+                    </Text>
+                  </PressableScale>
+                </ProgressBorder>
               );
             })}
           </View>
@@ -119,9 +148,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: space.md,
   },
+  cardWrap: { width: "47%", flexGrow: 1 },
   card: {
-    width: "47%",
-    flexGrow: 1,
+    // Fill the wrapper: a wrapping flex row stretches every item to the tallest
+    // in its line, so without this the card floated short inside a tall box and
+    // the progress border drew around the empty space below it.
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -130,7 +162,6 @@ const styles = StyleSheet.create({
     gap: space.sm,
     ...shadow.card,
   },
-  cardActive: { borderColor: colors.lessons, borderWidth: 2 },
   imageWrap: { position: "relative" },
   image: {
     width: "100%",
@@ -155,13 +186,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  playIcon: { fontSize: 14, color: "#FFFFFF" },
   signName: {
     ...type.label,
     color: colors.text,
     textAlign: "center",
     paddingHorizontal: space.xs,
     paddingBottom: space.xs,
+    // Always reserve two lines (numberOfLines caps it at two), so a one-word
+    // name and a wrapping one produce cards of identical height.
+    minHeight: 2 * 20 + space.xs,
   },
   emptyCard: {
     backgroundColor: colors.surface,

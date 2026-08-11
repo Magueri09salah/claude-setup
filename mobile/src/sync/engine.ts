@@ -1,7 +1,14 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { api, apiFetch } from "../api/client";
 import type { ApiQuestion, ApiSign, Manifest } from "../api/types";
-import { db, getMeta, setMeta, type QuestionRow } from "../db";
+import { API_URL } from "../config";
+import {
+  db,
+  getMeta,
+  LOCAL_SCHEMA_VERSION,
+  setMeta,
+  type QuestionRow,
+} from "../db";
 
 // Sync engine (see architecture skill):
 // manifest w/ If-None-Match → 304 = done. Else upsert rows, prune absentees,
@@ -57,11 +64,17 @@ function upsertQuestions(rows: ApiQuestion[]): void {
         !existing ||
         existing.image_key !== q.imageKey ||
         existing.audio_key !== q.audioKey;
+      // The correction voice-over is optional and independent: swapping it must
+      // not force the question's own image/audio to be downloaded again.
+      const correctionChanged =
+        !existing || existing.correction_audio_key !== q.correctionAudioKey;
       db.runSync(
         `INSERT INTO questions
            (id, series_id, order_num, answers_count, correct_answers,
-            image_key, audio_key, image_path, audio_path, downloaded, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            image_key, audio_key, image_path, audio_path,
+            correction_text, correction_audio_key, correction_audio_path,
+            downloaded, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            series_id = excluded.series_id,
            order_num = excluded.order_num,
@@ -71,6 +84,9 @@ function upsertQuestions(rows: ApiQuestion[]): void {
            audio_key = excluded.audio_key,
            image_path = excluded.image_path,
            audio_path = excluded.audio_path,
+           correction_text = excluded.correction_text,
+           correction_audio_key = excluded.correction_audio_key,
+           correction_audio_path = excluded.correction_audio_path,
            downloaded = excluded.downloaded,
            updated_at = excluded.updated_at`,
         q.id,
@@ -82,6 +98,9 @@ function upsertQuestions(rows: ApiQuestion[]): void {
         q.audioKey,
         mediaChanged ? null : (existing?.image_path ?? null),
         mediaChanged ? null : (existing?.audio_path ?? null),
+        q.correctionText ?? null,
+        q.correctionAudioKey ?? null,
+        correctionChanged ? null : (existing?.correction_audio_path ?? null),
         mediaChanged ? 0 : (existing?.downloaded ?? 0),
         q.updatedAt,
       );
@@ -97,8 +116,13 @@ export async function runSync(
   try {
     onProgress?.({ phase: "checking", done: 0, total: 0 });
 
-    // 1. Manifest with If-None-Match.
-    const storedEtag = getMeta("manifest_etag");
+    // 1. Manifest with If-None-Match — unless the local schema gained columns
+    // the last sync never filled. A guarded ALTER leaves those rows on their
+    // DEFAULT, and the server would answer 304 (content unchanged) forever, so
+    // the etag is ignored until one full fetch has actually repopulated them.
+    const schemaStale =
+      getMeta("synced_schema_version") !== String(LOCAL_SCHEMA_VERSION);
+    const storedEtag = schemaStale ? null : getMeta("manifest_etag");
     const res = await apiFetch("/content/manifest", {
       headers: storedEtag ? { "If-None-Match": storedEtag } : {},
     });
@@ -137,20 +161,24 @@ export async function runSync(
       }
       for (const s of manifest.series) {
         db.runSync(
-          `INSERT INTO series (id, title, order_num, is_premium, locked, question_count)
-           VALUES (?, ?, ?, ?, ?, ?)
+          `INSERT INTO series
+             (id, title, order_num, is_premium, locked, question_count, category)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              title = excluded.title,
              order_num = excluded.order_num,
              is_premium = excluded.is_premium,
              locked = excluded.locked,
-             question_count = excluded.question_count`,
+             question_count = excluded.question_count,
+             category = excluded.category`,
           s.id,
           s.title,
           s.orderNum,
           s.isPremium ? 1 : 0,
           s.locked ? 1 : 0,
           s.questionCount,
+          // Older servers omit it; those installs are all car content.
+          s.category ?? "B",
         );
       }
       // Locked (premium, unentitled) series keep their teaser row but no content.
@@ -211,17 +239,32 @@ export async function runSync(
         db.runSync(`DELETE FROM lessons WHERE id NOT IN (${ph})`, ...lessonIds);
       }
       for (const l of manifest.lessons) {
+        const prevKey =
+          db.getFirstSync<{ image_key: string | null; image_path: string | null }>(
+            "SELECT image_key, image_path FROM lessons WHERE id = ?",
+            l.id,
+          ) ?? null;
+        const newKey = l.imageKey ?? null;
+        // Keep the file already on disk only while the key is unchanged; a
+        // replaced cover must be re-fetched, not shown stale.
+        const keptPath =
+          prevKey && prevKey.image_key === newKey ? prevKey.image_path : null;
         db.runSync(
           `INSERT INTO lessons
-             (id, category_id, title, order_num, updated_at, sign_count, locked)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
+             (id, category_id, title, order_num, updated_at, sign_count, locked,
+              image_key, image_path, kind, video_count)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              category_id = excluded.category_id,
              title = excluded.title,
              order_num = excluded.order_num,
              updated_at = excluded.updated_at,
              sign_count = excluded.sign_count,
-             locked = excluded.locked`,
+             locked = excluded.locked,
+             image_key = excluded.image_key,
+             image_path = excluded.image_path,
+             kind = excluded.kind,
+             video_count = excluded.video_count`,
           l.id,
           l.categoryId,
           l.title,
@@ -229,6 +272,11 @@ export async function runSync(
           l.updatedAt,
           l.signCount,
           l.locked ? 1 : 0,
+          newKey,
+          keptPath,
+          // Older servers omit these; those installs are all sign lessons.
+          l.kind ?? "SIGNS",
+          l.videoCount ?? 0,
         );
       }
       const lockedLessonIds = manifest.lessons
@@ -327,6 +375,18 @@ export async function runSync(
         id: q.id,
       });
     }
+    // Correction audio is optional, so it hangs off its own query rather than
+    // the `downloaded = 0` set — a question is playable without it.
+    for (const q of db.getAllSync<{ id: number; correction_audio_key: string }>(
+      `SELECT id, correction_audio_key FROM questions
+        WHERE correction_audio_key IS NOT NULL AND correction_audio_path IS NULL`,
+    )) {
+      jobs.push({
+        key: q.correction_audio_key,
+        sql: "UPDATE questions SET correction_audio_path = ? WHERE id = ?",
+        id: q.id,
+      });
+    }
     for (const s of db.getAllSync<{ id: number; image_key: string }>(
       "SELECT id, image_key FROM lesson_signs WHERE image_path IS NULL",
     )) {
@@ -343,6 +403,15 @@ export async function runSync(
         key: s.audio_key,
         sql: "UPDATE lesson_signs SET audio_path = ? WHERE id = ?",
         id: s.id,
+      });
+    }
+    for (const l of db.getAllSync<{ id: number; image_key: string }>(
+      "SELECT id, image_key FROM lessons WHERE image_key IS NOT NULL AND image_path IS NULL",
+    )) {
+      jobs.push({
+        key: l.image_key,
+        sql: "UPDATE lessons SET image_path = ? WHERE id = ?",
+        id: l.id,
       });
     }
     for (const c of db.getAllSync<{ id: number; icon_key: string }>(
@@ -377,7 +446,12 @@ export async function runSync(
           if (!file.exists) {
             const url = urls[job.key];
             if (!url) throw new Error("missing url");
-            await File.downloadFileAsync(url, file);
+            // Local-storage urls are relative — resolve against the API host we
+            // are actually talking to (survives changing networks).
+            await File.downloadFileAsync(
+              url.startsWith("/") ? `${API_URL}${url}` : url,
+              file,
+            );
           }
           db.runSync(job.sql, file.uri, job.id);
         } catch {
@@ -396,9 +470,14 @@ export async function runSync(
     const remaining =
       db.getFirstSync<{ n: number }>(
         `SELECT (SELECT COUNT(*) FROM questions WHERE downloaded = 0)
+              + (SELECT COUNT(*) FROM questions
+                  WHERE correction_audio_key IS NOT NULL
+                    AND correction_audio_path IS NULL)
               + (SELECT COUNT(*) FROM lesson_signs WHERE image_path IS NULL)
               + (SELECT COUNT(*) FROM lesson_signs
                   WHERE audio_key IS NOT NULL AND audio_path IS NULL)
+              + (SELECT COUNT(*) FROM lessons
+                  WHERE image_key IS NOT NULL AND image_path IS NULL)
               + (SELECT COUNT(*) FROM lesson_categories
                   WHERE icon_key IS NOT NULL AND icon_path IS NULL) AS n`,
       )?.n ?? 0;
@@ -406,6 +485,8 @@ export async function runSync(
       setMeta("content_version", String(manifest.version));
       if (newEtag) setMeta("manifest_etag", newEtag);
       setMeta("last_sync", new Date().toISOString());
+      // Only now are the new columns actually populated from the server.
+      setMeta("synced_schema_version", String(LOCAL_SCHEMA_VERSION));
       return "synced";
     }
     return "partial";
@@ -427,4 +508,33 @@ export async function maybeSyncOnForeground(): Promise<void> {
 
 export function hasLocalContent(): boolean {
   return getMeta("content_version") !== null;
+}
+
+// Repair button ("إعادة تحميل المحتوى"): wipe ALL local content + downloaded
+// media, then run a full resync from scratch. Attempts are preserved — they are
+// the user's own history and may still be unsynced.
+export async function wipeAndResync(
+  onProgress?: (p: SyncProgress) => void,
+): Promise<SyncResult> {
+  db.withTransactionSync(() => {
+    db.runSync("DELETE FROM questions");
+    db.runSync("DELETE FROM series");
+    db.runSync("DELETE FROM lesson_signs");
+    db.runSync("DELETE FROM lessons");
+    db.runSync("DELETE FROM lesson_categories");
+    // Forget sync bookkeeping so the next run refetches everything.
+    db.runSync(
+      "DELETE FROM meta WHERE key IN ('content_version','manifest_etag','last_sync')",
+    );
+  });
+
+  // Delete downloaded media so files are re-fetched (frees stale/corrupt files).
+  try {
+    const mediaDir = new Directory(Paths.document, "media");
+    if (mediaDir.exists) mediaDir.delete();
+  } catch {
+    // ignore — sync re-downloads whatever is missing
+  }
+
+  return runSync(onProgress);
 }

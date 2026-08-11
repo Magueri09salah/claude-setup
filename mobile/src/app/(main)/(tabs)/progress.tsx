@@ -1,6 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { listSeries } from "@/db";
 import { listAttempts } from "@/db/attempts";
 import { computeProgress } from "@/quiz/progressStats";
@@ -27,9 +26,6 @@ export default function ProgressScreen() {
     <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
           <Text style={[styles.title, styles.titleFlex]}>تقدّمي</Text>
         </View>
 
@@ -122,7 +118,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
   title: { ...type.display, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   empty: { ...type.body, color: colors.textDim, marginTop: space.md },

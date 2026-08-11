@@ -1,15 +1,17 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
 import { listTopCategories } from "@/db/lessons";
 import { openCategory } from "@/lessons/nav";
 import { accentFor } from "@/theme/lessonAccents";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 
-// الدروس النظرية — top-level categories: one clear full-width row per category
-// (ui-design §8), icon chip left (56px, lessons tint), title right-aligned.
+// الدروس النظرية — level 1 of 3 (owner sketch 2026-08-07): the categories are
+// FULL-WIDTH rows (التشوير الطرقي / المركبة / الوثائق). Level 2 is where the
+// 2-column picture grid starts.
 export default function LessonsHomeScreen() {
   const categories = listTopCategories();
 
@@ -17,9 +19,6 @@ export default function LessonsHomeScreen() {
     <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
           <Text style={[styles.title, styles.titleFlex]}>الدروس النظرية</Text>
         </View>
 
@@ -46,12 +45,13 @@ export default function LessonsHomeScreen() {
                   {c.icon_path ? (
                     <Image source={{ uri: c.icon_path }} style={styles.chipImage} />
                   ) : (
-                    <Text style={styles.chipEmoji}>🚧</Text>
+                    <Icon name="sign" size={26} color={accent} />
                   )}
                 </View>
                 {locked && (
                   <View style={styles.lockChip}>
-                    <Text style={styles.lockChipText}>🔒 مدفوع</Text>
+                    <Icon name="lock" size={13} color={colors.premium} />
+                    <Text style={styles.lockChipText}>مدفوع</Text>
                   </View>
                 )}
                 <Text style={styles.rowTitle}>{c.title}</Text>
@@ -68,7 +68,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
   title: { ...type.display, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   row: {
@@ -92,14 +91,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   chipImage: { width: 56, height: 56 },
-  chipEmoji: { fontSize: 24 },
-  rowTitle: {
-    ...type.title,
-    color: colors.text,
-    flex: 1,
-    textAlign: "right",
-  },
+  rowTitle: { ...type.title, color: colors.text, flex: 1, textAlign: "right" },
   lockChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
     backgroundColor: "rgba(255,211,72,0.14)",
     borderRadius: radius.pill,
     paddingHorizontal: space.md,

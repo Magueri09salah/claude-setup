@@ -3,9 +3,8 @@ import type { LocalQuestion } from "../db/questions";
 import { saveAttempt, uuidv4 } from "../db/attempts";
 import { pushAttempts } from "./pushAttempts";
 import { isExactMatch } from "./scoring";
+import { getQuestionSeconds } from "./timerPref";
 import { passMarkFor, type QuestionResult } from "./types";
-
-export const QUESTION_SECONDS = 30;
 
 export interface QuizSource {
   // Real series id, or MOCK_SERIES_ID (0) for the random mock exam.
@@ -27,6 +26,9 @@ export interface QuizState {
   index: number;
   total: number;
   timeLeft: number;
+  /** Full duration allotted to the current question (10/20/30s). */
+  questionSeconds: number;
+  paused: boolean;
   selected: number[];
   results: QuestionResult[];
   score: number;
@@ -36,11 +38,13 @@ export interface QuizState {
   toggle: (n: number) => void;
   confirm: () => void;
   skip: () => void;
+  togglePause: () => void;
 }
 
-// Pure engine (quiz-engine skill): 30s timer, toggle multi-select, ✓ / auto-
-// submit on timeout, exact-set scoring, immediate advance (no per-question
-// correction — reveals happen only on the results grid).
+// Pure engine (quiz-engine skill): per-question timer (10/20/30s, user
+// setting), toggle multi-select, ✓ / auto-submit on timeout, exact-set scoring,
+// immediate advance (no per-question correction — reveals happen only on the
+// results grid).
 export function useQuizEngine(source: QuizSource): QuizState {
   const { seriesId, loadQuestions, syncable } = source;
   const questions = useMemo(() => loadQuestions(), [loadQuestions]);
@@ -50,7 +54,13 @@ export function useQuizEngine(source: QuizSource): QuizState {
   const [phase, setPhase] = useState<QuizPhase>(total === 0 ? "empty" : "playing");
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number[]>([]);
-  const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
+  // Read once per question rather than subscribed: changing the duration
+  // mid-question must not move the deadline the candidate is already racing.
+  const [timeLeft, setTimeLeft] = useState<number>(getQuestionSeconds);
+  const [questionSeconds, setQuestionSeconds] = useState<number>(getQuestionSeconds);
+  // Pause freezes the countdown and the audio; the question stays visible and
+  // answerable.
+  const [paused, setPaused] = useState(false);
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
   // resultsRef is the source of truth; state mirror is for render.
@@ -114,19 +124,23 @@ export function useQuizEngine(source: QuizSource): QuizState {
       } else {
         setIndex((i) => i + 1);
         setSelected([]);
-        setTimeLeft(QUESTION_SECONDS);
+        // Picks up a duration changed during the previous question.
+        const next = getQuestionSeconds();
+        setTimeLeft(next);
+        setQuestionSeconds(next);
+        setPaused(false);
         submittingRef.current = false;
       }
     },
     [index, questions, total, finish],
   );
 
-  // Countdown — one interval, only while playing.
+  // Countdown — one interval, only while playing and not paused.
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || paused) return;
     const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(timer);
-  }, [phase, index]);
+  }, [phase, index, paused]);
 
   // Auto-submit at timeout with the current selection.
   useEffect(() => {
@@ -135,6 +149,8 @@ export function useQuizEngine(source: QuizSource): QuizState {
     }
   }, [phase, timeLeft, selected, submit]);
 
+  // Pause holds ONLY the countdown and the audio (owner decision 2026-08-06):
+  // the question stays on screen and answering stays available.
   const toggle = useCallback(
     (n: number) => {
       if (phase !== "playing") return;
@@ -156,6 +172,11 @@ export function useQuizEngine(source: QuizSource): QuizState {
     submit([], false);
   }, [phase, submit]);
 
+  const togglePause = useCallback(() => {
+    if (phase !== "playing") return;
+    setPaused((p) => !p);
+  }, [phase]);
+
   const score = results.filter((r) => r.isCorrect).length;
 
   return {
@@ -164,6 +185,8 @@ export function useQuizEngine(source: QuizSource): QuizState {
     index,
     total,
     timeLeft,
+    questionSeconds,
+    paused,
     selected,
     results,
     score,
@@ -173,5 +196,6 @@ export function useQuizEngine(source: QuizSource): QuizState {
     toggle,
     confirm,
     skip,
+    togglePause,
   };
 }

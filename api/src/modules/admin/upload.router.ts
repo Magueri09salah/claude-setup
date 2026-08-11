@@ -47,13 +47,19 @@ uploadRouter.post("/", upload.single("file"), async (req, res) => {
       where: { id: fields.seriesId },
     });
     if (!series) throw new ApiError(404, "Series not found");
-    base = `questions/${fields.seriesId}/${fields.orderNum}`;
+    base =
+      fields.purpose === "correction"
+        ? `questions/${fields.seriesId}/${fields.orderNum}_correction`
+        : `questions/${fields.seriesId}/${fields.orderNum}`;
   } else if (fields.lessonId !== undefined) {
     const lesson = await prisma.lesson.findUnique({
       where: { id: fields.lessonId },
     });
     if (!lesson) throw new ApiError(404, "Lesson not found");
-    base = `lessons/${fields.lessonId}/${fields.slot}`;
+    base =
+      fields.purpose === "cover"
+        ? `lessons/${fields.lessonId}/cover`
+        : `lessons/${fields.lessonId}/${fields.slot}`;
   } else {
     const category = await prisma.lessonCategory.findUnique({
       where: { id: fields.categoryId! },

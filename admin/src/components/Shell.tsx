@@ -1,23 +1,30 @@
 import { AppShell, Badge, Button, Group, Stack, Text, UnstyledButton } from "@mantine/core";
 import {
   IconBook2,
+  IconBroadcast,
   IconCreditCard,
+  IconLayoutDashboard,
   IconLayoutGrid,
   IconLogout,
   IconPencil,
   IconUsers,
+  IconUsersGroup,
   type IconProps,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { PublishButton } from "./PublishButton";
 
 const NAV: { to: string; label: string; icon: ComponentType<IconProps> }[] = [
+  { to: "/dashboard", label: "لوحة المعلومات", icon: IconLayoutDashboard },
   { to: "/series", label: "السلاسل", icon: IconLayoutGrid },
   { to: "/questions", label: "محرر الأسئلة", icon: IconPencil },
   { to: "/lessons", label: "الدروس", icon: IconBook2 },
+  { to: "/lives", label: "البثوث المباشرة", icon: IconBroadcast },
   { to: "/users", label: "المستخدمون", icon: IconUsers },
+  { to: "/allowlist", label: "المجموعة المجانية", icon: IconUsersGroup },
   { to: "/payments", label: "المدفوعات", icon: IconCreditCard },
 ];
 
@@ -98,7 +105,11 @@ export function Shell() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Outlet />
+        {/* Scoped to the page, so a broken screen keeps the nav usable and
+            clears itself when you navigate elsewhere. */}
+        <ErrorBoundary resetKey={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </AppShell.Main>
     </AppShell>
   );

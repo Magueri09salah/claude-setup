@@ -27,24 +27,13 @@ enum PayStatus {
   EXPIRED
 }
 
-enum Platform {
-  YOUTUBE
-  FACEBOOK
-  TIKTOK
-  INSTAGRAM
-}
-
-enum LiveStatus {
-  SCHEDULED
-  LIVE
-  ENDED
-  CANCELLED
-}
-
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
   phone        String?   @unique
+  // Required at registration; nullable so accounts created before this field
+  // (and the seeded admin) stay valid.
+  fullName     String?
   passwordHash String
   role         Role      @default(USER)
   isPremium    Boolean   @default(false)
@@ -82,12 +71,25 @@ model Device {
   @@unique([userId, deviceId])
 }
 
+// Moroccan licence categories. B (car) is the default so every series that
+// existed before this field keeps its meaning without a data migration.
+enum LicenceCategory {
+  B // سيارة
+  A // دراجة نارية
+  C // شاحنة
+  D // حافلة
+}
+
 model Series {
-  id        Int        @id @default(autoincrement())
+  id        Int             @id @default(autoincrement())
   title     String
   orderNum  Int
-  isPremium Boolean    @default(true)
+  isPremium Boolean         @default(true)
+  category  LicenceCategory @default(B)
   questions Question[]
+
+  // Ordering is per category — each licence has its own "السلسلة 1، 2، 3…".
+  @@index([category, orderNum])
 }
 
 model Question {
@@ -98,6 +100,10 @@ model Question {
   correctAnswers Json // e.g. [2,3]
   imageKey       String
   audioKey       String
+  // Explanation of the right answer. Shown ONLY in the end-of-quiz review —
+  // never while the quiz is running (owner decision, see quiz-engine skill).
+  correctionText     String?
+  correctionAudioKey String?
   updatedAt      DateTime @updatedAt
   series         Series   @relation(fields: [seriesId], references: [id])
 
@@ -121,13 +127,42 @@ model Lesson {
   categoryId Int
   title      String
   orderNum   Int
+  // Cover shown on the lesson card in the app. Optional: a lesson is usable
+  // without one, and the card falls back to its number.
+  imageKey   String?
+  kind       LessonKind     @default(SIGNS)
   updatedAt  DateTime       @updatedAt
   category   LessonCategory @relation(fields: [categoryId], references: [id])
   signs      LessonSign[]
+  videos     LessonVideo[]
 }
 
-// A lesson is a grid of sign flashcards: image + Arabic name + audio explanation
-// (owner decision, 2026-07-22; replaced the earlier block/article model).
+// A lesson is either a grid of sign flashcards or a list of videos. Explicit
+// rather than inferred from content, so a freshly created empty lesson already
+// knows which editor and which player it needs.
+enum LessonKind {
+  SIGNS
+  VIDEOS
+}
+
+// Videos for a VIDEOS lesson (المركبة and the like). Unlike signs, these are
+// STREAMED from storage with a signed url, never bundled into the offline
+// sync — a handful of them would dwarf the whole rest of the content.
+model LessonVideo {
+  id        Int    @id @default(autoincrement())
+  lessonId  Int
+  orderNum  Int
+  title     String
+  videoKey  String
+  // Recorded at upload so the admin can see what it is costing.
+  sizeBytes Int?
+  lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, orderNum])
+}
+
+// A SIGNS lesson is a grid of sign flashcards: image + Arabic name + audio
+// explanation (owner decision, 2026-07-22; replaced the block/article model).
 model LessonSign {
   id       Int     @id @default(autoincrement())
   lessonId Int
@@ -138,6 +173,25 @@ model LessonSign {
   lesson   Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@index([lessonId])
+}
+
+// Allowlist of phone numbers that get premium WITHOUT paying (a partner
+// driving school's group, etc). Server-side only: the client never asserts
+// membership, it just registers with its phone number and the API decides —
+// so the "premium only from a verified source" rule still holds, with the
+// admin's audited allowlist as the second such source alongside the webhook.
+model PremiumPhone {
+  id        String    @id @default(uuid())
+  // Canonical local form (0XXXXXXXXX) so +212 / 00212 / 0… all match.
+  phone     String    @unique
+  note      String? // e.g. the school or group name
+  addedById String
+  // Set when a registration (or a later admin add) actually granted premium.
+  claimedAt DateTime?
+  claimedBy String? // user id
+  createdAt DateTime  @default(now())
+
+  @@index([claimedAt])
 }
 
 model Payment {
@@ -198,15 +252,24 @@ model ContentVersion {
   updatedAt DateTime @updatedAt
 }
 
-model LiveEvent {
-  id          String     @id @default(uuid())
-  title       String
-  description String?
-  platform    Platform
-  url         String
-  scheduledAt DateTime
-  status      LiveStatus @default(SCHEDULED)
-  notifiedT15 Boolean    @default(false)
-  notifiedAt0 Boolean    @default(false)
-  createdAt   DateTime   @default(now())
+// Single row (id = 1). The owner streams every day at the same wall-clock time
+// on the same four profiles, so there is no per-event data to keep — only where
+// the live happens and when. A typed singleton beats a key/value settings table
+// here because Prisma then validates the shape for us.
+model LiveSettings {
+  id           Int     @id @default(1)
+  youtubeUrl   String?
+  facebookUrl  String?
+  instagramUrl String?
+  tiktokUrl    String?
+  // Daily start, "HH:mm" in Africa/Casablanca — deliberately local wall-clock,
+  // not UTC: 23:00 stays 23:00 for viewers regardless of any offset change.
+  startTime    String  @default("23:00")
+  enabled      Boolean @default(true)
+  // Casablanca date (YYYY-MM-DD) each push last went out. Makes the every-minute
+  // cron idempotent for a *recurring* live without storing a row per occurrence.
+  lastReminderOn String?
+  lastStartOn    String?
+  lastPushReach  Int      @default(0) // devices the last push reached
+  updatedAt      DateTime @updatedAt
 }

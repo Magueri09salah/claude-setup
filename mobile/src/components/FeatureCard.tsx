@@ -1,25 +1,26 @@
 import { StyleSheet, Text, View } from "react-native";
 import { colors, font, radius, shadow, space } from "../theme/tokens";
+import { Icon, type IconName } from "./Icon";
 import { PressableScale } from "./PressableScale";
 
 interface Props {
   title: string;
   subtitle: string;
-  emoji: string;
+  icon: IconName;
   accent: string;
   onPress?: () => void;
 }
 
 // Night Drive card: dark surface with a 4px accent edge on the icon side —
 // a road-sign post. Icon chip LEFT, Arabic text right-aligned. No chevron.
-export function FeatureCard({ title, subtitle, emoji, accent, onPress }: Props) {
+export function FeatureCard({ title, subtitle, icon, accent, onPress }: Props) {
   return (
     <PressableScale
       onPress={onPress}
       style={[styles.card, { borderLeftColor: accent }]}
     >
       <View style={[styles.chip, { backgroundColor: `${accent}38` }]}>
-        <Text style={styles.emoji}>{emoji}</Text>
+        <Icon name={icon} size={24} color={accent} />
       </View>
       <View style={styles.texts}>
         <Text style={styles.title}>{title}</Text>
@@ -50,7 +51,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emoji: { fontSize: 20 },
   texts: { flex: 1, gap: 2 },
   title: {
     fontFamily: font.extraBold,

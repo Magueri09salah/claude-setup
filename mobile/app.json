@@ -9,18 +9,30 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#141519",
     "extra": {
-      "supportsRTL": true
+      "supportsRTL": true,
+      "eas": {
+        "projectId": "16bef0c6-9227-40d9-8c76-4b155a4adfbb"
+      },
+      "router": {}
     },
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "ma.tariq.app"
     },
     "android": {
+      "package": "ma.tariq.app",
       "adaptiveIcon": {
         "backgroundColor": "#FFD348",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -39,11 +51,20 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "color": "#FFD348",
+          "defaultChannel": "default"
+        }
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": false,
       "reactCompiler": true
-    }
+    },
+    "owner": "devery"
   }
 }

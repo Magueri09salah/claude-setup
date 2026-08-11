@@ -11,6 +11,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 export interface SessionUser {
   id: string;
   email: string;
+  fullName: string | null;
   phone: string | null;
   role: "USER" | "ADMIN";
   isPremium: boolean;

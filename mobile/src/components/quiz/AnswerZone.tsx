@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Icon } from "../Icon";
 import { colors, font, radius, space } from "../../theme/tokens";
 import { AnswerButton } from "./AnswerButton";
 
@@ -31,7 +32,7 @@ export function AnswerZone({
           pressed && { opacity: 0.7 },
         ]}
       >
-        <Text style={[styles.sideIcon, { color: colors.danger }]}>✗</Text>
+        <Icon name="close" size={28} color={colors.danger} />
       </Pressable>
 
       <View style={styles.grid}>
@@ -55,7 +56,7 @@ export function AnswerZone({
           pressed && { opacity: 0.7 },
         ]}
       >
-        <Text style={[styles.sideIcon, { color: colors.success }]}>✓</Text>
+        <Icon name="check" size={28} color={colors.success} />
       </Pressable>
     </View>
   );
@@ -72,7 +73,6 @@ const styles = StyleSheet.create({
   skip: { backgroundColor: "rgba(229,72,77,0.16)" },
   confirm: { backgroundColor: "rgba(47,191,113,0.18)" },
   confirmDisabled: { opacity: 0.4 },
-  sideIcon: { fontFamily: font.extraBold, fontSize: 28 },
   grid: {
     flex: 1,
     flexDirection: "row",

@@ -10,17 +10,21 @@ import {
   Modal,
   NumberInput,
   SegmentedControl,
-  Select,
+  SimpleGrid,
   Skeleton,
   Stack,
   Switch,
   Table,
   Text,
+  Textarea,
+  TextInput,
   Title,
 } from "@mantine/core";
+import { IconSearch } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api/client";
+import { api, mediaUrl } from "../api/client";
 import type { Question, Series } from "../api/types";
+import { LICENCES, licence, licenceLabel } from "../licence";
 import { notifyError, notifySuccess } from "../notify";
 
 type AnswersCount = "2" | "3" | "4";
@@ -28,6 +32,7 @@ type AnswersCount = "2" | "3" | "4";
 export function QuestionEditorPage() {
   const [seriesList, setSeriesList] = useState<Series[] | null>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -38,8 +43,16 @@ export function QuestionEditorPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioKey, setAudioKey] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [correctionText, setCorrectionText] = useState("");
+  const [correctionAudioKey, setCorrectionAudioKey] = useState<string | null>(
+    null,
+  );
+  const [correctionAudioUrl, setCorrectionAudioUrl] = useState<string | null>(
+    null,
+  );
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [uploadingCorrection, setUploadingCorrection] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Question | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -73,6 +86,9 @@ export function QuestionEditorPage() {
     setImageUrl(null);
     setAudioKey(null);
     setAudioUrl(null);
+    setCorrectionText("");
+    setCorrectionAudioKey(null);
+    setCorrectionAudioUrl(null);
   }, []);
 
   const selectSeries = useCallback(
@@ -100,14 +116,21 @@ export function QuestionEditorPage() {
     setCorrect(q.correctAnswers.map(String));
     setImageKey(q.imageKey);
     setAudioKey(q.audioKey);
+    setCorrectionText(q.correctionText ?? "");
+    setCorrectionAudioKey(q.correctionAudioKey);
     setImageUrl(null);
     setAudioUrl(null);
-    api<{ question: Question; imageUrl: string; audioUrl: string }>(
-      `/admin/questions/${q.id}`,
-    )
+    setCorrectionAudioUrl(null);
+    api<{
+      question: Question;
+      imageUrl: string;
+      audioUrl: string;
+      correctionAudioUrl: string | null;
+    }>(`/admin/questions/${q.id}`)
       .then((r) => {
         setImageUrl(r.imageUrl);
         setAudioUrl(r.audioUrl);
+        setCorrectionAudioUrl(r.correctionAudioUrl);
       })
       .catch(notifyError);
   };
@@ -117,14 +140,25 @@ export function QuestionEditorPage() {
     setCorrect((prev) => prev.filter((n) => Number(n) <= Number(value)));
   };
 
-  const uploadFile = async (file: File | null, kind: "image" | "audio") => {
+  const uploadFile = async (
+    file: File | null,
+    kind: "image" | "audio" | "correction",
+  ) => {
     if (!file || !seriesId || orderNum === "") return;
-    const setBusy = kind === "image" ? setUploadingImage : setUploadingAudio;
+    const setBusy =
+      kind === "image"
+        ? setUploadingImage
+        : kind === "audio"
+          ? setUploadingAudio
+          : setUploadingCorrection;
     setBusy(true);
     try {
       const fd = new FormData();
       fd.append("seriesId", seriesId);
       fd.append("orderNum", String(orderNum));
+      // Correction audio gets its own base key so it never collides with the
+      // question's own audio.
+      if (kind === "correction") fd.append("purpose", "correction");
       fd.append("file", file);
       const r = await api<{ key: string; url: string }>("/admin/upload", {
         method: "POST",
@@ -133,9 +167,12 @@ export function QuestionEditorPage() {
       if (kind === "image") {
         setImageKey(r.key);
         setImageUrl(r.url);
-      } else {
+      } else if (kind === "audio") {
         setAudioKey(r.key);
         setAudioUrl(r.url);
+      } else {
+        setCorrectionAudioKey(r.key);
+        setCorrectionAudioUrl(r.url);
       }
     } catch (e) {
       notifyError(e);
@@ -173,6 +210,8 @@ export function QuestionEditorPage() {
       correctAnswers: correct.map(Number).sort((a, b) => a - b),
       imageKey,
       audioKey,
+      correctionText: correctionText.trim(),
+      correctionAudioKey,
     };
     try {
       if (editingId !== null) {
@@ -224,37 +263,115 @@ export function QuestionEditorPage() {
     (_, i) => String(i + 1),
   );
 
+  // Drives the cards directly, so what you search is exactly what you see.
+  // Matches the title or the order number ("3" finds السلسلة الثالثة).
+  const query = search.trim().toLowerCase();
+  const filteredSeries = (seriesList ?? []).filter(
+    (s) =>
+      query === "" ||
+      s.title.toLowerCase().includes(query) ||
+      String(s.orderNum) === query,
+  );
+
   return (
     <Stack>
-      <Group justify="space-between" align="flex-end">
+      <Group justify="space-between" align="center">
         <Title order={3}>محرر الأسئلة</Title>
-        <Group align="flex-end">
-          <Select
-            label="السلسلة"
-            placeholder="اختر سلسلة"
-            w={280}
-            data={
-              seriesList?.map((s) => ({
-                value: String(s.id),
-                label: `${s.orderNum}. ${s.title}`,
-              })) ?? []
-            }
-            value={seriesId}
-            onChange={(v) => void selectSeries(v)}
-            searchable
-          />
-          <Switch
-            label="سلسلة مدفوعة"
-            checked={selectedSeries?.isPremium ?? false}
-            disabled={!selectedSeries}
-            onChange={(e) => void togglePremium(e.currentTarget.checked)}
-            mb={6}
-          />
-        </Group>
+        {selectedSeries && (
+          <Group align="center">
+            <Switch
+              label="سلسلة مدفوعة"
+              checked={selectedSeries.isPremium}
+              onChange={(e) => void togglePremium(e.currentTarget.checked)}
+            />
+            <Button
+              variant="default"
+              onClick={() => {
+                // Reload so the counts on the cards reflect questions just
+                // added or deleted.
+                void loadSeries();
+                void selectSeries(null);
+              }}
+            >
+              تغيير السلسلة
+            </Button>
+          </Group>
+        )}
       </Group>
 
       {!seriesId ? (
-        <Text c="dimmed">اختر سلسلة لإدارة أسئلتها.</Text>
+        /* Series picker: cards instead of a dropdown, with a search box that
+           filters exactly what is on screen. */
+        <>
+          <TextInput
+            placeholder="ابحث عن سلسلة بالاسم أو الرقم…"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            maw={420}
+          />
+
+          {seriesList === null ? (
+            <SimpleGrid cols={{ base: 2, sm: 3, lg: 4 }} spacing="md">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} h={120} radius="lg" />
+              ))}
+            </SimpleGrid>
+          ) : filteredSeries.length === 0 ? (
+            <Text c="dimmed">
+              {search.trim()
+                ? `لا توجد سلسلة تطابق «${search.trim()}».`
+                : "لا توجد سلاسل بعد — أنشئها من صفحة السلاسل."}
+            </Text>
+          ) : (
+            LICENCES.flatMap((l) => {
+              const group = filteredSeries.filter((x) => x.category === l.value);
+              if (group.length === 0) return [];
+              return [
+                <Stack key={l.value} gap="sm">
+                  <Group gap="xs">
+                    <l.icon size={16} />
+                    <Text fw={600} fz="sm">
+                      {licenceLabel(l.value)}
+                    </Text>
+                    <Badge size="sm" variant="light">
+                      {group.length}
+                    </Badge>
+                  </Group>
+                  <SimpleGrid cols={{ base: 2, sm: 3, lg: 4 }} spacing="md">
+                    {group.map((s) => (
+                      <Card
+                        key={s.id}
+                        padding="lg"
+                        withBorder
+                        radius="lg"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => void selectSeries(String(s.id))}
+                      >
+                        <Group justify="space-between" mb="xs">
+                          <Badge variant="light" color={licence(s.category).color}>
+                            {s.orderNum}
+                          </Badge>
+                          {s.isPremium && (
+                            <Badge variant="light" color="grape" size="sm">
+                              مدفوعة
+                            </Badge>
+                          )}
+                        </Group>
+                        <Text fw={600} lineClamp={2}>
+                          {s.title}
+                        </Text>
+                        <Text size="xs" c="dimmed" mt={4}>
+                          {s._count?.questions ?? 0} سؤال
+                        </Text>
+                      </Card>
+                    ))}
+                  </SimpleGrid>
+                </Stack>,
+              ];
+            })
+          )}
+        </>
       ) : (
         <Grid gutter="lg">
           <Grid.Col span={{ base: 12, md: 5 }}>
@@ -345,11 +462,18 @@ export function QuestionEditorPage() {
                     ? `تعديل السؤال رقم ${orderNum}`
                     : "سؤال جديد"}
                 </Text>
-                {selectedSeries?.isPremium && (
-                  <Badge color="grape" variant="light">
-                    سلسلة مدفوعة
-                  </Badge>
-                )}
+                <Group gap="xs">
+                  {selectedSeries && (
+                    <Badge variant="light" color={licence(selectedSeries.category).color}>
+                      {licenceLabel(selectedSeries.category)}
+                    </Badge>
+                  )}
+                  {selectedSeries?.isPremium && (
+                    <Badge color="grape" variant="light">
+                      سلسلة مدفوعة
+                    </Badge>
+                  )}
+                </Group>
               </Group>
               <Stack>
                 <Group grow align="flex-start">
@@ -392,7 +516,7 @@ export function QuestionEditorPage() {
                     </Text>
                     {imageUrl ? (
                       <Image
-                        src={imageUrl}
+                        src={mediaUrl(imageUrl ?? undefined)}
                         w={180}
                         h={240}
                         fit="cover"
@@ -427,7 +551,7 @@ export function QuestionEditorPage() {
                       صوت السؤال (MP3)
                     </Text>
                     {audioUrl ? (
-                      <audio controls src={audioUrl} style={{ width: "100%" }} />
+                      <audio controls src={mediaUrl(audioUrl ?? undefined)} style={{ width: "100%" }} />
                     ) : audioKey ? (
                       <Skeleton h={40} radius="md" />
                     ) : (
@@ -452,6 +576,77 @@ export function QuestionEditorPage() {
                     </FileButton>
                   </Stack>
                 </Group>
+
+                <Card withBorder radius="md" padding="md" bg="var(--mantine-color-zinc-0)">
+                  <Text fw={600} size="sm" mb={2}>
+                    التصحيح
+                  </Text>
+                  <Text size="xs" c="dimmed" mb="sm">
+                    يظهر للمترشح في مرحلة التصحيح بعد انتهاء السلسلة فقط، وليس
+                    أثناء الإجابة.
+                  </Text>
+                  <Stack gap="sm">
+                    <Textarea
+                      label="نص التصحيح"
+                      placeholder="اشرح الجواب الصحيح…"
+                      autosize
+                      minRows={3}
+                      maxRows={8}
+                      maxLength={1000}
+                      value={correctionText}
+                      onChange={(e) => setCorrectionText(e.currentTarget.value)}
+                    />
+                    <div>
+                      <Text size="sm" fw={500} mb={4}>
+                        صوت التصحيح (MP3)
+                      </Text>
+                      {correctionAudioUrl ? (
+                        <audio
+                          controls
+                          src={mediaUrl(correctionAudioUrl)}
+                          style={{ width: "100%" }}
+                        />
+                      ) : correctionAudioKey ? (
+                        <Skeleton h={40} radius="md" />
+                      ) : (
+                        <Text size="xs" c="dimmed">
+                          لا يوجد صوت تصحيح (اختياري).
+                        </Text>
+                      )}
+                      <Group gap="xs" mt="xs">
+                        <FileButton
+                          onChange={(f) => void uploadFile(f, "correction")}
+                          accept="audio/mpeg"
+                        >
+                          {(props) => (
+                            <Button
+                              {...props}
+                              variant="light"
+                              size="compact-sm"
+                              loading={uploadingCorrection}
+                              disabled={!seriesId || orderNum === ""}
+                            >
+                              رفع صوت التصحيح
+                            </Button>
+                          )}
+                        </FileButton>
+                        {correctionAudioKey && (
+                          <Button
+                            variant="subtle"
+                            color="red"
+                            size="compact-sm"
+                            onClick={() => {
+                              setCorrectionAudioKey(null);
+                              setCorrectionAudioUrl(null);
+                            }}
+                          >
+                            حذف الصوت
+                          </Button>
+                        )}
+                      </Group>
+                    </div>
+                  </Stack>
+                </Card>
 
                 <Group justify="flex-end">
                   <Button

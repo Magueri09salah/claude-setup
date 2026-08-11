@@ -3,11 +3,15 @@ import { z } from "zod";
 import { requireAdmin, requireAuth } from "../../middleware/auth";
 import { prisma } from "../../prisma";
 import { storage } from "../../storage";
+import { dashboardRouter } from "./dashboard.router";
 import { lessonsAdminRouter } from "./lessons-admin.router";
+import { livesAdminRouter } from "./lives-admin.router";
 import { paymentsAdminRouter } from "./payments-admin.router";
 import { questionsRouter } from "./questions.router";
 import { seriesRouter } from "./series.router";
+import { allowlistRouter } from "./allowlist-admin.router";
 import { uploadRouter } from "./upload.router";
+import { videosRouter } from "./videos.router";
 
 export const adminRouter = Router();
 
@@ -17,8 +21,12 @@ adminRouter.use(requireAuth, requireAdmin);
 adminRouter.use("/series", seriesRouter);
 adminRouter.use("/questions", questionsRouter);
 adminRouter.use("/upload", uploadRouter);
+adminRouter.use("/", allowlistRouter);
+adminRouter.use("/", videosRouter);
 adminRouter.use("/", lessonsAdminRouter);
 adminRouter.use("/", paymentsAdminRouter);
+adminRouter.use("/", livesAdminRouter);
+adminRouter.use("/", dashboardRouter);
 
 adminRouter.get("/content-version", async (_req, res) => {
   const cv = await prisma.contentVersion.findUnique({ where: { id: 1 } });

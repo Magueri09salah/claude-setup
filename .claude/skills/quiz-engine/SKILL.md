@@ -8,7 +8,13 @@ description: Exact behavioral rules for the exam quiz — timer, multi-select to
 ## Per-question flow
 1. Load question image + audio from LOCAL paths (SQLite row). Never remote.
 2. Autoplay audio (expo-audio). Replay button available in top bar.
-3. Start 30s countdown. Pause button allowed in training mode only.
+3. Start the countdown. Duration is a USER SETTING — 10 / 20 / 30s (owner
+   decision 2026-08-06), stored in SQLite `meta.quiz_seconds`, default 30.
+   Single source: `quiz/timerPref.ts`; picker UI: `TimerChoiceList`, reachable
+   BOTH by tapping the timer pill mid-quiz and from the settings tab. A change
+   applies from the NEXT question — never move a deadline already running.
+   Pause (إيقاف) stops the countdown and the audio and NOTHING else: the
+   question image stays visible and the answer buttons stay usable.
 4. Number buttons (1..answersCount) are TOGGLES — multi-select, clear selected state.
 5. Submit on ✓ press OR timer reaching 0 (auto-submit current selection).
    Empty selection at timeout = wrong, flag timedOut=true. ✗ = skip = wrong.

@@ -21,6 +21,7 @@ paymentsAdminRouter.get("/users", async (req, res) => {
   const where = q.search
     ? {
         OR: [
+          { fullName: { contains: q.search, mode: "insensitive" as const } },
           { email: { contains: q.search, mode: "insensitive" as const } },
           { phone: { contains: q.search } },
         ],
@@ -52,6 +53,7 @@ paymentsAdminRouter.get("/users", async (req, res) => {
     return {
       id: u.id,
       email: u.email,
+      fullName: u.fullName,
       phone: u.phone,
       role: u.role,
       isPremium: premiumActive,
@@ -90,12 +92,13 @@ paymentsAdminRouter.get("/payments", async (req, res) => {
     },
     orderBy: { createdAt: "desc" },
     take: 500,
-    include: { user: { select: { email: true, phone: true } } },
+    include: { user: { select: { email: true, phone: true, fullName: true } } },
   });
   res.json({
     payments: payments.map((p) => ({
       id: p.id,
       userEmail: p.user.email,
+      userName: p.user.fullName,
       userPhone: p.user.phone,
       method: p.method,
       amount: Number(p.amount),

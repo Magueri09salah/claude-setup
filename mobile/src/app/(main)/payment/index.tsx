@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import { getPricing, type Pricing } from "@/api/payments";
 import { PressableScale } from "@/components/PressableScale";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
@@ -32,12 +33,12 @@ export default function PaymentIndexScreen() {
         </View>
 
         <View style={styles.pitch}>
-          <Text style={styles.pitchEmoji}>🔓</Text>
+          <Icon name="unlock" size={32} color={colors.lessons} style={styles.pitchIcon} />
           <Text style={styles.pitchTitle}>اشتراك طريق المميّز</Text>
           <View style={styles.benefits}>
             {BENEFITS.map((b) => (
               <View key={b} style={styles.benefitRow}>
-                <Text style={styles.check}>✓</Text>
+                <Icon name="check" size={16} color={colors.success} />
                 <Text style={styles.benefitText}>{b}</Text>
               </View>
             ))}
@@ -57,7 +58,7 @@ export default function PaymentIndexScreen() {
           style={[styles.option, { borderLeftColor: colors.exam }]}
         >
           <View style={[styles.optIcon, { backgroundColor: `${colors.exam}26` }]}>
-            <Text style={styles.optEmoji}>💳</Text>
+            <Icon name="card" size={24} color={colors.exam} />
           </View>
           <View style={styles.optTexts}>
             <Text style={styles.optTitle}>الدفع بالبطاقة البنكية</Text>
@@ -70,7 +71,7 @@ export default function PaymentIndexScreen() {
           style={[styles.option, { borderLeftColor: colors.lessons }]}
         >
           <View style={[styles.optIcon, { backgroundColor: `${colors.lessons}26` }]}>
-            <Text style={styles.optEmoji}>🏪</Text>
+            <Icon name="store" size={24} color={colors.lessons} />
           </View>
           <View style={styles.optTexts}>
             <Text style={styles.optTitle}>الدفع نقداً في وكالة Wafacash</Text>
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     ...shadow.card,
   },
-  pitchEmoji: { fontSize: 32, textAlign: "center" },
+  pitchIcon: { alignSelf: "center" },
   pitchTitle: {
     ...type.title,
     color: colors.text,
@@ -106,7 +107,6 @@ const styles = StyleSheet.create({
   },
   benefits: { gap: space.sm, marginTop: space.sm },
   benefitRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  check: { fontFamily: font.extraBold, fontSize: 16, color: colors.success },
   benefitText: { ...type.body, color: colors.text, flex: 1, textAlign: "right" },
   priceRow: {
     alignItems: "center",
@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  optEmoji: { fontSize: 22 },
   optTexts: { flex: 1, gap: 2 },
   optTitle: { ...type.title, fontSize: 17, color: colors.text, textAlign: "right" },
   optSub: { ...type.label, color: colors.textDim, textAlign: "right" },

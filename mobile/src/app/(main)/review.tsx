@@ -1,7 +1,10 @@
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
+import { Icon } from "@/components/Icon";
 import { AnswerButton, type AnswerVisual } from "@/components/quiz/AnswerButton";
 import { getAttempt } from "@/db/attempts";
 import { getQuestionById } from "@/db/questions";
@@ -50,7 +53,7 @@ export default function ReviewScreen() {
               { color: result.isCorrect ? colors.success : colors.danger },
             ]}
           >
-            {result.isCorrect ? "إجابة صحيحة ✅" : "إجابة خاطئة ❌"}
+            {result.isCorrect ? "إجابة صحيحة" : "إجابة خاطئة"}
             {result.timedOut ? " · انتهى الوقت" : ""}
           </Text>
         </View>
@@ -59,7 +62,7 @@ export default function ReviewScreen() {
           <Image
             source={{ uri: question.imagePath }}
             style={styles.image}
-            contentFit="cover"
+            contentFit="contain"
           />
         ) : (
           <View style={[styles.image, styles.placeholder]}>
@@ -76,15 +79,80 @@ export default function ReviewScreen() {
         </View>
 
         <View style={styles.legend}>
-          <Text style={[styles.legendText, { color: colors.success }]}>
-            🟢 الإجابة الصحيحة
-          </Text>
-          <Text style={[styles.legendText, { color: colors.danger }]}>
-            🔴 اختيارك الخاطئ
-          </Text>
+          <View style={styles.legendRow}>
+            <Icon name="checkCircle" size={14} color={colors.success} />
+            <Text style={[styles.legendText, { color: colors.success }]}>
+              الإجابة الصحيحة
+            </Text>
+          </View>
+          <View style={styles.legendRow}>
+            <Icon name="closeCircle" size={14} color={colors.danger} />
+            <Text style={[styles.legendText, { color: colors.danger }]}>
+              اختيارك الخاطئ
+            </Text>
+          </View>
         </View>
+
+        <CorrectionCard
+          text={question?.correctionText ?? null}
+          audioPath={question?.correctionAudioPath ?? null}
+        />
       </ScrollView>
     </LinearGradient>
+  );
+}
+
+// The correction is the payoff of the whole review flow — an explanation the
+// candidate reads AFTER the series, plus the trainer's voice-over when there
+// is one. Renders nothing when the admin left both empty.
+function CorrectionCard({
+  text,
+  audioPath,
+}: {
+  text: string | null;
+  audioPath: string | null;
+}) {
+  const player = useAudioPlayer(audioPath ? { uri: audioPath } : null);
+  const status = useAudioPlayerStatus(player);
+  usePausedOnBlur(player);
+
+  if (!text && !audioPath) return null;
+
+  const toggle = () => {
+    try {
+      if (status.playing) {
+        player.pause();
+      } else {
+        if (status.didJustFinish || status.currentTime >= status.duration) {
+          player.seekTo(0);
+        }
+        player.play();
+      }
+    } catch {
+      // a missing/corrupt file must not break the review
+    }
+  };
+
+  return (
+    <View style={styles.correction}>
+      <View style={styles.correctionHeader}>
+        <Icon name="alert" size={16} color={colors.lessons} />
+        <Text style={styles.correctionTitle}>التصحيح</Text>
+      </View>
+      {text ? <Text style={styles.correctionText}>{text}</Text> : null}
+      {audioPath ? (
+        <Pressable onPress={toggle} style={styles.audioButton}>
+          <Icon
+            name={status.playing ? "pause" : "play"}
+            size={16}
+            color={colors.onAccent}
+          />
+          <Text style={styles.audioButtonText}>
+            {status.playing ? "إيقاف الشرح" : "استمع للشرح"}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -104,6 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   placeholder: {
     backgroundColor: colors.surfaceAlt,
@@ -114,7 +183,32 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   gridItem: { width: "22%", minWidth: 64 },
   legend: { gap: space.xs, marginTop: space.sm },
+  legendRow: { flexDirection: "row", alignItems: "center", gap: space.xs },
   legendText: { ...type.label },
+  correction: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.lessons,
+    padding: space.lg,
+    gap: space.sm,
+    marginTop: space.sm,
+  },
+  correctionHeader: { flexDirection: "row", alignItems: "center", gap: space.xs },
+  correctionTitle: { ...type.title, fontSize: 16, color: colors.text },
+  correctionText: { ...type.body, color: colors.text, textAlign: "right" },
+  audioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.lessons,
+  },
+  audioButtonText: { fontFamily: font.bold, fontSize: 15, color: colors.onAccent },
   button: {
     paddingHorizontal: space.xl,
     height: 48,

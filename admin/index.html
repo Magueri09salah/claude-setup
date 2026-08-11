@@ -1,8 +1,13 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" translate="no">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Chrome offers to translate this Arabic page in a non-Arabic browser.
+         Auto-translation rewrites text nodes under React's feet, and the next
+         re-render dies on removeChild — which blanks the whole panel. The panel
+         is authored in Arabic on purpose, so opt out entirely. -->
+    <meta name="google" content="notranslate" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,7 +17,7 @@
     <title>Tariq Admin — طريق</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root" class="notranslate"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

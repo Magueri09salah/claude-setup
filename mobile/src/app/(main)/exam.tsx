@@ -1,22 +1,34 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { listSeries, type SeriesRow } from "@/db";
+import { listSeries, type LicenceCategory, type SeriesRow } from "@/db";
+import { Icon } from "@/components/Icon";
+import { LICENCE_TITLE } from "@/licence";
 import { bestScoresBySeries, type BestScore } from "@/db/attempts";
 import { countDownloaded } from "@/db/questions";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 
+const CATEGORIES: LicenceCategory[] = ["B", "A", "C", "D"];
+
 export default function ExamListScreen() {
+  // ?category=A|C|D shows that licence's series; no param = car (B).
+  const params = useLocalSearchParams<{ category?: string }>();
+  const category: LicenceCategory = CATEGORIES.includes(
+    params.category as LicenceCategory,
+  )
+    ? (params.category as LicenceCategory)
+    : "B";
+
   const [series, setSeries] = useState<SeriesRow[]>([]);
   const [best, setBest] = useState<Map<number, BestScore>>(new Map());
 
   // Re-read on focus so a new best score shows right after finishing a quiz.
   useFocusEffect(
     useCallback(() => {
-      setSeries(listSeries());
+      setSeries(listSeries(category));
       setBest(bestScoresBySeries());
-    }, []),
+    }, [category]),
   );
 
   const open = (s: SeriesRow) => {
@@ -30,7 +42,9 @@ export default function ExamListScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Text style={styles.back}>‹</Text>
           </Pressable>
-          <Text style={[styles.title, styles.titleFlex]}>سلاسل الامتحان</Text>
+          <Text style={[styles.title, styles.titleFlex]}>
+            {LICENCE_TITLE[category]}
+          </Text>
         </View>
 
         {series.length === 0 ? (
@@ -54,7 +68,8 @@ export default function ExamListScreen() {
               >
                 {locked ? (
                   <View style={styles.lockChip}>
-                    <Text style={styles.lockChipText}>🔒 مدفوع</Text>
+                    <Icon name="lock" size={13} color={colors.premium} />
+                    <Text style={styles.lockChipText}>مدفوع</Text>
                   </View>
                 ) : (
                   <View style={styles.left}>
@@ -106,7 +121,7 @@ export default function ExamListScreen() {
             ]}
           >
             <View style={styles.mockChip}>
-              <Text style={styles.mockTrophy}>🏆</Text>
+              <Icon name="trophy" size={24} color={colors.onAccent} />
             </View>
             <View style={styles.cardTexts}>
               <Text style={styles.mockTitle}>امتحان تجريبي</Text>
@@ -167,6 +182,9 @@ const styles = StyleSheet.create({
   scoreTextPass: { color: colors.success },
   scoreEmptyText: { fontFamily: font.bold, fontSize: 16, color: colors.textDim },
   lockChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
     backgroundColor: "rgba(255,211,72,0.14)",
     borderRadius: radius.pill,
     paddingHorizontal: space.md,
@@ -191,7 +209,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  mockTrophy: { fontSize: 22 },
   mockTitle: {
     fontFamily: font.extraBold,
     fontSize: 20,

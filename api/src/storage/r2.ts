@@ -1,3 +1,5 @@
+import { createReadStream } from "node:fs";
+import fs from "node:fs/promises";
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -38,6 +40,25 @@ export class R2Storage implements StorageService {
         ContentType: contentType,
       }),
     );
+  }
+
+  // Streamed upload for large files. ContentLength is required because a
+  // stream has no known size, and without it the SDK buffers the whole body.
+  async putFile(key: string, filePath: string, contentType: string): Promise<void> {
+    const { size } = await fs.stat(filePath);
+    try {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: createReadStream(filePath),
+          ContentLength: size,
+          ContentType: contentType,
+        }),
+      );
+    } finally {
+      await fs.unlink(filePath).catch(() => undefined);
+    }
   }
 
   async exists(key: string): Promise<boolean> {

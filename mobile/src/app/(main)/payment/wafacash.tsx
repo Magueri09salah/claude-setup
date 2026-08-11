@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import {
   createWafacashPayment,
   getPaymentStatus,
@@ -100,7 +101,7 @@ export default function WafacashScreen() {
 
         {status === "error" && (
           <View style={styles.centerCard}>
-            <Text style={styles.emoji}>⚠️</Text>
+            <Icon name="alert" size={48} color={colors.danger} />
             <Text style={styles.strong}>تعذّر إنشاء الرمز</Text>
             <PrimaryButton label="حاول مجدداً" onPress={create} />
           </View>
@@ -108,7 +109,7 @@ export default function WafacashScreen() {
 
         {status === "PAID" && (
           <View style={styles.centerCard}>
-            <Text style={styles.emoji}>✅</Text>
+            <Icon name="checkCircle" size={48} color={colors.success} />
             <Text style={styles.strong}>تم تأكيد الدفع!</Text>
             <Text style={styles.muted}>أصبح كل المحتوى متاحاً الآن.</Text>
             <PrimaryButton label="ابدأ التعلّم" onPress={() => router.replace("/")} />
@@ -117,7 +118,7 @@ export default function WafacashScreen() {
 
         {status === "EXPIRED" && payment && (
           <View style={styles.centerCard}>
-            <Text style={styles.emoji}>⏳</Text>
+            <Icon name="calendar" size={48} color={colors.textDim} />
             <Text style={styles.strong}>انتهت صلاحية الرمز</Text>
             <Text style={styles.muted}>أنشئ رمزاً جديداً للمتابعة.</Text>
             <PrimaryButton label="إنشاء رمز جديد" onPress={create} />
@@ -181,7 +182,6 @@ const styles = StyleSheet.create({
     gap: space.md,
     ...shadow.card,
   },
-  emoji: { fontSize: 48 },
   strong: { fontFamily: font.extraBold, fontSize: 20, color: colors.text, textAlign: "center" },
   muted: { ...type.body, color: colors.textDim, textAlign: "center" },
   codeCard: {

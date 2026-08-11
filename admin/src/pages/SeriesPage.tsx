@@ -3,37 +3,47 @@ import {
   Button,
   Group,
   Modal,
+  Select,
   Skeleton,
   Stack,
   Switch,
   Table,
+  Tabs,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import type { Series } from "../api/types";
+import type { LicenceCategory, Series } from "../api/types";
+import { LICENCES, licenceLabel } from "../licence";
 import { notifyError, notifySuccess } from "../notify";
 
 export function SeriesPage() {
+  // One licence at a time: series are numbered per category, so mixing them in
+  // a single list would make the order column meaningless.
+  const [tab, setTab] = useState<LicenceCategory>("B");
   const [series, setSeries] = useState<Series[] | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Series | null>(null);
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<LicenceCategory>("B");
   const [isPremium, setIsPremium] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
+    setSeries(null);
     try {
-      const r = await api<{ series: Series[] }>("/admin/series");
+      const r = await api<{ series: Series[] }>(
+        `/admin/series?category=${tab}`,
+      );
       setSeries(r.series);
     } catch (e) {
       notifyError(e);
     }
-  }, []);
+  }, [tab]);
 
   useEffect(() => {
     void load();
@@ -42,6 +52,7 @@ export function SeriesPage() {
   const openCreate = () => {
     setEditing(null);
     setTitle("");
+    setCategory(tab); // a new series lands in the licence you are viewing
     setIsPremium(true);
     setModalOpen(true);
   };
@@ -49,6 +60,7 @@ export function SeriesPage() {
   const openEdit = (s: Series) => {
     setEditing(s);
     setTitle(s.title);
+    setCategory(s.category);
     setIsPremium(s.isPremium);
     setModalOpen(true);
   };
@@ -59,13 +71,13 @@ export function SeriesPage() {
       if (editing) {
         await api(`/admin/series/${editing.id}`, {
           method: "PATCH",
-          json: { title: title.trim(), isPremium },
+          json: { title: title.trim(), isPremium, category },
         });
         notifySuccess("تم الحفظ", "تم تحديث السلسلة");
       } else {
         await api("/admin/series", {
           method: "POST",
-          json: { title: title.trim(), isPremium },
+          json: { title: title.trim(), isPremium, category },
         });
         notifySuccess("تم الإنشاء", "تمت إضافة السلسلة");
       }
@@ -132,6 +144,24 @@ export function SeriesPage() {
         <Button onClick={openCreate}>سلسلة جديدة</Button>
       </Group>
 
+      <Tabs
+        value={tab}
+        onChange={(v) => v && setTab(v as LicenceCategory)}
+        variant="outline"
+      >
+        <Tabs.List>
+          {LICENCES.map((l) => (
+            <Tabs.Tab
+              key={l.value}
+              value={l.value}
+              leftSection={<l.icon size={16} />}
+            >
+              {licenceLabel(l.value)}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
+
       {!series ? (
         <Stack gap="xs">
           {[0, 1, 2].map((i) => (
@@ -139,7 +169,9 @@ export function SeriesPage() {
           ))}
         </Stack>
       ) : series.length === 0 ? (
-        <Text c="dimmed">لا توجد سلاسل بعد — أنشئ السلسلة الأولى.</Text>
+        <Text c="dimmed">
+          لا توجد سلاسل في صنف «{licenceLabel(tab)}» — أنشئ السلسلة الأولى.
+        </Text>
       ) : (
         <Table striped highlightOnHover withTableBorder>
           <Table.Thead>
@@ -220,6 +252,17 @@ export function SeriesPage() {
             label="العنوان"
             value={title}
             onChange={(e) => setTitle(e.currentTarget.value)}
+          />
+          <Select
+            label="صنف الرخصة"
+            description="سلاسل كل صنف مستقلة وتظهر في قسمها داخل التطبيق"
+            data={LICENCES.map((l) => ({
+              value: l.value,
+              label: licenceLabel(l.value),
+            }))}
+            value={category}
+            onChange={(v) => v && setCategory(v as LicenceCategory)}
+            allowDeselect={false}
           />
           <Switch
             label="سلسلة مدفوعة (مقفلة للمستخدمين المجانيين)"

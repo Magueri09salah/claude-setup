@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
 import { countPassedAttempts, getAttempt } from "@/db/attempts";
@@ -73,13 +74,18 @@ export default function ResultsScreen() {
             },
           ]}
         >
+          <Icon
+            name={attempt.passed ? "checkCircle" : "closeCircle"}
+            size={18}
+            color={attempt.passed ? colors.success : colors.danger}
+          />
           <Text
             style={[
               styles.verdictText,
               { color: attempt.passed ? colors.success : colors.danger },
             ]}
           >
-            {attempt.passed ? "ناجح ✅" : "راسب ❌"}
+            {attempt.passed ? "ناجح" : "راسب"}
           </Text>
         </View>
 
@@ -114,7 +120,8 @@ export default function ResultsScreen() {
             onPress={() => router.replace("/")}
             style={[styles.actionButton, { backgroundColor: colors.lessons }]}
           >
-            <Text style={styles.actionText}>🏠 العودة للرئيسية</Text>
+            <Icon name="home" size={18} color={colors.onAccent} />
+            <Text style={styles.actionText}>العودة للرئيسية</Text>
           </PressableScale>
           <PressableScale
             onPress={share}
@@ -156,6 +163,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lessons,
   },
   verdict: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
     alignSelf: "center",
     paddingHorizontal: space.xl,
     paddingVertical: space.sm,
@@ -183,6 +193,8 @@ const styles = StyleSheet.create({
   tileNumber: { fontFamily: font.extraBold, fontSize: 22 },
   actions: { gap: space.md, marginTop: space.xl },
   actionButton: {
+    flexDirection: "row",
+    gap: space.sm,
     height: 56,
     borderRadius: radius.pill,
     alignItems: "center",

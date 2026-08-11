@@ -25,11 +25,14 @@ questionsRouter.get("/:id", async (req, res) => {
   const id = idParam.parse(req.params.id);
   const question = await prisma.question.findUnique({ where: { id } });
   if (!question) throw new ApiError(404, "Question not found");
-  const [imageUrl, audioUrl] = await Promise.all([
+  const [imageUrl, audioUrl, correctionAudioUrl] = await Promise.all([
     storage.getSignedUrl(question.imageKey),
     storage.getSignedUrl(question.audioKey),
+    question.correctionAudioKey
+      ? storage.getSignedUrl(question.correctionAudioKey)
+      : Promise.resolve(null),
   ]);
-  res.json({ question, imageUrl, audioUrl });
+  res.json({ question, imageUrl, audioUrl, correctionAudioUrl });
 });
 
 questionsRouter.post("/", async (req, res) => {

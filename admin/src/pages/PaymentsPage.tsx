@@ -100,9 +100,12 @@ export function PaymentsPage() {
                   <Badge variant="light" size="lg" style={{ direction: "ltr" }}>
                     {p.wafacashCode}
                   </Badge>
-                  <Text size="sm" style={{ direction: "ltr" }}>
-                    {p.userEmail}
-                  </Text>
+                  <div>
+                    <Text size="sm">{p.userName ?? "—"}</Text>
+                    <Text size="xs" c="dimmed" style={{ direction: "ltr" }}>
+                      {p.userEmail}
+                    </Text>
+                  </div>
                   <Text size="sm" c="dimmed">
                     {p.amount} {p.currency}
                   </Text>
@@ -157,7 +160,8 @@ export function PaymentsPage() {
               {payments.map((p) => (
                 <Table.Tr key={p.id}>
                   <Table.Td>
-                    <Text size="sm" style={{ direction: "ltr" }}>
+                    <Text size="sm">{p.userName ?? "—"}</Text>
+                    <Text size="xs" c="dimmed" style={{ direction: "ltr" }}>
                       {p.userEmail}
                     </Text>
                   </Table.Td>
@@ -216,7 +220,7 @@ export function PaymentsPage() {
         <Text size="sm">
           سيتم وضع علامة «مدفوع» على هذه المعاملة وتفعيل اشتراك{" "}
           <b style={{ direction: "ltr", display: "inline-block" }}>
-            {confirmTarget?.userEmail}
+            {confirmTarget?.userName ?? confirmTarget?.userEmail}
           </b>{" "}
           فوراً. يُسجَّل هذا الإجراء باسمك في سجل التدقيق.
         </Text>

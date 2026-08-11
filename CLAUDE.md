@@ -26,7 +26,8 @@ Driving-license exam prep app (Morocco, Arabic/Darija, RTL). Monorepo:
 - TypeScript strict everywhere. Validate all API input with zod.
 - RTL-first: every mobile screen must work in RTL with Arabic text.
 - Mobile learning screens load media from LOCAL paths only — never remote URLs.
-- Premium is granted ONLY by the verified payment webhook, never by the client.
+- Premium is granted ONLY server-side, never by the client: the verified payment
+  webhook, or the admin phone allowlist (PremiumPhone, audited). See sync-payments.
 - Secrets in .env only (keep .env.example updated). Never commit secrets.
 - DB stores UTC; display timezone Africa/Casablanca.
 - After each milestone: typecheck, summarize what was built + how to test it.
@@ -57,4 +58,14 @@ M6 lives: CRUD + cron + Expo push + home banner
 
 ## Current status
 <!-- UPDATE THIS after each milestone, keep 3 lines max -->
-M1-M5 complete (payments in mock phase). Next: M6.
+M6 done, reworked 2026-08-05: lives are a DAILY recurring appointment (LiveSettings singleton = 4 profile links + startTime HH:mm Casablanca; admin = one settings form; mobile = countdown ring + 4 blinking platform buttons under the series; push → /lives). LiveEvent CRUD + replays dropped. Also: per-question correction (text + optional MP3) shown only in end-of-quiz review; quiz pause (timer + audio); audio stops on screen blur. Devices push-token, Dashboard, repair resync, /legal/privacy.html, EAS profiles unchanged; remote push still needs a real EAS projectId + FCM creds.
+2026-08-07: series now carry a LICENCE CATEGORY (B car = default, A moto, C truck, D bus).
+Admin Series page has a tab per licence + a category field; orderNum restarts at 1 per
+category, so ALWAYS scope series queries by category. Mobile: /exam?category=A|C|D, and
+the home "سلاسل الدروس" card links to whichever categories have content.
+Also: per-question timer is a user setting (10/20/30s, `meta.quiz_seconds`).
+2026-08-07: lessons have a KIND — SIGNS (flashcard grid, synced offline) or VIDEOS
+(المركبة: mp4 uploads, max 500MB, STREAMED via signed url + HTTP Range, never added
+to the offline bundle). Lessons also carry an optional cover image used as their card.
+M1–M5 complete (payments in mock phase; Night Drive mobile design, shadcn admin; Expo SDK 54).
+Next: PayzoneProvider when merchant docs arrive · store submission.

@@ -6,6 +6,10 @@ import { adminRouter } from "./modules/admin/admin.router";
 import { authRouter } from "./modules/auth/auth.router";
 import { attemptsRouter } from "./modules/content/attempts.router";
 import { contentRouter } from "./modules/content/content.router";
+import path from "node:path";
+import { startCron } from "./modules/lives/cron";
+import { devicesRouter } from "./modules/lives/devices.router";
+import { livesRouter } from "./modules/lives/lives.router";
 import { mockPayRouter } from "./modules/payments/mockpay.router";
 import { paymentsRouter } from "./modules/payments/payments.router";
 import { paymentProvider } from "./modules/payments/providers";
@@ -28,6 +32,10 @@ app.use("/content", contentRouter);
 app.use("/attempts", attemptsRouter);
 app.use("/payments", paymentsRouter);
 app.use("/webhooks", webhookRouter);
+app.use("/lives", livesRouter);
+app.use("/devices", devicesRouter);
+// Static pages (privacy policy) — hostable on the domain.
+app.use("/legal", express.static(path.resolve(process.cwd(), "public")));
 if (storage.kind === "local") {
   app.use("/media/local", localMediaRouter);
 }
@@ -42,4 +50,5 @@ app.listen(env.PORT, () => {
   console.log(
     `API listening on http://localhost:${env.PORT} (storage: ${storage.kind}, payments: ${paymentProvider.kind})`,
   );
+  startCron();
 });

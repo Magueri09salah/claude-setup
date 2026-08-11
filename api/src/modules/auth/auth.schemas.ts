@@ -1,11 +1,19 @@
 import { z } from "zod";
+import { normalizePhone } from "../premium/phone";
 
 export const registerSchema = z.strictObject({
+  fullName: z.string().trim().min(3).max(100),
   email: z.email(),
   password: z.string().min(8).max(72),
+  // People type numbers with spaces, dashes and country codes — accept all of
+  // it and normalize, then validate the canonical form. A too-strict regex
+  // here silently blocked group members whose number WAS on the allowlist.
   phone: z
     .string()
-    .regex(/^\+?[0-9]{6,15}$/, "Invalid phone number")
+    .trim()
+    .max(24)
+    .transform(normalizePhone)
+    .refine((p) => /^\d{6,15}$/.test(p), "Invalid phone number")
     .optional(),
 });
 

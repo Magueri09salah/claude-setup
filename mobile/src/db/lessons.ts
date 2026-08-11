@@ -19,7 +19,14 @@ export interface LessonRow {
   updated_at: string;
   sign_count: number;
   locked: number;
+  image_key: string | null;
+  image_path: string | null;
+  kind: LessonKind;
+  video_count: number;
 }
+
+/** A lesson is either sign flashcards or a list of videos, never both. */
+export type LessonKind = "SIGNS" | "VIDEOS";
 
 export interface SignRow {
   id: number;

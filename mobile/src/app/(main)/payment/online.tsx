@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import { createOnlinePayment, getPaymentStatus } from "@/api/payments";
 import { useAuth } from "@/auth/AuthContext";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -77,7 +78,7 @@ export default function OnlinePaymentScreen() {
             </>
           ) : phase === "paid" ? (
             <>
-              <Text style={styles.emoji}>✅</Text>
+              <Icon name="checkCircle" size={56} color={colors.success} />
               <Text style={styles.statusStrong}>تم تفعيل اشتراكك!</Text>
               <Text style={styles.status}>أصبح كل المحتوى متاحاً الآن.</Text>
               <View style={styles.actions}>
@@ -89,7 +90,7 @@ export default function OnlinePaymentScreen() {
             </>
           ) : phase === "unconfirmed" ? (
             <>
-              <Text style={styles.emoji}>⏳</Text>
+              <Icon name="calendar" size={56} color={colors.lessons} />
               <Text style={styles.statusStrong}>لم يتم تأكيد الدفع بعد</Text>
               <Text style={styles.status}>
                 إذا أكملت الدفع، اضغط "تحقق مرة أخرى".
@@ -100,7 +101,7 @@ export default function OnlinePaymentScreen() {
             </>
           ) : phase === "error" ? (
             <>
-              <Text style={styles.emoji}>⚠️</Text>
+              <Icon name="alert" size={56} color={colors.danger} />
               <Text style={styles.statusStrong}>تعذّر بدء الدفع</Text>
               <Text style={styles.status}>تحقق من اتصالك وحاول مجدداً.</Text>
               <View style={styles.actions}>
@@ -109,7 +110,7 @@ export default function OnlinePaymentScreen() {
             </>
           ) : (
             <>
-              <Text style={styles.emoji}>💳</Text>
+              <Icon name="card" size={56} color={colors.lessons} />
               <Text style={styles.statusStrong}>الدفع بالبطاقة البنكية</Text>
               <Text style={styles.status}>
                 ستُفتح صفحة دفع آمنة. بعد إتمام الدفع عد إلى التطبيق.
@@ -137,7 +138,6 @@ const styles = StyleSheet.create({
     gap: space.md,
     paddingBottom: space.xxl,
   },
-  emoji: { fontSize: 56 },
   statusStrong: {
     fontFamily: font.extraBold,
     fontSize: 22,

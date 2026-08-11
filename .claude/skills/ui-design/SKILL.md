@@ -87,6 +87,26 @@ INFOBOX: tinted card (tone: info=series/warn=lessons/danger) with 4px start bord
 **Live banner (home)** — LIVE: danger bg, white text, pulsing dot ● + "لايف الآن";
 scheduled: surface card, 📅 + countdown chip; replay: 🎬 + subdued style.
 
+**Lives bell (home header, owner decision 2026-07-29)** — 🔔 in a 40px `chipBg`
+circle with a count badge (live now + scheduled) pinned to its start corner:
+lane-yellow normally, `danger` red while something is LIVE, 2px `bg` ring so it
+reads against the header. Tap → `/lives` page listing live-now (red pulsing
+card) / قادمة (countdown chips) / إعادات (subdued). Badge hidden at zero; the
+page has a friendly empty state. Bell + banner share ONE fetch via
+`useUpcomingLives()` — never fetch the same feed twice on a screen.
+Badge = UNSEEN only: opening the lives page marks the current ids seen (stored
+in `meta.lives_seen_ids`), so the count clears on tap and re-appears only when a
+genuinely new live is scheduled.
+
+**Bottom tab bar (MANDATORY — owner decision 2026-07-29)** — the app's permanent
+navigation: 4 tabs, always visible on the root screens — 🏠 الرئيسية · 📚 الدروس ·
+📈 تقدّمي · ⚙️ الإعدادات. Bar = `surface` bg + 1px top `border`, height 68. Active
+tab: lane-yellow (`lessons`) top indicator bar (26×3, radius 2) + yellow bold
+label + full-opacity icon; inactive: `textDim` label, icon at 55% opacity.
+Implemented as an Expo Router `(tabs)` group inside `(main)` — immersive pushed
+screens (quiz, results, review, payment, lesson, exam) live in the parent Stack
+so they render WITHOUT the bar. Tab roots therefore carry NO back button.
+
 ## 4. Motion (react-native-reanimated — subtle, fast)
 Press scale 0.97 spring · screen transitions default Expo Router · answer feedback:
 120ms color fade, no bounces · score ring: 800ms ease-out on results mount ·
@@ -109,10 +129,74 @@ shadow — Card withBorder + no shadow), 8px radius, Tajawal font. Light sidebar
 active, no color accent). KPI stat cards atop data pages. RTL content, Tabler
 icons. Every destructive action gets a confirm modal. No brand yellow in admin.
 
+## 6b. Icons (owner decision 2026-07-29) — NO EMOJI as UI icons
+Mobile uses ONE family: **MaterialCommunityIcons** via `@expo/vector-icons`,
+always through the semantic wrapper `src/components/Icon.tsx`
+(`<Icon name="exam" size={24} color={accent} />`). Screens reference SEMANTIC
+names (exam, lessons, car, trophy, bell, lock, card, store, check, alert, play,
+volume…), never raw glyph names — so the set can be swapped in one file.
+Emoji are allowed ONLY inside sentence text (e.g. "أهلاً 👋") and push/share
+copy, never as a button, tab, chip, or status icon. Colour icons with tokens;
+pair every semantic colour with an icon (never colour alone).
+Admin uses Tabler icons (`@tabler/icons-react`) — its own set, see §6.
+
+**One exception — brand marks** (owner decision 2026-08-05): platform logos must
+look like the real logo, and MaterialCommunityIcons has no TikTok mark. Brand
+glyphs come from **FontAwesome6 brands** via `src/components/BrandIcon.tsx`
+only (`<BrandIcon platform="TIKTOK" />`), which also owns each brand's official
+colour and Arabic label. Brand glyphs are never used for UI actions, and no
+other file may import a second icon family.
+
+## 6c. Live section (owner decision 2026-08-05)
+The live is a **standing daily appointment**, not a list of events: the owner
+streams at the same wall-clock time on the same four profiles. Recipe
+(`components/LiveSection.tsx`, used on home under the series and on `/lives`):
+- **Countdown ring** (`CountdownRing.tsx`) — full ring = 24h of waiting, arc
+  empties toward the next start; `HH:MM:SS` inside, caption under it.
+- **Four platform buttons**, 2-per-row, brand icon + Arabic label; tap opens
+  the profile with `Linking.openURL` (never an embedded player).
+- **Blink** (opacity 1 ↔ 0.35, 550ms) only while on air or inside the 15-min
+  reminder window — a permanently blinking control is noise, not an alert.
+- Renders **nothing** until the owner has configured at least one link.
+- Bell badge is not a count: it flags the one unseen occurrence, and clears
+  when the lives page is opened.
+
+## 6d. Media playback rule (owner-reported bug, 2026-08-05)
+Any screen that plays audio MUST pair its player with `usePausedOnBlur` —
+unmount cleanup alone is not enough, because a screen pushed on top stays
+mounted and its sound kept playing.
+
+**Quiz pause** (owner decision 2026-08-06): pause stops the countdown and the
+audio, and *nothing else*. The question image stays on screen and the answer
+buttons stay usable — do not veil or disable the question. (An earlier build
+covered it to stop pause buying reading time; the owner overruled that.)
+
 ## 7. Consistency checklist (run mentally on every new screen)
 tokens only (no hex literals in components) · one accent per surface · spacing from
 the scale only · shadows only via shadow.card · every state designed: loading
-(skeleton, not spinner), empty, error, offline, locked.
+(skeleton, not spinner), empty, error, offline, locked ·
+**card grids: every card the same height, whatever the text length** — cap the
+title with `numberOfLines` AND reserve that many lines with `minHeight`, and
+give the card `flex: 1` so it fills the row-stretched wrapper. Arabic titles
+vary wildly in length; ragged card bottoms are the most common result.
+
+## 7b. Lessons navigation — 3 pages (owner sketch 2026-08-07)
+Exactly three levels, always, no shortcuts:
+1. **الدروس النظرية** — categories as FULL-WIDTH rows (icon chip + title),
+   e.g. التشوير الطرقي / المركبة / الوثائق. Not a grid.
+2. **الدروس of a category** — 2-column PICTURE grid: the lesson's cover image
+   on top, its name beneath (علامات المنع / علامة الإجبار …). This is what
+   `Lesson.imageKey` exists for; fall back to a sign icon when it is empty.
+   Never number these cards — the picture is the identity.
+3. **العلامات** — the sign content, 2-column (image + name + audio). The
+   playing card's border IS its progress bar: it draws itself around the card
+   as the explanation plays (`ProgressBorder`, lane-yellow over a 25% track).
+   No separate progress bar — the card already is the object being played.
+A category with one lesson still shows level 2: navigation that sometimes skips
+a level is worse than one extra tap.
+Admin mirror: adding at EVERY level is a modal (category / lesson / sign) with
+the same fields as before — never `window.prompt`, never an inline form buried
+under a table.
 
 ## 8. Lessons section (M4) — required recipes
 
