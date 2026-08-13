@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -22,6 +21,7 @@ import {
   type SyncResult,
 } from "@/sync/engine";
 import { colors, radius, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
@@ -50,7 +50,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
           <View style={styles.headerActions}>
@@ -105,6 +105,13 @@ export default function HomeScreen() {
             accent={colors.series}
             onPress={() => router.push("/vehicles")}
           />
+          <FeatureCard
+            title="الدروس التطبيقية"
+            subtitle="فيديوهات السياقة العملية"
+            icon="video"
+            accent={colors.exam}
+            onPress={() => router.push("/practical")}
+          />
         </View>
 
         {syncing && progress?.phase === "media" && progress.total > 0 && (
@@ -129,7 +136,7 @@ export default function HomeScreen() {
           <LiveSection />
         </View>
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

@@ -1,9 +1,9 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { listSeries } from "@/db";
 import { listAttempts } from "@/db/attempts";
 import { computeProgress } from "@/quiz/progressStats";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function ProgressScreen() {
   const attempts = listAttempts();
@@ -23,7 +23,7 @@ export default function ProgressScreen() {
     });
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, styles.titleFlex]}>تقدّمي</Text>
@@ -110,7 +110,7 @@ export default function ProgressScreen() {
           </>
         )}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

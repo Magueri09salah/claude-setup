@@ -68,4 +68,13 @@ Also: per-question timer is a user setting (10/20/30s, `meta.quiz_seconds`).
 (المركبة: mp4 uploads, max 500MB, STREAMED via signed url + HTTP Range, never added
 to the offline bundle). Lessons also carry an optional cover image used as their card.
 M1–M5 complete (payments in mock phase; Night Drive mobile design, shadcn admin; Expo SDK 54).
+2026-08-13: NO in-app payment. A locked item opens an unlock screen whose only
+action is a WhatsApp button (number in AppSettings, set on the admin المجموعة
+المجانية page); the owner then adds the caller's number to the allowlist and the
+API grants premium. Mobile payment screens deleted; API payment module + admin
+Payments page kept, unreachable, for a future gateway.
+Also: الشق التطبيقي (flat list of streamed practical videos, admin page + home
+card), Excel/PDF export on users + allowlist, quiz timer starts after the
+question audio ends and pause freezes only the timer, image viewer with
+rotate-to-landscape and pinch zoom.
 Next: PayzoneProvider when merchant docs arrive · store submission.

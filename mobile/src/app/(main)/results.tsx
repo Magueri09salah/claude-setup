@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
@@ -6,6 +5,7 @@ import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
 import { countPassedAttempts, getAttempt } from "@/db/attempts";
 import { colors, font, radius, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const LANE_DASHES = 10;
@@ -16,7 +16,7 @@ export default function ResultsScreen() {
 
   if (!attempt) {
     return (
-      <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.centered}>
+      <ScreenBackground style={styles.centered}>
         <Text style={[styles.verdictText, { color: colors.text }]}>
           تعذّر تحميل النتيجة
         </Text>
@@ -26,7 +26,7 @@ export default function ResultsScreen() {
         >
           <Text style={styles.actionText}>الرئيسية</Text>
         </PressableScale>
-      </LinearGradient>
+      </ScreenBackground>
     );
   }
 
@@ -43,7 +43,7 @@ export default function ResultsScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.heading}>
           النتيجة{" "}
@@ -133,7 +133,7 @@ export default function ResultsScreen() {
           </PressableScale>
         </View>
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

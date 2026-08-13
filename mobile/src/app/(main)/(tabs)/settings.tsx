@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -12,6 +11,7 @@ import { sendTestLocalNotification } from "@/notifications/push";
 import { useQuestionSeconds } from "@/quiz/timerPref";
 import { wipeAndResync, type SyncProgress } from "@/sync/engine";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -67,7 +67,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, styles.titleFlex]}>الإعدادات</Text>
@@ -167,7 +167,7 @@ export default function SettingsScreen() {
           </PressableScale>
         </View>
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

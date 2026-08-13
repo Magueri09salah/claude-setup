@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -6,6 +5,7 @@ import { Icon } from "@/components/Icon";
 import { LiveSection } from "@/components/LiveSection";
 import { markLiveSeen, useLive } from "@/lives/useLive";
 import { colors, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function LivesScreen() {
   const { settings, currentKey } = useLive();
@@ -18,7 +18,7 @@ export default function LivesScreen() {
   const configured = settings?.enabled && settings.platforms.length > 0;
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -45,7 +45,7 @@ export default function LivesScreen() {
           </View>
         )}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

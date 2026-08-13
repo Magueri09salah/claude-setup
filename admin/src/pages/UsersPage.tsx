@@ -12,10 +12,16 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { IconSearch, IconUsers } from "@tabler/icons-react";
+import {
+  IconFileSpreadsheet,
+  IconPrinter,
+  IconSearch,
+  IconUsers,
+} from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { AdminUser, UserStatus } from "../api/types";
+import { exportExcel, exportPdf, type ExportColumn } from "../export";
 import { notifyError, notifySuccess } from "../notify";
 
 const STATUS_META: Record<UserStatus, { label: string; color: string }> = {
@@ -80,14 +86,52 @@ export function UsersPage() {
     free: users.filter((u) => u.status === "free").length,
   };
 
+  // Exports exactly what the table shows, so a filtered view exports the
+  // filtered rows rather than silently dumping everyone.
+  const exportColumns: ExportColumn<AdminUser>[] = [
+    { header: "الاسم الكامل", value: (u) => u.fullName ?? "", width: 26 },
+    { header: "البريد الإلكتروني", value: (u) => u.email, width: 30 },
+    { header: "الهاتف", value: (u) => u.phone ?? "", width: 16 },
+    {
+      header: "الحالة",
+      value: (u) => STATUS_META[u.status].label.replace(/^\S+\s/, ""),
+      width: 18,
+    },
+    { header: "مشترك", value: (u) => (u.isPremium ? "نعم" : "لا"), width: 10 },
+    { header: "طريقة الدفع", value: (u) => u.method ?? "", width: 14 },
+    { header: "آخر دفعة", value: (u) => fmtDate(u.lastPaidAt), width: 18 },
+    { header: "الأجهزة", value: (u) => u.deviceCount, width: 10 },
+    { header: "تاريخ التسجيل", value: (u) => fmtDate(u.createdAt), width: 18 },
+  ];
+
   return (
     <Stack>
-      <div>
-        <Title order={3}>المستخدمون</Title>
-        <Text c="dimmed" size="sm">
-          {total} مستخدماً مسجّلاً
-        </Text>
-      </div>
+      <Group justify="space-between" align="flex-start">
+        <div>
+          <Title order={3}>المستخدمون</Title>
+          <Text c="dimmed" size="sm">
+            {total} مستخدماً مسجّلاً
+          </Text>
+        </div>
+        <Group>
+          <Button
+            variant="default"
+            leftSection={<IconFileSpreadsheet size={16} />}
+            disabled={users.length === 0}
+            onClick={() => exportExcel("المستخدمون", exportColumns, users)}
+          >
+            Excel
+          </Button>
+          <Button
+            variant="default"
+            leftSection={<IconPrinter size={16} />}
+            disabled={users.length === 0}
+            onClick={() => exportPdf("المستخدمون", exportColumns, users)}
+          >
+            PDF
+          </Button>
+        </Group>
+      </Group>
 
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
         <Card padding="md">

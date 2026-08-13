@@ -47,6 +47,17 @@ const MAP = {
   clockFast: "clock-fast",
   clock: "clock-outline",
   timer: "timer-outline",
+  // decorative road-sign wallpaper (ScreenBackground)
+  signWarn: "sign-caution",
+  signStop: "octagon-outline",
+  signLight: "traffic-light-outline",
+  signRoad: "road-variant",
+  signCone: "traffic-cone",
+  signDirection: "sign-direction",
+  // image viewer
+  rotate: "phone-rotate-landscape",
+  zoomReset: "fit-to-screen-outline",
+  zoom: "magnify-expand",
   // media
   video: "play-box-multiple",
   play: "play",

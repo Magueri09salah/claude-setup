@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -7,6 +6,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { seriesCountByCategory, type LicenceCategory } from "@/db";
 import { LICENCES } from "@/licence";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 // Licence categories other than the car (B), which has its own entry on home
 // as سلاسل الامتحان.
@@ -32,7 +32,7 @@ export default function VehiclesScreen() {
   );
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -79,7 +79,7 @@ export default function VehiclesScreen() {
           );
         })}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

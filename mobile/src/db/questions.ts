@@ -1,4 +1,4 @@
-import { db, type QuestionRow } from "./index";
+import { db, type LicenceCategory, type QuestionRow } from "./index";
 
 export interface LocalQuestion {
   id: number;
@@ -44,14 +44,20 @@ export function getQuestionById(id: number): LocalQuestion | null {
   return row ? fromRow(row) : null;
 }
 
-// Random downloaded questions across all unlocked series — the mock exam.
-export function loadMockQuestions(limit: number): LocalQuestion[] {
+// Random downloaded questions from one licence's unlocked series — the mock
+// exam. Scoped to a category (car by default): drawing across every licence
+// would put moto and truck questions into a car candidate's exam.
+export function loadMockQuestions(
+  limit: number,
+  category: LicenceCategory = "B",
+): LocalQuestion[] {
   const rows = db.getAllSync<QuestionRow>(
     `SELECT q.* FROM questions q
        JOIN series s ON s.id = q.series_id
-      WHERE q.downloaded = 1 AND s.locked = 0
+      WHERE q.downloaded = 1 AND s.locked = 0 AND s.category = ?
       ORDER BY RANDOM()
       LIMIT ?`,
+    category,
     limit,
   );
   return rows.map(fromRow);

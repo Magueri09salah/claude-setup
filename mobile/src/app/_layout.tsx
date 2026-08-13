@@ -6,14 +6,23 @@ import {
   useFonts,
 } from "@expo-google-fonts/tajawal";
 import { Stack } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/auth/AuthContext";
 import { migrate } from "@/db";
 import { colors } from "@/theme/tokens";
 
 migrate();
+
+// app.json declares "default" orientation because iOS otherwise refuses to let
+// the image viewer rotate at all. Everything else stays portrait, so lock it
+// here at startup; only the viewer unlocks, and it restores this on close.
+void ScreenOrientation.lockAsync(
+  ScreenOrientation.OrientationLock.PORTRAIT_UP,
+).catch(() => undefined);
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,9 +60,13 @@ function Gate() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <Gate />
-    </AuthProvider>
+    // Required by react-native-gesture-handler: without it GestureDetector
+    // silently receives no touches on Android (the image viewer's pinch/pan).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <Gate />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

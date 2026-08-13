@@ -13,6 +13,7 @@ import { LessonsPage } from "./pages/LessonsPage";
 import { LivesPage } from "./pages/LivesPage";
 import { LoginPage } from "./pages/Login";
 import { PaymentsPage } from "./pages/PaymentsPage";
+import { PracticalPage } from "./pages/PracticalPage";
 import { QuestionEditorPage } from "./pages/QuestionEditorPage";
 import { SeriesPage } from "./pages/SeriesPage";
 import { UsersPage } from "./pages/UsersPage";
@@ -43,6 +44,7 @@ export default function App() {
                 <Route path="/series" element={<SeriesPage />} />
                 <Route path="/questions" element={<QuestionEditorPage />} />
                 <Route path="/lessons" element={<LessonsPage />} />
+                <Route path="/practical" element={<PracticalPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/allowlist" element={<AllowlistPage />} />
                 <Route path="/payments" element={<PaymentsPage />} />

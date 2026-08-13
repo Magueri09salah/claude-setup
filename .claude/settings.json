@@ -65,7 +65,23 @@
       "Bash(awk '{print \"  \"$2}')",
       "Bash(git add *)",
       "Bash(grep -iE \"\\(^|/\\)\\\\.env$\")",
-      "Bash(git commit -m '@ *)"
+      "Bash(git commit -m '@ *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"const x=require\\('xlsx'\\);console.log\\('xlsx ok, version', x.version\\)\")",
+      "Bash(grep -i \"^IconSteeringWheel.mjs$\")",
+      "Bash(node -e \"console.log\\('version:', require\\('./package.json'\\).dependencies['expo-screen-orientation']\\)\")",
+      "Bash(node -e \"const d=require\\('./package.json'\\).dependencies;for\\(const k of ['react-native-reanimated','react-native-gesture-handler','react-native-worklets','react-native-svg']\\)console.log\\(' ',k,'=',d[k]??'\\(absent\\)'\\)\")",
+      "Bash(npm ls *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).videos.forEach\\(v=>console.log\\('   title:',v.title,'| url:',v.url.slice\\(0,44\\)+'…','| thumb:',v.thumbUrl?'yes':'no'\\)\\)}\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>console.log\\('   remaining:',JSON.parse\\(d\\).videos.length\\)\\)\")",
+      "Bash(rm -f mobile/src/api/payments.ts)",
+      "Bash(cat __TRACKED_VAR__/uat.txt)",
+      "Bash(echo \"registered with isPremium: false  \\(see above\\)\")",
+      "Bash(echo \"== /auth/me AFTER the admin added the number \\(what the app polls\\) ==\")",
+      "Bash(curl -s http://localhost:4000/auth/me -H 'Authorization: Bearer __TRACKED_VAR__')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const m=JSON.parse\\(d\\);console.log\\('   locked series:',m.series.filter\\(s=>s.locked\\).length,'of',m.series.length\\)}\\)\")",
+      "Bash(grep -rln \"LinearGradient colors={\\\\[colors.bg, colors.bgSoft\\\\]}\" mobile/src)",
+      "Bash(grep -rl \"LinearGradient colors={\\\\[colors.bg, colors.bgSoft\\\\]}\" mobile/src)"
     ],
     "additionalDirectories": [
       "C:\\Users\\T14s\\Desktop\\claude-setup\\claude-setup\\api\\prisma"

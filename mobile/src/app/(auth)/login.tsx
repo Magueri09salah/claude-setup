@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,6 +12,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { AppTextInput } from "@/components/AppTextInput";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { colors, font, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -42,7 +42,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
@@ -88,7 +88,7 @@ export default function LoginScreen() {
           </Link>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

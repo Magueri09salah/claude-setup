@@ -1,15 +1,16 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
 import { Icon } from "@/components/Icon";
+import { ImageViewer } from "@/components/ImageViewer";
 import { ProgressBorder } from "@/components/lessons/ProgressBorder";
 import { PressableScale } from "@/components/PressableScale";
 import { getLesson, listSigns, type SignRow } from "@/db/lessons";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 const AUDIO_TICK_MS = 100;
 
@@ -24,6 +25,9 @@ export default function LessonScreen() {
   const signs = listSigns(id);
 
   const [activeId, setActiveId] = useState<number | null>(null);
+  // Long-press opens the sign full screen: a plain tap already plays its audio,
+  // so zoom needs its own gesture rather than stealing that one.
+  const [zoomed, setZoomed] = useState<SignRow | null>(null);
   const active = signs.find((s) => s.id === activeId) ?? null;
   // 100ms ticks so the card's border sweeps smoothly rather than stepping.
   const player = useAudioPlayer(
@@ -63,7 +67,7 @@ export default function LessonScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -98,6 +102,7 @@ export default function LessonScreen() {
                 >
                   <PressableScale
                     onPress={() => onCardPress(s)}
+                    onLongPress={() => setZoomed(s)}
                     style={styles.card}
                   >
                     <View style={styles.imageWrap}>
@@ -132,7 +137,14 @@ export default function LessonScreen() {
           </View>
         )}
       </ScrollView>
-    </LinearGradient>
+
+      <ImageViewer
+        uri={zoomed?.image_path ?? null}
+        title={zoomed?.name}
+        visible={zoomed !== null}
+        onClose={() => setZoomed(null)}
+      />
+    </ScreenBackground>
   );
 }
 

@@ -5,6 +5,21 @@ description: Payment flows (mock provider now, Payzone/Wafacash later), premium 
 
 # Payments & Premium Gating
 
+## ACCESS IS NOT SOLD IN-APP (owner decision 2026-08-13)
+The client dropped in-app payment. A locked series/lesson opens an UNLOCK
+screen (`app/(main)/payment/index.tsx`) whose only action is a WhatsApp button:
+the candidate messages the owner, the owner adds their number to the allowlist,
+and the API grants premium. The prefilled message carries the candidate's name,
+phone and email so the owner knows exactly which number to add.
+- The WhatsApp number is `AppSettings.whatsappNumber` (admin: المجموعة المجانية
+  page), stored canonical `0XXXXXXXXX` and converted to `212…` for `wa.me`.
+- The app re-reads `/auth/me` when the unlock screen regains focus, plus a
+  "تحقّق من حالة حسابي" button, so the unlock lands without logging out.
+- The mobile payment screens (online / wafacash) and the mobile payments client
+  were DELETED. The API payment module, webhook, MockProvider and the admin
+  Payments page are intentionally KEPT for when a real gateway arrives — they
+  are simply unreachable from the app.
+
 ## Premium sources (owner decision 2026-08-07)
 Premium has exactly TWO legitimate sources, both server-side. The client never
 asserts entitlement — it supplies a phone number and the API decides.

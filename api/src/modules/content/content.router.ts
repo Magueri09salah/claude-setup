@@ -4,6 +4,7 @@ import { ApiError } from "../../middleware/errors";
 import { requireAuth } from "../../middleware/auth";
 import { prisma } from "../../prisma";
 import { storage } from "../../storage";
+import { getAppSettings, toSupportInfo } from "../settings/settings.service";
 
 export const contentRouter = Router();
 
@@ -140,6 +141,32 @@ contentRouter.get("/lessons/:id/videos", async (req, res) => {
     })),
   );
   res.json({ videos });
+});
+
+// الشق التطبيقي — streamed like lesson videos, so signed urls are minted on
+// open rather than cached. Free for everyone: it is the practical part the
+// owner wants every candidate to see.
+contentRouter.get("/practical-videos", async (_req, res) => {
+  const rows = await prisma.practicalVideo.findMany({
+    orderBy: { orderNum: "asc" },
+  });
+  const videos = await Promise.all(
+    rows.map(async (v) => ({
+      id: v.id,
+      orderNum: v.orderNum,
+      title: v.title,
+      sizeBytes: v.sizeBytes,
+      url: await storage.getSignedUrl(v.videoKey),
+      thumbUrl: v.thumbKey ? await storage.getSignedUrl(v.thumbKey) : null,
+    })),
+  );
+  res.json({ videos });
+});
+
+// Where to ask for access. Online payment was dropped in favour of a WhatsApp
+// conversation, after which the admin adds the number to the allowlist.
+contentRouter.get("/support", async (_req, res) => {
+  res.json(toSupportInfo(await getAppSettings()));
 });
 
 const questionsQuery = z.strictObject({

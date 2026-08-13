@@ -64,6 +64,17 @@ export interface LessonVideo {
   sizeBytes: number | null;
 }
 
+/** الشق التطبيقي — a flat, ordered list of practical-driving videos. */
+export interface PracticalVideo {
+  id: number;
+  orderNum: number;
+  title: string;
+  videoKey: string;
+  thumbKey: string | null;
+  sizeBytes: number | null;
+  createdAt: string;
+}
+
 /** A phone number that receives premium without paying. */
 export interface AllowlistEntry {
   id: string;

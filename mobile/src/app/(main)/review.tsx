@@ -1,16 +1,19 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
 import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
 import { Icon } from "@/components/Icon";
+import { ImageViewer } from "@/components/ImageViewer";
 import { AnswerButton, type AnswerVisual } from "@/components/quiz/AnswerButton";
 import { getAttempt } from "@/db/attempts";
 import { getQuestionById } from "@/db/questions";
 import { colors, font, radius, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function ReviewScreen() {
+  const [viewer, setViewer] = useState(false);
   const params = useLocalSearchParams<{ attemptId: string; q: string }>();
   const attempt = params.attemptId ? getAttempt(params.attemptId) : null;
   const qIndex = Number(params.q ?? 0);
@@ -19,12 +22,12 @@ export default function ReviewScreen() {
 
   if (!attempt || !result) {
     return (
-      <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.centered}>
+      <ScreenBackground style={styles.centered}>
         <Text style={styles.title}>تعذّر تحميل السؤال</Text>
         <Pressable onPress={() => router.back()} style={styles.button}>
           <Text style={styles.buttonText}>رجوع</Text>
         </Pressable>
-      </LinearGradient>
+      </ScreenBackground>
     );
   }
 
@@ -37,7 +40,7 @@ export default function ReviewScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -59,11 +62,16 @@ export default function ReviewScreen() {
         </View>
 
         {question?.imagePath ? (
-          <Image
-            source={{ uri: question.imagePath }}
-            style={styles.image}
-            contentFit="contain"
-          />
+          <Pressable onPress={() => setViewer(true)} accessibilityLabel="تكبير الصورة">
+            <Image
+              source={{ uri: question.imagePath }}
+              style={styles.image}
+              contentFit="contain"
+            />
+            <View style={styles.zoomBadge}>
+              <Icon name="zoom" size={16} color={colors.text} />
+            </View>
+          </Pressable>
         ) : (
           <View style={[styles.image, styles.placeholder]}>
             <Text style={styles.placeholderText}>لا توجد صورة</Text>
@@ -97,8 +105,14 @@ export default function ReviewScreen() {
           text={question?.correctionText ?? null}
           audioPath={question?.correctionAudioPath ?? null}
         />
+
+        <ImageViewer
+          uri={question?.imagePath ?? null}
+          visible={viewer}
+          onClose={() => setViewer(false)}
+        />
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
@@ -180,6 +194,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   placeholderText: { ...type.label, color: colors.textDim },
+  zoomBadge: {
+    position: "absolute",
+    top: space.sm,
+    left: space.sm,
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(20,21,25,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   gridItem: { width: "22%", minWidth: 64 },
   legend: { gap: space.xs, marginTop: space.sm },

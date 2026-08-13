@@ -175,6 +175,38 @@ model LessonSign {
   @@index([lessonId])
 }
 
+// الشق التطبيقي — the practical (behind-the-wheel) part of the course: a flat
+// list of videos, no categories or lessons above them. Kept separate from
+// LessonVideo because it is a different product section, not a lesson: the app
+// links to it straight from home and shows the videos themselves as cards.
+// Same delivery rules as LessonVideo: uploaded mp4, STREAMED, never synced.
+model PracticalVideo {
+  id        Int      @id @default(autoincrement())
+  orderNum  Int
+  title     String
+  videoKey  String
+  // Optional poster shown on the card; falls back to a play icon.
+  thumbKey  String?
+  sizeBytes Int?
+  createdAt DateTime @default(now())
+
+  @@index([orderNum])
+}
+
+// Single row (id = 1). Cross-cutting app settings the owner edits from the
+// panel. Currently the WhatsApp contact used to request access: the client
+// dropped online payment in favour of "chat with us, then we add your number
+// to the allowlist" (owner decision 2026-08-13).
+model AppSettings {
+  id              Int      @id @default(1)
+  // Canonical local form (0XXXXXXXXX); converted to +212… for the wa.me link.
+  whatsappNumber  String?
+  // Optional prefix for the prefilled message; the app appends the candidate's
+  // own name and number so the admin knows exactly who to add.
+  whatsappMessage String?
+  updatedAt       DateTime @updatedAt
+}
+
 // Allowlist of phone numbers that get premium WITHOUT paying (a partner
 // driving school's group, etc). Server-side only: the client never asserts
 // membership, it just registers with its phone number and the API decides —

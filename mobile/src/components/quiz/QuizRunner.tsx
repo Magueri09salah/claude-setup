@@ -1,5 +1,4 @@
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import {
   createAudioPlayer,
@@ -9,18 +8,22 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
+import { ImageViewer } from "@/components/ImageViewer";
 import { AnswerZone } from "@/components/quiz/AnswerZone";
 import { TimerPill } from "@/components/quiz/TimerPill";
 import { TimerSheet } from "@/components/quiz/TimerSheet";
 import { useQuizEngine, type QuizSource } from "@/quiz/useQuizEngine";
 import { colors, font, radius, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "../ScreenBackground";
 
 // Shared quiz UI for both a normal series and the random mock exam.
 export function QuizRunner({ source }: { source: QuizSource }) {
   const quiz = useQuizEngine(source);
-  const { phase, question, index, total, attemptId, paused } = quiz;
+  const { phase, question, index, total, attemptId, paused, audioFinished } =
+    quiz;
 
   const [timerSheet, setTimerSheet] = useState(false);
+  const [viewer, setViewer] = useState(false);
   const playerRef = useRef<AudioPlayer | null>(null);
 
   // One reusable player for the whole quiz; swap the source per question.
@@ -61,34 +64,52 @@ export function QuizRunner({ source }: { source: QuizSource }) {
     }, []),
   );
 
-  // Autoplay the current question's audio from its LOCAL path.
+  // Autoplay the current question's audio from its LOCAL path, and tell the
+  // engine when it ends — the countdown only starts after the reading.
   useEffect(() => {
     const player = playerRef.current;
-    if (!player || !question?.audioPath) return;
+    // No audio at all: nothing to wait for, start the timer immediately.
+    if (!player || !question?.audioPath) {
+      audioFinished();
+      return;
+    }
     try {
       player.replace({ uri: question.audioPath });
       player.seekTo(0);
       player.play();
     } catch {
-      // silent-fail — the quiz must not break if audio can't load
+      // The quiz must not stall on a missing or corrupt file.
+      audioFinished();
     }
-  }, [question?.id, question?.audioPath]);
+  }, [question?.id, question?.audioPath, audioFinished]);
 
-  // Pause holds the sound too; resuming picks it back up where it stopped.
+  // expo-audio has no "ended" callback on the imperative player, so poll the
+  // status while a question is being read. Cheap: it stops as soon as the
+  // reading is done, and the interval is idle for the rest of the question.
   useEffect(() => {
-    const player = playerRef.current;
-    if (!player) return;
-    try {
-      if (paused) player.pause();
-      else if (phase === "playing") player.play();
-    } catch {
-      // ignore
-    }
-  }, [paused, phase]);
+    if (phase !== "playing" || !quiz.waitingForAudio) return;
+    const id = setInterval(() => {
+      const player = playerRef.current;
+      if (!player) {
+        audioFinished();
+        return;
+      }
+      try {
+        const { currentTime, duration, playing } = player;
+        // duration is 0 until the file is loaded — don't call it finished then.
+        if (duration > 0 && !playing && currentTime >= duration - 0.15) {
+          audioFinished();
+        }
+      } catch {
+        audioFinished();
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [phase, quiz.waitingForAudio, question?.id, audioFinished]);
 
   const replay = () => {
     const player = playerRef.current;
-    if (!player || paused) return;
+    if (!player) return;
     try {
       player.seekTo(0);
       player.play();
@@ -106,7 +127,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
 
   if (phase === "empty") {
     return (
-      <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.centered}>
+      <ScreenBackground style={styles.centered}>
         <Text style={styles.emptyTitle}>لا توجد أسئلة محمّلة</Text>
         <Text style={styles.emptyText}>
           عد إلى الرئيسية واضغط "تحديث" عند توفر الإنترنت لتحميل الأسئلة.
@@ -114,16 +135,16 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         <Pressable onPress={() => router.back()} style={styles.emptyButton}>
           <Text style={styles.emptyButtonText}>رجوع</Text>
         </Pressable>
-      </LinearGradient>
+      </ScreenBackground>
     );
   }
 
   if (phase === "finished" || !question) {
-    return <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.centered} />;
+    return <ScreenBackground style={styles.centered} />;
   }
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={10}>
           <Icon name="close" size={24} color={colors.text} />
@@ -145,12 +166,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               {paused ? "استئناف" : "إيقاف"}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={replay}
-            hitSlop={10}
-            style={[styles.pill, paused && styles.pillDisabled]}
-            disabled={paused}
-          >
+          <Pressable onPress={replay} hitSlop={10} style={styles.pill}>
             <Icon name="volume" size={16} color={colors.text} />
             <Text style={styles.pillText}>إعادة</Text>
           </Pressable>
@@ -170,14 +186,33 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         </View>
       </View>
 
+      {/* A frozen clock looks broken unless you say why it is frozen. */}
+      {quiz.waitingForAudio && (
+        <View style={styles.hintRow}>
+          <Icon name="volume" size={13} color={colors.textDim} />
+          <Text style={styles.hintText}>
+            يبدأ العد بعد انتهاء قراءة السؤال
+          </Text>
+        </View>
+      )}
+
       <View style={styles.imageWrap}>
         {question.imagePath ? (
-          <Image
-            source={{ uri: question.imagePath }}
-            style={styles.image}
-            contentFit="contain"
-            transition={150}
-          />
+          <Pressable
+            onPress={() => setViewer(true)}
+            accessibilityRole="button"
+            accessibilityLabel="تكبير الصورة"
+          >
+            <Image
+              source={{ uri: question.imagePath }}
+              style={styles.image}
+              contentFit="contain"
+              transition={150}
+            />
+            <View style={styles.zoomBadge}>
+              <Icon name="zoom" size={16} color={colors.text} />
+            </View>
+          </Pressable>
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Text style={styles.placeholderText}>لا توجد صورة</Text>
@@ -199,7 +234,15 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         visible={timerSheet}
         onClose={() => setTimerSheet(false)}
       />
-    </LinearGradient>
+
+      {/* Exam pictures carry small Arabic text — zoom and landscape make them
+          readable without leaving the question. */}
+      <ImageViewer
+        uri={question.imagePath}
+        visible={viewer}
+        onClose={() => setViewer(false)}
+      />
+    </ScreenBackground>
   );
 }
 
@@ -234,7 +277,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pillActive: { backgroundColor: colors.lessons },
-  pillDisabled: { opacity: 0.4 },
   pillText: { ...type.label, color: colors.text },
   pillTextActive: { color: colors.onAccent },
   statusRow: {
@@ -252,6 +294,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chipText: { fontFamily: font.bold, fontSize: 15, color: colors.text },
+  hintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    marginTop: space.sm,
+  },
+  hintText: { ...type.label, fontSize: 12, color: colors.textDim },
   imageWrap: { marginTop: space.md, flex: 1, justifyContent: "center" },
   // Exam images carry Arabic text — always fit the WHOLE image (contain), never
   // crop. The surface behind fills any letterboxing.
@@ -270,6 +319,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   placeholderText: { ...type.label, color: colors.textDim },
+  zoomBadge: {
+    position: "absolute",
+    top: space.sm,
+    left: space.sm,
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(20,21,25,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   answerArea: { paddingVertical: space.lg },
   emptyTitle: { ...type.title, color: colors.text, textAlign: "center" },
   emptyText: { ...type.body, color: colors.textDim, textAlign: "center" },

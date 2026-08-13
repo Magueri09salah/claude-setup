@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -8,6 +7,7 @@ import { LICENCE_TITLE } from "@/licence";
 import { bestScoresBySeries, type BestScore } from "@/db/attempts";
 import { countDownloaded } from "@/db/questions";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 const CATEGORIES: LicenceCategory[] = ["B", "A", "C", "D"];
 
@@ -36,7 +36,7 @@ export default function ExamListScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -112,7 +112,10 @@ export default function ExamListScreen() {
           })
         )}
 
-        {series.length > 0 && (
+        {/* Car (B) only, per owner decision 2026-08-11: the mock exam draws
+            random questions from every unlocked series, which would mix moto
+            and truck questions into one another's exam. */}
+        {category === "B" && series.length > 0 && (
           <Pressable
             onPress={() => router.push("/mock")}
             style={({ pressed }) => [
@@ -132,7 +135,7 @@ export default function ExamListScreen() {
           </Pressable>
         )}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

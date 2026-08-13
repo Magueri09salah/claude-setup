@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -9,13 +10,20 @@ import {
   Text,
   View,
 } from "react-native";
-import type { ApiLessonVideo } from "@/api/types";
-import { getLessonVideos } from "@/api/videos";
+import { api } from "@/api/client";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
-import { getLesson } from "@/db/lessons";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+
+interface PracticalVideo {
+  id: number;
+  orderNum: number;
+  title: string;
+  sizeBytes: number | null;
+  url: string;
+  thumbUrl: string | null;
+}
 
 function sizeLabel(bytes: number | null): string | null {
   if (!bytes) return null;
@@ -23,15 +31,11 @@ function sizeLabel(bytes: number | null): string | null {
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} غ.ب` : `${Math.round(mb)} م.ب`;
 }
 
-// Video lesson (المركبة). Unlike the sign grid, videos are STREAMED: they are
-// far too large to sit in the offline bundle, so this screen needs a connection
-// and says so plainly when there isn't one.
-export default function VideoLessonScreen() {
-  const params = useLocalSearchParams<{ lessonId: string }>();
-  const id = Number(params.lessonId);
-  const lesson = getLesson(id);
-
-  const [videos, setVideos] = useState<ApiLessonVideo[] | null>(null);
+// الدروس التطبيقية — a flat list of practical-driving videos as cards, opened
+// straight from home. Streamed like the lesson videos, so this screen needs a
+// connection and says so plainly when there isn't one.
+export default function PracticalScreen() {
+  const [videos, setVideos] = useState<PracticalVideo[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
@@ -43,13 +47,15 @@ export default function VideoLessonScreen() {
   const load = useCallback(async () => {
     setFailed(false);
     try {
-      const r = await getLessonVideos(id);
+      const r = await api<{ videos: PracticalVideo[] }>(
+        "/content/practical-videos",
+      );
       setVideos(r.videos);
     } catch {
       setVideos(null);
       setFailed(true);
     }
-  }, [id]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -62,9 +68,7 @@ export default function VideoLessonScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />
           </Pressable>
-          <Text style={[styles.title, styles.titleFlex]}>
-            {lesson?.title ?? "الدرس"}
-          </Text>
+          <Text style={[styles.title, styles.titleFlex]}>الدروس التطبيقية</Text>
         </View>
 
         {active && (
@@ -92,7 +96,8 @@ export default function VideoLessonScreen() {
             <Icon name="alert" size={30} color={colors.textDim} />
             <Text style={styles.stateTitle}>تعذّر تحميل الفيديوهات</Text>
             <Text style={styles.stateText}>
-              الفيديوهات تحتاج اتصالاً بالإنترنت — تحقق من الاتصال وحاول مجدداً.
+              الدروس التطبيقية تحتاج اتصالاً بالإنترنت — تحقق من الاتصال وحاول
+              مجدداً.
             </Text>
             <PressableScale onPress={() => void load()} style={styles.retry}>
               <Text style={styles.retryText}>إعادة المحاولة</Text>
@@ -103,38 +108,52 @@ export default function VideoLessonScreen() {
         {videos?.length === 0 && (
           <View style={styles.stateCard}>
             <Icon name="video" size={30} color={colors.textDim} />
-            <Text style={styles.stateTitle}>لا توجد فيديوهات بعد</Text>
-            <Text style={styles.stateText}>سيصل المحتوى مع التحديث القادم.</Text>
+            <Text style={styles.stateTitle}>لا توجد دروس تطبيقية بعد</Text>
+            <Text style={styles.stateText}>سيصل المحتوى قريباً.</Text>
           </View>
         )}
 
-        {videos?.map((v, i) => {
-          const isActive = v.id === activeId;
-          const size = sizeLabel(v.sizeBytes);
-          return (
-            <PressableScale
-              key={v.id}
-              onPress={() => setActiveId(v.id)}
-              style={[styles.row, isActive && styles.rowActive]}
-            >
-              <View style={[styles.badge, isActive && styles.badgeActive]}>
-                <Icon
-                  name={isActive ? "play" : "video"}
-                  size={18}
-                  color={isActive ? colors.onAccent : colors.lessons}
-                />
-              </View>
-              <View style={styles.rowTexts}>
-                <Text style={styles.rowTitle} numberOfLines={2}>
+        <View style={styles.grid}>
+          {videos?.map((v, i) => {
+            const isActive = v.id === activeId;
+            const size = sizeLabel(v.sizeBytes);
+            return (
+              <PressableScale
+                key={v.id}
+                onPress={() => setActiveId(v.id)}
+                style={[styles.card, isActive && styles.cardActive]}
+                accessibilityLabel={`${v.title} — الدرس ${i + 1}`}
+              >
+                <View style={styles.thumbWrap}>
+                  {v.thumbUrl ? (
+                    <Image
+                      source={{ uri: v.thumbUrl }}
+                      style={styles.thumb}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbFallback]}>
+                      <Icon name="video" size={28} color={colors.lessons} />
+                    </View>
+                  )}
+                  <View style={styles.playBadge}>
+                    <Icon
+                      name={isActive ? "pause" : "play"}
+                      size={16}
+                      color={colors.text}
+                    />
+                  </View>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={2}>
                   {v.title}
                 </Text>
-                <Text style={styles.rowMeta}>
-                  {size ? `الفيديو ${i + 1} · ${size}` : `الفيديو ${i + 1}`}
+                <Text style={styles.cardMeta}>
+                  {size ? `الدرس ${i + 1} · ${size}` : `الدرس ${i + 1}`}
                 </Text>
-              </View>
-            </PressableScale>
-          );
-        })}
+              </PressableScale>
+            );
+          })}
+        </View>
       </ScrollView>
     </ScreenBackground>
   );
@@ -144,7 +163,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  title: { ...type.title, color: colors.text },
+  title: { ...type.display, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   playerCard: {
     backgroundColor: colors.surface,
@@ -161,30 +180,53 @@ const styles = StyleSheet.create({
     textAlign: "right",
     padding: space.md,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
+  card: {
+    width: "47%",
+    flexGrow: 1,
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: space.md,
+    padding: space.sm,
+    gap: space.sm,
     ...shadow.card,
   },
-  rowActive: { borderColor: colors.lessons },
-  badge: {
-    width: 44,
-    height: 44,
+  cardActive: { borderColor: colors.lessons },
+  thumbWrap: { position: "relative" },
+  thumb: {
+    width: "100%",
+    aspectRatio: 16 / 9,
     borderRadius: radius.md,
-    backgroundColor: "rgba(255,211,72,0.14)",
+    backgroundColor: colors.surfaceAlt,
+  },
+  thumbFallback: { alignItems: "center", justifyContent: "center" },
+  playBadge: {
+    position: "absolute",
+    top: space.sm,
+    left: space.sm,
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(20,21,25,0.6)",
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeActive: { backgroundColor: colors.lessons },
-  rowTexts: { flex: 1, gap: 2 },
-  rowTitle: { fontFamily: font.bold, fontSize: 15, color: colors.text, textAlign: "right" },
-  rowMeta: { ...type.label, fontSize: 12, color: colors.textDim, textAlign: "right" },
+  cardTitle: {
+    fontFamily: font.bold,
+    fontSize: 14,
+    color: colors.text,
+    textAlign: "center",
+    // Two lines reserved so every card is the same height.
+    minHeight: 2 * 20,
+  },
+  cardMeta: {
+    ...type.label,
+    fontSize: 11,
+    color: colors.textDim,
+    textAlign: "center",
+  },
   stateCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

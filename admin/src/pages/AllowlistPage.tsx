@@ -15,8 +15,12 @@ import {
   Title,
 } from "@mantine/core";
 import {
+  IconBrandWhatsapp,
+  IconFileSpreadsheet,
   IconInfoCircle,
   IconPhonePlus,
+  IconPrinter,
+  IconSearch,
   IconTrash,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -24,6 +28,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { AllowlistEntry } from "../api/types";
 import { formatCasablanca } from "../casablanca";
+import { exportExcel, exportPdf, type ExportColumn } from "../export";
 import { notifyError, notifySuccess } from "../notify";
 
 interface AddResult {
@@ -41,6 +46,16 @@ export function AllowlistPage() {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<AddResult | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AllowlistEntry | null>(null);
+  // Date range on "added on", as yyyy-mm-dd from native date inputs.
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [search, setSearch] = useState("");
+  // WhatsApp contact shown in the app instead of a payment screen — it lives
+  // here because this page is the other half of the same loop: they message,
+  // you add their number below.
+  const [whatsapp, setWhatsapp] = useState("");
+  const [savedWhatsapp, setSavedWhatsapp] = useState("");
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -51,9 +66,39 @@ export function AllowlistPage() {
     }
   }, []);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const r = await api<{ settings: { whatsappNumber: string | null } }>(
+        "/admin/app-settings",
+      );
+      setWhatsapp(r.settings.whatsappNumber ?? "");
+      setSavedWhatsapp(r.settings.whatsappNumber ?? "");
+    } catch (e) {
+      notifyError(e);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadSettings();
+  }, [load, loadSettings]);
+
+  const saveWhatsapp = async () => {
+    setSavingWhatsapp(true);
+    try {
+      const r = await api<{ settings: { whatsappNumber: string | null } }>(
+        "/admin/app-settings",
+        { method: "PUT", json: { whatsappNumber: whatsapp.trim() } },
+      );
+      setWhatsapp(r.settings.whatsappNumber ?? "");
+      setSavedWhatsapp(r.settings.whatsappNumber ?? "");
+      notifySuccess("تم الحفظ", "تم تحديث رقم واتساب");
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSavingWhatsapp(false);
+    }
+  };
 
   const openModal = () => {
     setPhones("");
@@ -98,15 +143,67 @@ export function AllowlistPage() {
     }
   };
 
-  const claimed = entries?.filter((e) => e.claimedAt).length ?? 0;
+  // Filtering happens here so the table, the counters and BOTH exports all
+  // read the same array — an export that ignored the filters would quietly
+  // hand out the whole list.
+  const query = search.trim();
+  const visible = (entries ?? []).filter((e) => {
+    const day = e.createdAt.slice(0, 10); // ISO date, comparable as a string
+    if (from && day < from) return false;
+    if (to && day > to) return false;
+    if (query && !e.phone.includes(query) && !(e.note ?? "").includes(query)) {
+      return false;
+    }
+    return true;
+  });
+  const claimed = visible.filter((e) => e.claimedAt).length;
+  const filtersOn = !!(from || to || query);
+
+  const exportColumns: ExportColumn<AllowlistEntry>[] = [
+    { header: "الرقم", value: (e) => e.phone, width: 16 },
+    { header: "المجموعة", value: (e) => e.note ?? "", width: 28 },
+    {
+      header: "الحساب",
+      value: (e) => e.claimedUser?.fullName ?? e.claimedUser?.email ?? "لم يسجّل بعد",
+      width: 30,
+    },
+    {
+      header: "تاريخ التسجيل",
+      value: (e) => (e.claimedAt ? formatCasablanca(e.claimedAt) : ""),
+      width: 22,
+    },
+    { header: "أُضيف في", value: (e) => formatCasablanca(e.createdAt), width: 22 },
+  ];
 
   return (
     <Stack>
       <Group justify="space-between" align="center">
         <Title order={3}>مجموعة المشتركين المجانيين</Title>
-        <Button leftSection={<IconPhonePlus size={16} />} onClick={openModal}>
-          إضافة أرقام
-        </Button>
+        <Group>
+          <Button
+            variant="default"
+            leftSection={<IconFileSpreadsheet size={16} />}
+            disabled={visible.length === 0}
+            onClick={() =>
+              exportExcel("المجموعة-المجانية", exportColumns, visible)
+            }
+          >
+            Excel
+          </Button>
+          <Button
+            variant="default"
+            leftSection={<IconPrinter size={16} />}
+            disabled={visible.length === 0}
+            onClick={() =>
+              exportPdf("مجموعة المشتركين المجانيين", exportColumns, visible)
+            }
+          >
+            PDF
+          </Button>
+          <Button leftSection={<IconPhonePlus size={16} />} onClick={openModal}>
+            إضافة أرقام
+          </Button>
+        </Group>
       </Group>
 
       <Alert
@@ -115,9 +212,9 @@ export function AllowlistPage() {
         icon={<IconInfoCircle size={18} />}
         title="كيف تعمل"
       >
-        ضع هنا أرقام هواتف أعضاء المجموعة. عندما يسجّل صاحب الرقم في التطبيق
-        بنفس الرقم، يُفتح له المحتوى كاملاً تلقائياً دون دفع. إذا كان قد سجّل من
-        قبل، يُفتح حسابه فور إضافة رقمه. الأرقام تُقبل بأي صيغة —
+        لا يوجد دفع داخل التطبيق: المترشح يضغط زر واتساب، يراسلك، ثم تضيف رقمه
+        هنا فيُفتح له المحتوى كاملاً. إذا كان قد سجّل من قبل يُفتح حسابه فور
+        إضافة رقمه، وإلا فعند تسجيله بنفس الرقم. الأرقام تُقبل بأي صيغة —
         <Text component="span" dir="ltr">
           {" "}
           0612345678 · +212612345678 · 00212612345678
@@ -125,16 +222,84 @@ export function AllowlistPage() {
         .
       </Alert>
 
+      <Card padding="lg">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <TextInput
+              label="رقم واتساب للتواصل"
+              description="الرقم الذي يظهر للمترشحين في التطبيق عند طلب فتح المحتوى"
+              placeholder="0612345678"
+              dir="ltr"
+              styles={{ input: { textAlign: "left" } }}
+              leftSection={<IconBrandWhatsapp size={16} color="#25D366" />}
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.currentTarget.value)}
+            />
+          </div>
+          <Button
+            loading={savingWhatsapp}
+            disabled={whatsapp.trim() === savedWhatsapp}
+            onClick={() => void saveWhatsapp()}
+          >
+            حفظ الرقم
+          </Button>
+        </Group>
+        {!savedWhatsapp && (
+          <Text size="xs" c="orange" mt="xs">
+            لم يُضبط رقم بعد — زر واتساب لا يظهر للمترشحين حتى تضيفه.
+          </Text>
+        )}
+      </Card>
+
+      <Card padding="md">
+        <Group align="flex-end" gap="md" wrap="wrap">
+          <TextInput
+            label="بحث"
+            placeholder="رقم أو اسم مجموعة"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            w={220}
+          />
+          <TextInput
+            type="date"
+            label="أُضيف من"
+            value={from}
+            onChange={(e) => setFrom(e.currentTarget.value)}
+            w={170}
+          />
+          <TextInput
+            type="date"
+            label="إلى"
+            value={to}
+            onChange={(e) => setTo(e.currentTarget.value)}
+            w={170}
+          />
+          {filtersOn && (
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setSearch("");
+                setFrom("");
+                setTo("");
+              }}
+            >
+              مسح الفلاتر
+            </Button>
+          )}
+        </Group>
+      </Card>
+
       {entries && (
         <Group gap="xs">
           <Badge variant="light" leftSection={<IconUsersGroup size={13} />}>
-            {entries.length} رقم في المجموعة
+            {visible.length} رقم{filtersOn ? ` من ${entries.length}` : " في المجموعة"}
           </Badge>
           <Badge variant="light" color="teal">
             {claimed} سجّلوا
           </Badge>
           <Badge variant="light" color="gray">
-            {entries.length - claimed} في الانتظار
+            {visible.length - claimed} في الانتظار
           </Badge>
         </Group>
       )}
@@ -145,11 +310,15 @@ export function AllowlistPage() {
             <Skeleton key={i} h={44} radius="md" />
           ))}
         </Stack>
-      ) : entries.length === 0 ? (
+      ) : visible.length === 0 ? (
         <Card padding="xl">
           <Stack align="center" gap="xs">
             <IconUsersGroup size={32} color="var(--zinc-400)" />
-            <Text c="dimmed">لا توجد أرقام بعد — اضغط «إضافة أرقام».</Text>
+            <Text c="dimmed">
+              {filtersOn
+                ? "لا توجد أرقام تطابق الفلاتر الحالية."
+                : "لا توجد أرقام بعد — اضغط «إضافة أرقام»."}
+            </Text>
           </Stack>
         </Card>
       ) : (
@@ -165,7 +334,7 @@ export function AllowlistPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {entries.map((e) => (
+              {visible.map((e) => (
                 <Table.Tr key={e.id}>
                   <Table.Td>
                     <Text size="sm" dir="ltr" ta="left">

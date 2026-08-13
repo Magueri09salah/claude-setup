@@ -3,7 +3,7 @@
     "name": "طريق",
     "slug": "mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "tariq",
     "userInterfaceStyle": "dark",
@@ -59,7 +59,8 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-screen-orientation"
     ],
     "experiments": {
       "typedRoutes": false,

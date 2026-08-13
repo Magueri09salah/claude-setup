@@ -13,6 +13,7 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
+import { IconSearch } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { LicenceCategory, Series } from "../api/types";
@@ -23,6 +24,7 @@ export function SeriesPage() {
   // One licence at a time: series are numbered per category, so mixing them in
   // a single list would make the order column meaningless.
   const [tab, setTab] = useState<LicenceCategory>("B");
+  const [search, setSearch] = useState("");
   const [series, setSeries] = useState<Series[] | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Series | null>(null);
@@ -137,6 +139,19 @@ export function SeriesPage() {
     }
   };
 
+  // Matches the title or the order number ("3" finds السلسلة الثالثة).
+  const query = search.trim().toLowerCase();
+  const visible = (series ?? []).filter(
+    (s) =>
+      query === "" ||
+      s.title.toLowerCase().includes(query) ||
+      String(s.orderNum) === query,
+  );
+  // Reordering moves a row relative to its NEIGHBOURS. While a filter hides
+  // rows those neighbours are not the real ones, so the arrows would silently
+  // reorder the wrong series — disable them until the filter is cleared.
+  const canReorder = query === "";
+
   return (
     <Stack>
       <Group justify="space-between">
@@ -146,7 +161,11 @@ export function SeriesPage() {
 
       <Tabs
         value={tab}
-        onChange={(v) => v && setTab(v as LicenceCategory)}
+        onChange={(v) => {
+          if (!v) return;
+          setTab(v as LicenceCategory);
+          setSearch(""); // a query from one licence means nothing in another
+        }}
         variant="outline"
       >
         <Tabs.List>
@@ -162,15 +181,25 @@ export function SeriesPage() {
         </Tabs.List>
       </Tabs>
 
+      <TextInput
+        placeholder="ابحث عن سلسلة بالاسم أو الرقم…"
+        leftSection={<IconSearch size={16} />}
+        value={search}
+        onChange={(e) => setSearch(e.currentTarget.value)}
+        maw={360}
+      />
+
       {!series ? (
         <Stack gap="xs">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} h={44} radius="md" />
           ))}
         </Stack>
-      ) : series.length === 0 ? (
+      ) : visible.length === 0 ? (
         <Text c="dimmed">
-          لا توجد سلاسل في صنف «{licenceLabel(tab)}» — أنشئ السلسلة الأولى.
+          {search.trim()
+            ? `لا توجد سلسلة تطابق «${search.trim()}» في هذا الصنف.`
+            : `لا توجد سلاسل في صنف «${licenceLabel(tab)}» — أنشئ السلسلة الأولى.`}
         </Text>
       ) : (
         <Table striped highlightOnHover withTableBorder>
@@ -184,7 +213,7 @@ export function SeriesPage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {series.map((s, i) => (
+            {visible.map((s, i) => (
               <Table.Tr key={s.id}>
                 <Table.Td>{s.orderNum}</Table.Td>
                 <Table.Td>
@@ -204,16 +233,18 @@ export function SeriesPage() {
                   <Group gap={4} wrap="nowrap">
                     <ActionIcon
                       variant="subtle"
-                      disabled={i === 0}
+                      disabled={!canReorder || i === 0}
                       aria-label="تحريك لأعلى"
+                      title={canReorder ? "تحريك لأعلى" : "امسح البحث لإعادة الترتيب"}
                       onClick={() => void move(i, -1)}
                     >
                       ↑
                     </ActionIcon>
                     <ActionIcon
                       variant="subtle"
-                      disabled={i === series.length - 1}
+                      disabled={!canReorder || i === visible.length - 1}
                       aria-label="تحريك لأسفل"
+                      title={canReorder ? "تحريك لأسفل" : "امسح البحث لإعادة الترتيب"}
                       onClick={() => void move(i, 1)}
                     >
                       ↓

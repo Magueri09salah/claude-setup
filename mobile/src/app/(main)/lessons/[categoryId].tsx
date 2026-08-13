@@ -1,5 +1,4 @@
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
@@ -8,6 +7,7 @@ import { getCategory, listChildCategories, listLessons } from "@/db/lessons";
 import { openCategory } from "@/lessons/nav";
 import { accentFor } from "@/theme/lessonAccents";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 // Level 2 of 3 (owner sketch 2026-08-07): inside a category (التشوير الطرقي),
 // its lessons are a 2-COLUMN PICTURE GRID — cover image on top, name beneath
@@ -20,7 +20,7 @@ export default function CategoryScreen() {
   const lessons = listLessons(id);
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -126,7 +126,7 @@ export default function CategoryScreen() {
           </View>
         )}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

@@ -29,6 +29,10 @@ export interface QuizState {
   /** Full duration allotted to the current question (10/20/30s). */
   questionSeconds: number;
   paused: boolean;
+  /** True until the question's audio has finished — the timer waits for it. */
+  waitingForAudio: boolean;
+  /** Called by the screen when the question audio ends (or cannot play). */
+  audioFinished: () => void;
   selected: number[];
   results: QuestionResult[];
   score: number;
@@ -58,9 +62,12 @@ export function useQuizEngine(source: QuizSource): QuizState {
   // mid-question must not move the deadline the candidate is already racing.
   const [timeLeft, setTimeLeft] = useState<number>(getQuestionSeconds);
   const [questionSeconds, setQuestionSeconds] = useState<number>(getQuestionSeconds);
-  // Pause freezes the countdown and the audio; the question stays visible and
-  // answerable.
+  // Pause freezes the countdown ONLY (owner decision 2026-08-11) — the audio
+  // keeps reading the question, the image stays up, answering stays available.
   const [paused, setPaused] = useState(false);
+  // The countdown does not start until the question has finished being read
+  // aloud, so a slow reading never eats the candidate's thinking time.
+  const [waitingForAudio, setWaitingForAudio] = useState(true);
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
   // resultsRef is the source of truth; state mirror is for render.
@@ -129,18 +136,26 @@ export function useQuizEngine(source: QuizSource): QuizState {
         setTimeLeft(next);
         setQuestionSeconds(next);
         setPaused(false);
+        setWaitingForAudio(true);
         submittingRef.current = false;
       }
     },
     [index, questions, total, finish],
   );
 
-  // Countdown — one interval, only while playing and not paused.
+  // Countdown — one interval, only while playing, not paused, and after the
+  // question has been read out.
   useEffect(() => {
-    if (phase !== "playing" || paused) return;
+    if (phase !== "playing" || paused || waitingForAudio) return;
     const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(timer);
-  }, [phase, index, paused]);
+  }, [phase, index, paused, waitingForAudio]);
+
+  // Idempotent: the screen may report the end from several places (status
+  // update, missing file, playback error) and only the first one matters.
+  const audioFinished = useCallback(() => {
+    setWaitingForAudio(false);
+  }, []);
 
   // Auto-submit at timeout with the current selection.
   useEffect(() => {
@@ -149,8 +164,8 @@ export function useQuizEngine(source: QuizSource): QuizState {
     }
   }, [phase, timeLeft, selected, submit]);
 
-  // Pause holds ONLY the countdown and the audio (owner decision 2026-08-06):
-  // the question stays on screen and answering stays available.
+  // Pause holds ONLY the countdown (owner decision 2026-08-11): the audio keeps
+  // reading, the question stays on screen, answering stays available.
   const toggle = useCallback(
     (n: number) => {
       if (phase !== "playing") return;
@@ -187,6 +202,8 @@ export function useQuizEngine(source: QuizSource): QuizState {
     timeLeft,
     questionSeconds,
     paused,
+    waitingForAudio,
+    audioFinished,
     selected,
     results,
     score,

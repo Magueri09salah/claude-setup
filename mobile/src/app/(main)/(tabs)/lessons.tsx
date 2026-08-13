@@ -1,5 +1,4 @@
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
@@ -8,6 +7,7 @@ import { listTopCategories } from "@/db/lessons";
 import { openCategory } from "@/lessons/nav";
 import { accentFor } from "@/theme/lessonAccents";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
 
 // الدروس النظرية — level 1 of 3 (owner sketch 2026-08-07): the categories are
 // FULL-WIDTH rows (التشوير الطرقي / المركبة / الوثائق). Level 2 is where the
@@ -16,7 +16,7 @@ export default function LessonsHomeScreen() {
   const categories = listTopCategories();
 
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, styles.titleFlex]}>الدروس النظرية</Text>
@@ -60,7 +60,7 @@ export default function LessonsHomeScreen() {
           })
         )}
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 

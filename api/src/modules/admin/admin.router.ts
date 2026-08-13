@@ -10,6 +10,8 @@ import { paymentsAdminRouter } from "./payments-admin.router";
 import { questionsRouter } from "./questions.router";
 import { seriesRouter } from "./series.router";
 import { allowlistRouter } from "./allowlist-admin.router";
+import { practicalRouter } from "./practical.router";
+import { settingsAdminRouter } from "./settings-admin.router";
 import { uploadRouter } from "./upload.router";
 import { videosRouter } from "./videos.router";
 
@@ -21,6 +23,8 @@ adminRouter.use(requireAuth, requireAdmin);
 adminRouter.use("/series", seriesRouter);
 adminRouter.use("/questions", questionsRouter);
 adminRouter.use("/upload", uploadRouter);
+adminRouter.use("/", settingsAdminRouter);
+adminRouter.use("/", practicalRouter);
 adminRouter.use("/", allowlistRouter);
 adminRouter.use("/", videosRouter);
 adminRouter.use("/", lessonsAdminRouter);

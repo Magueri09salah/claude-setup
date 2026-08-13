@@ -1,39 +1,130 @@
-import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { api } from "@/api/client";
+import { useAuth } from "@/auth/AuthContext";
+import { BrandIcon } from "@/components/BrandIcon";
 import { Icon } from "@/components/Icon";
-import { getPricing, type Pricing } from "@/api/payments";
 import { PressableScale } from "@/components/PressableScale";
+import { runSync } from "@/sync/engine";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { ScreenBackground } from "@/components/ScreenBackground";
+
+interface Support {
+  whatsappNumber: string | null;
+  whatsappMessage: string;
+}
 
 const BENEFITS = [
   "كل سلاسل الامتحان كاملة",
   "جميع الدروس النظرية والعلامات",
+  "الدروس التطبيقية بالفيديو",
   "تحديثات مستمرة للمحتوى",
 ];
 
-export default function PaymentIndexScreen() {
-  const [pricing, setPricing] = useState<Pricing | null>(null);
+const STEPS = [
+  "اضغط على زر واتساب بالأسفل",
+  "أرسل الرسالة الجاهزة كما هي — تحتوي على رقمك",
+  "بعد التأكيد يُفتح لك المحتوى كاملاً في نفس الحساب",
+];
+
+// Access is requested over WhatsApp instead of being paid for in-app (owner
+// decision 2026-08-13): the admin adds the candidate's number to the allowlist
+// after the conversation, and the API grants premium server-side.
+export default function UnlockScreen() {
+  const { user, refreshUser } = useAuth();
+  const [support, setSupport] = useState<Support | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    getPricing()
-      .then(setPricing)
-      .catch(() => setPricing(null));
+    api<Support>("/content/support")
+      .then(setSupport)
+      .catch(() => setSupport(null));
   }, []);
 
+  // Coming back from WhatsApp is exactly when the unlock may have landed, so
+  // re-read the account instead of making the candidate hunt for a button.
+  useFocusEffect(
+    useCallback(() => {
+      void refreshUser();
+    }, [refreshUser]),
+  );
+
+  // The admin needs to know WHICH number to add — so the message carries it.
+  const message = [
+    support?.whatsappMessage ?? "",
+    user?.fullName ? `الاسم: ${user.fullName}` : "",
+    user?.phone ? `رقم الهاتف: ${user.phone}` : "",
+    user?.email ? `البريد: ${user.email}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const openWhatsapp = () => {
+    if (!support?.whatsappNumber) return;
+    const url = `https://wa.me/${support.whatsappNumber}?text=${encodeURIComponent(message)}`;
+    void Linking.openURL(url).catch(() =>
+      Alert.alert(
+        "تعذّر فتح واتساب",
+        "تأكد من تثبيت تطبيق واتساب على هاتفك.",
+      ),
+    );
+  };
+
+  const checkNow = async () => {
+    setChecking(true);
+    const updated = await refreshUser();
+    if (updated?.isPremium) {
+      // Premium changes the manifest ETag, so this pulls the unlocked content.
+      await runSync();
+      Alert.alert("تم فتح المحتوى", "حسابك الآن مفتوح بالكامل. بالتوفيق!", [
+        { text: "ابدأ", onPress: () => router.back() },
+      ]);
+    } else {
+      Alert.alert(
+        "لم يُفتح بعد",
+        "لم يُضف رقمك بعد. إذا راسلتنا للتو فانتظر قليلاً ثم أعد المحاولة.",
+      );
+    }
+    setChecking(false);
+  };
+
+  if (user?.isPremium) {
+    return (
+      <ScreenBackground style={styles.centered}>
+        <Icon name="unlock" size={44} color={colors.success} />
+        <Text style={styles.doneTitle}>حسابك مفتوح بالكامل</Text>
+        <Text style={styles.doneText}>
+          يمكنك الوصول إلى كل السلاسل والدروس.
+        </Text>
+        <PressableScale onPress={() => router.back()} style={styles.doneButton}>
+          <Text style={styles.doneButtonText}>رجوع</Text>
+        </PressableScale>
+      </ScreenBackground>
+    );
+  }
+
   return (
-    <LinearGradient colors={[colors.bg, colors.bgSoft]} style={styles.screen}>
+    <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹</Text>
+            <Icon name="back" size={26} color={colors.text} />
           </Pressable>
           <Text style={[styles.title, styles.titleFlex]}>افتح المحتوى الكامل</Text>
         </View>
 
         <View style={styles.pitch}>
-          <Icon name="unlock" size={32} color={colors.lessons} style={styles.pitchIcon} />
+          <Icon name="unlock" size={32} color={colors.lessons} />
           <Text style={styles.pitchTitle}>اشتراك طريق المميّز</Text>
           <View style={styles.benefits}>
             {BENEFITS.map((b) => (
@@ -43,54 +134,90 @@ export default function PaymentIndexScreen() {
               </View>
             ))}
           </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>
-              {pricing ? `${pricing.amount} ${pricing.currency}` : "…"}
-            </Text>
-            <Text style={styles.priceLabel}>{pricing?.label ?? ""}</Text>
-          </View>
         </View>
 
-        <Text style={styles.chooseLabel}>اختر طريقة الدفع</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>كيف تحصل عليه</Text>
+          {STEPS.map((step, i) => (
+            <View key={step} style={styles.stepRow}>
+              <View style={styles.stepNum}>
+                <Text style={styles.stepNumText}>{i + 1}</Text>
+              </View>
+              <Text style={styles.stepText}>{step}</Text>
+            </View>
+          ))}
+        </View>
+
+        {support === null ? (
+          <View style={styles.card}>
+            <ActivityIndicator color={colors.lessons} />
+          </View>
+        ) : support.whatsappNumber ? (
+          <PressableScale onPress={openWhatsapp} style={styles.whatsapp}>
+            <BrandIcon platform="WHATSAPP" size={22} color={colors.onAccent} />
+            <Text style={styles.whatsappText}>تواصل معنا على واتساب</Text>
+          </PressableScale>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardBody}>
+              لم يُضبط رقم التواصل بعد. حاول لاحقاً أو تواصل مع مدرستك.
+            </Text>
+          </View>
+        )}
 
         <PressableScale
-          onPress={() => router.push("/payment/online")}
-          style={[styles.option, { borderLeftColor: colors.exam }]}
+          onPress={() => void checkNow()}
+          style={styles.secondary}
+          disabled={checking}
         >
-          <View style={[styles.optIcon, { backgroundColor: `${colors.exam}26` }]}>
-            <Icon name="card" size={24} color={colors.exam} />
-          </View>
-          <View style={styles.optTexts}>
-            <Text style={styles.optTitle}>الدفع بالبطاقة البنكية</Text>
-            <Text style={styles.optSub}>فيزا / ماستركارد — تفعيل فوري</Text>
-          </View>
+          {checking ? (
+            <ActivityIndicator size="small" color={colors.text} />
+          ) : (
+            <>
+              <Icon name="refresh" size={16} color={colors.text} />
+              <Text style={styles.secondaryText}>تحقّق من حالة حسابي</Text>
+            </>
+          )}
         </PressableScale>
 
-        <PressableScale
-          onPress={() => router.push("/payment/wafacash")}
-          style={[styles.option, { borderLeftColor: colors.lessons }]}
-        >
-          <View style={[styles.optIcon, { backgroundColor: `${colors.lessons}26` }]}>
-            <Icon name="store" size={24} color={colors.lessons} />
-          </View>
-          <View style={styles.optTexts}>
-            <Text style={styles.optTitle}>الدفع نقداً في وكالة Wafacash</Text>
-            <Text style={styles.optSub}>تحصل على رمز تدفعه في أقرب وكالة</Text>
-          </View>
-        </PressableScale>
+        <Text style={styles.note}>
+          يُفتح المحتوى على نفس الحساب برقم الهاتف الذي سجّلت به
+          {user?.phone ? ` (${user.phone})` : ""}.
+        </Text>
       </ScrollView>
-    </LinearGradient>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: space.xl,
+    gap: space.sm,
+  },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
-  title: { ...type.title, color: colors.text },
+  title: { ...type.display, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   pitch: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.lessons,
+    padding: space.lg,
+    gap: space.sm,
+    ...shadow.card,
+  },
+  pitchTitle: { ...type.title, color: colors.text, textAlign: "right" },
+  benefits: { gap: space.xs },
+  benefitRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  benefitText: { ...type.body, fontSize: 15, color: colors.text, flex: 1, textAlign: "right" },
+  card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -99,50 +226,50 @@ const styles = StyleSheet.create({
     gap: space.sm,
     ...shadow.card,
   },
-  pitchIcon: { alignSelf: "center" },
-  pitchTitle: {
-    ...type.title,
-    color: colors.text,
-    textAlign: "center",
-  },
-  benefits: { gap: space.sm, marginTop: space.sm },
-  benefitRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  benefitText: { ...type.body, color: colors.text, flex: 1, textAlign: "right" },
-  priceRow: {
-    alignItems: "center",
-    marginTop: space.md,
-    paddingTop: space.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  price: { fontFamily: font.extraBold, fontSize: 40, color: colors.lessons },
-  priceLabel: { ...type.label, color: colors.textDim },
-  chooseLabel: {
-    ...type.label,
-    color: colors.textDim,
-    textAlign: "right",
-    marginTop: space.sm,
-  },
-  option: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderLeftWidth: 4,
-    padding: space.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    ...shadow.card,
-  },
-  optIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
+  cardTitle: { ...type.title, fontSize: 17, color: colors.text, textAlign: "right" },
+  cardBody: { ...type.body, color: colors.textDim, textAlign: "right" },
+  stepRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  stepNum: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
-  optTexts: { flex: 1, gap: 2 },
-  optTitle: { ...type.title, fontSize: 17, color: colors.text, textAlign: "right" },
-  optSub: { ...type.label, color: colors.textDim, textAlign: "right" },
+  stepNumText: { fontFamily: font.bold, fontSize: 13, color: colors.lessons },
+  stepText: { ...type.body, fontSize: 15, color: colors.text, flex: 1, textAlign: "right" },
+  whatsapp: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm,
+    height: 56,
+    borderRadius: radius.pill,
+    // WhatsApp brand green — this button must look like what it opens.
+    backgroundColor: "#25D366",
+    ...shadow.card,
+  },
+  whatsappText: { fontFamily: font.extraBold, fontSize: 17, color: colors.onAccent },
+  secondary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm,
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipBg,
+  },
+  secondaryText: { ...type.label, fontSize: 15, color: colors.text },
+  note: { ...type.label, fontSize: 12, color: colors.textDim, textAlign: "center" },
+  doneTitle: { ...type.title, color: colors.text, textAlign: "center" },
+  doneText: { ...type.body, color: colors.textDim, textAlign: "center" },
+  doneButton: {
+    marginTop: space.md,
+    backgroundColor: colors.series,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.xl,
+    paddingVertical: space.sm,
+  },
+  doneButtonText: { fontFamily: font.bold, fontSize: 15, color: colors.onAccent },
 });
