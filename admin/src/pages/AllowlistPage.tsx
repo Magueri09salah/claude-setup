@@ -151,8 +151,13 @@ export function AllowlistPage() {
     const day = e.createdAt.slice(0, 10); // ISO date, comparable as a string
     if (from && day < from) return false;
     if (to && day > to) return false;
-    if (query && !e.phone.includes(query) && !(e.note ?? "").includes(query)) {
-      return false;
+    if (query) {
+      const handle = e.claimedUser?.username ?? e.claimedUser?.email ?? "";
+      const hit =
+        e.phone.includes(query) ||
+        (e.note ?? "").includes(query) ||
+        handle.toLowerCase().includes(query.toLowerCase());
+      if (!hit) return false;
     }
     return true;
   });
@@ -164,7 +169,11 @@ export function AllowlistPage() {
     { header: "المجموعة", value: (e) => e.note ?? "", width: 28 },
     {
       header: "الحساب",
-      value: (e) => e.claimedUser?.fullName ?? e.claimedUser?.email ?? "لم يسجّل بعد",
+      value: (e) =>
+        e.claimedUser?.username ??
+        e.claimedUser?.fullName ??
+        e.claimedUser?.email ??
+        "لم يسجّل بعد",
       width: 30,
     },
     {
@@ -255,11 +264,11 @@ export function AllowlistPage() {
         <Group align="flex-end" gap="md" wrap="wrap">
           <TextInput
             label="بحث"
-            placeholder="رقم أو اسم مجموعة"
+            placeholder="رقم · اسم مستخدم · مجموعة"
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
-            w={220}
+            w={260}
           />
           <TextInput
             type="date"
@@ -349,7 +358,9 @@ export function AllowlistPage() {
                   <Table.Td>
                     {e.claimedUser ? (
                       <Badge variant="light" color="teal">
-                        {e.claimedUser.fullName ?? e.claimedUser.email}
+                        {e.claimedUser.username ??
+                          e.claimedUser.fullName ??
+                          e.claimedUser.email}
                       </Badge>
                     ) : (
                       <Badge variant="light" color="gray">

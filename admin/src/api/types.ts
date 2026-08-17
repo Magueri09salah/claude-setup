@@ -84,7 +84,12 @@ export interface AllowlistEntry {
   claimedAt: string | null;
   claimedBy: string | null;
   createdAt: string;
-  claimedUser: { id: string; email: string; fullName: string | null } | null;
+  claimedUser: {
+    id: string;
+    username: string | null;
+    email: string | null;
+    fullName: string | null;
+  } | null;
 }
 
 export interface Sign {
@@ -100,7 +105,8 @@ export type UserStatus = "paid" | "pending" | "free";
 
 export interface AdminUser {
   id: string;
-  email: string;
+  username: string | null;
+  email: string | null;
   fullName: string | null;
   phone: string | null;
   role: "USER" | "ADMIN";

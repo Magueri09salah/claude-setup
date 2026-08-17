@@ -31,7 +31,7 @@ allowlistRouter.get("/allowlist", async (_req, res) => {
     userIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: userIds } },
-          select: { id: true, email: true, fullName: true },
+          select: { id: true, username: true, email: true, fullName: true },
         })
       : [];
   const byId = new Map(users.map((u) => [u.id, u]));

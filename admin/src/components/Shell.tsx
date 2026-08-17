@@ -67,7 +67,7 @@ export function Shell() {
           <Group gap="sm">
             <PublishButton />
             <Badge variant="default" size="lg" fw={500} style={{ direction: "ltr" }}>
-              {user?.email}
+              {user?.email ?? user?.username}
             </Badge>
             <Button
               variant="subtle"

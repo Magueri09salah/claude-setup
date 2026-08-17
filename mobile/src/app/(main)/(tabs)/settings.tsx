@@ -75,10 +75,11 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>الحساب</Text>
-          {user?.fullName ? (
-            <Text style={styles.fullName}>{user.fullName}</Text>
-          ) : null}
-          <Text style={styles.email}>{user?.email}</Text>
+          <Text style={styles.fullName}>
+            {user?.username ?? user?.fullName ?? user?.email}
+          </Text>
+          {/* The phone is the login identifier now, so show it here. */}
+          {user?.phone ? <Text style={styles.email}>{user.phone}</Text> : null}
           <View style={styles.badgeRow}>
             <View
               style={[

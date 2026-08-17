@@ -89,8 +89,8 @@ export function UsersPage() {
   // Exports exactly what the table shows, so a filtered view exports the
   // filtered rows rather than silently dumping everyone.
   const exportColumns: ExportColumn<AdminUser>[] = [
-    { header: "الاسم الكامل", value: (u) => u.fullName ?? "", width: 26 },
-    { header: "البريد الإلكتروني", value: (u) => u.email, width: 30 },
+    { header: "اسم المستخدم", value: (u) => u.username ?? "", width: 26 },
+    { header: "البريد الإلكتروني", value: (u) => u.email ?? "", width: 30 },
     { header: "الهاتف", value: (u) => u.phone ?? "", width: 16 },
     {
       header: "الحالة",
@@ -166,11 +166,11 @@ export function UsersPage() {
       <Card padding="lg">
         <Group justify="space-between" mb="md">
           <TextInput
-            placeholder="بحث بالاسم أو البريد أو الهاتف…"
+            placeholder="بحث باسم المستخدم أو الهاتف…"
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
-            w={280}
+            w={300}
           />
           <SegmentedControl
             value={status}
@@ -188,8 +188,8 @@ export function UsersPage() {
           <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>الاسم</Table.Th>
-                <Table.Th>المستخدم</Table.Th>
+                <Table.Th>اسم المستخدم</Table.Th>
+                <Table.Th>الهاتف</Table.Th>
                 <Table.Th>الحالة</Table.Th>
                 <Table.Th>الطريقة</Table.Th>
                 <Table.Th>الأجهزة</Table.Th>
@@ -201,17 +201,17 @@ export function UsersPage() {
               {users.map((u) => (
                 <Table.Tr key={u.id}>
                   <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {u.fullName ?? "—"}
+                    <Text size="sm" fw={500} style={{ direction: "ltr" }}>
+                      {u.username ?? u.fullName ?? "—"}
                     </Text>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" style={{ direction: "ltr" }}>
-                      {u.email}
+                      {u.phone ?? "—"}
                     </Text>
-                    {u.phone && (
+                    {u.email && (
                       <Text size="xs" c="dimmed" style={{ direction: "ltr" }}>
-                        {u.phone}
+                        {u.email}
                       </Text>
                     )}
                   </Table.Td>
@@ -265,8 +265,8 @@ export function UsersPage() {
       >
         <Text size="sm">
           {target?.isPremium
-            ? `سيتم إلغاء الاشتراك المميّز عن ${target?.email}. سيُسجّل هذا الإجراء.`
-            : `سيتم منح ${target?.email} اشتراكاً مميّزاً كاملاً. سيُسجّل هذا الإجراء في سجل التدقيق.`}
+            ? `سيتم إلغاء الاشتراك المميّز عن ${target?.username ?? target?.email}. سيُسجّل هذا الإجراء.`
+            : `سيتم منح ${target?.username ?? target?.email} اشتراكاً مميّزاً كاملاً. سيُسجّل هذا الإجراء في سجل التدقيق.`}
         </Text>
         <Group justify="flex-end" mt="lg">
           <Button variant="default" onClick={() => setTarget(null)}>

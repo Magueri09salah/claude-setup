@@ -62,9 +62,8 @@ export default function UnlockScreen() {
   // The admin needs to know WHICH number to add — so the message carries it.
   const message = [
     support?.whatsappMessage ?? "",
-    user?.fullName ? `الاسم: ${user.fullName}` : "",
+    user?.username ? `اسم المستخدم: ${user.username}` : "",
     user?.phone ? `رقم الهاتف: ${user.phone}` : "",
-    user?.email ? `البريد: ${user.email}` : "",
   ]
     .filter(Boolean)
     .join("\n");

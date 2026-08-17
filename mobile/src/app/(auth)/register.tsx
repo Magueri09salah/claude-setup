@@ -16,8 +16,7 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function RegisterScreen() {
   const { register } = useAuth();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +24,16 @@ export default function RegisterScreen() {
 
   const submit = async () => {
     setError(null);
-    if (fullName.trim().length < 3) {
-      setError("أدخل اسمك الكامل (3 أحرف على الأقل)");
+    if (username.trim().length < 3) {
+      setError("اسم المستخدم يجب أن يكون 3 أحرف على الأقل");
+      return;
+    }
+    if (!/^[A-Za-z0-9._@-]+$/.test(username.trim())) {
+      setError("اسم المستخدم يقبل الحروف والأرقام و . _ - @ فقط");
+      return;
+    }
+    if (phone.trim().length < 9) {
+      setError("أدخل رقم هاتفك — هو الذي تسجّل به الدخول");
       return;
     }
     if (password.length < 8) {
@@ -35,17 +42,13 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      await register(
-        fullName.trim(),
-        email.trim(),
-        password,
-        phone.trim() || undefined,
-      );
+      await register(username.trim(), phone.trim(), password);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError("هذا البريد الإلكتروني أو الهاتف مسجل مسبقاً");
+        // The API says which of the two is taken — show that, not a guess.
+        setError(e.message);
       } else if (e instanceof ApiError && e.status === 400) {
-        setError("تحقق من صحة الحقول (رقم الهاتف مثل +2126XXXXXXXX)");
+        setError("تحقق من صحة الحقول");
       } else if (e instanceof ApiError && e.status === 429) {
         setError("محاولات كثيرة — انتظر دقيقة ثم حاول مجدداً");
       } else if (e instanceof ApiError) {
@@ -72,28 +75,27 @@ export default function RegisterScreen() {
           <Text style={styles.subtitle}>
             دقيقة واحدة وتبدأ التحضير لامتحان رخصة السياقة
           </Text>
+          <Text style={styles.hint}>
+            تسجيل الدخول لاحقاً يكون برقم الهاتف وكلمة المرور
+          </Text>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
           <AppTextInput
-            label="الاسم الكامل"
-            autoComplete="name"
-            value={fullName}
-            onChangeText={setFullName}
-          />
-          <AppTextInput
-            label="البريد الإلكتروني"
+            label="اسم المستخدم"
             ltr
             autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+            autoCorrect={false}
+            placeholder="salah@magueri"
+            value={username}
+            onChangeText={setUsername}
           />
           <AppTextInput
-            label="رقم الهاتف (اختياري)"
+            label="رقم الهاتف"
             ltr
+            autoComplete="tel"
             keyboardType="phone-pad"
+            placeholder="0612345678"
             value={phone}
             onChangeText={setPhone}
           />
@@ -108,7 +110,7 @@ export default function RegisterScreen() {
           <PrimaryButton
             label="إنشاء الحساب"
             loading={loading}
-            disabled={!fullName.trim() || !email.trim() || !password}
+            disabled={!username.trim() || !phone.trim() || !password}
             onPress={() => void submit()}
           />
 
@@ -134,6 +136,12 @@ const styles = StyleSheet.create({
     ...type.display,
     color: colors.text,
     textAlign: "right",
+  },
+  hint: {
+    ...type.label,
+    fontSize: 12,
+    color: colors.textDim,
+    textAlign: "center",
   },
   subtitle: {
     ...type.body,

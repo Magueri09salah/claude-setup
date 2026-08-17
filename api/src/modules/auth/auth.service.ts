@@ -22,6 +22,7 @@ const sha256 = (value: string) =>
 function publicUser(user: User) {
   return {
     id: user.id,
+    username: user.username,
     email: user.email,
     fullName: user.fullName,
     phone: user.phone,
@@ -62,23 +63,18 @@ async function issueRefreshToken(userId: string): Promise<string> {
 }
 
 export async function register(input: {
-  fullName: string;
-  email: string;
+  username: string;
+  phone: string;
   password: string;
-  phone?: string;
 }) {
-  const email = input.email.trim().toLowerCase();
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
-  // Stored canonical so the allowlist, and any later lookup, can match it.
-  const phone = input.phone ? normalizePhone(input.phone) : null;
+  // Both already normalized by the zod schema; normalize again so a direct
+  // service call can't slip past it.
+  const username = input.username.trim().toLowerCase();
+  const phone = normalizePhone(input.phone);
   try {
     const created = await prisma.user.create({
-      data: {
-        email,
-        fullName: input.fullName,
-        passwordHash,
-        phone,
-      },
+      data: { username, phone, passwordHash },
     });
 
     // Group members (a partner school's list) are premium from the first
@@ -95,22 +91,45 @@ export async function register(input: {
     };
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      throw new ApiError(409, "Email or phone already registered");
+      // Say WHICH one is taken: "already registered" on a combined message
+      // leaves the candidate guessing which field to change.
+      const target = (e.meta as { target?: string[] } | undefined)?.target ?? [];
+      if (target.includes("phone")) {
+        throw new ApiError(409, "رقم الهاتف مسجَّل من قبل");
+      }
+      throw new ApiError(409, "اسم المستخدم مستعمل من قبل");
     }
     throw e;
   }
 }
 
-export async function login(input: { email: string; password: string }) {
-  const user = await prisma.user.findUnique({
-    where: { email: input.email.trim().toLowerCase() },
+/**
+ * Candidates log in with their phone, the admin panel with its email, and a
+ * username works too. One lookup covers all three: the identifier is matched
+ * against the phone (normalized) OR the username OR the email, all of which are
+ * unique, so it can never resolve to more than one account.
+ */
+export async function login(input: { identifier: string; password: string }) {
+  const raw = input.identifier.trim();
+  const lowered = raw.toLowerCase();
+  const phone = normalizePhone(raw);
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        ...(phone ? [{ phone }] : []),
+        { username: lowered },
+        { email: lowered },
+      ],
+    },
   });
+  // Always compare against something so a missing account and a wrong password
+  // take the same time (no user enumeration through timing).
   const passwordOk = await bcrypt.compare(
     input.password,
     user?.passwordHash ?? DUMMY_HASH,
   );
   if (!user || !passwordOk) {
-    throw new ApiError(401, "Invalid email or password");
+    throw new ApiError(401, "رقم الهاتف أو كلمة المرور غير صحيحة");
   }
   return {
     user: publicUser(user),

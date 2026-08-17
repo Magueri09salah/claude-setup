@@ -81,7 +81,8 @@
       "Bash(curl -s http://localhost:4000/auth/me -H 'Authorization: Bearer __TRACKED_VAR__')",
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const m=JSON.parse\\(d\\);console.log\\('   locked series:',m.series.filter\\(s=>s.locked\\).length,'of',m.series.length\\)}\\)\")",
       "Bash(grep -rln \"LinearGradient colors={\\\\[colors.bg, colors.bgSoft\\\\]}\" mobile/src)",
-      "Bash(grep -rl \"LinearGradient colors={\\\\[colors.bg, colors.bgSoft\\\\]}\" mobile/src)"
+      "Bash(grep -rl \"LinearGradient colors={\\\\[colors.bg, colors.bgSoft\\\\]}\" mobile/src)",
+      "Bash(grep -n \"select: { id: true, email: true, fullName: true }\" api/src/modules/admin/allowlist-admin.router.ts)"
     ],
     "additionalDirectories": [
       "C:\\Users\\T14s\\Desktop\\claude-setup\\claude-setup\\api\\prisma"

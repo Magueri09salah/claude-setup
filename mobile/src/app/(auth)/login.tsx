@@ -16,7 +16,7 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,10 +25,10 @@ export default function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(phone.trim(), password);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
-        setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        setError("رقم الهاتف أو كلمة المرور غير صحيحة");
       } else if (e instanceof ApiError && e.status === 429) {
         setError("محاولات كثيرة — انتظر دقيقة ثم حاول مجدداً");
       } else if (e instanceof ApiError) {
@@ -60,13 +60,14 @@ export default function LoginScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
 
           <AppTextInput
-            label="البريد الإلكتروني"
+            label="رقم الهاتف"
             ltr
             autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+            autoComplete="tel"
+            keyboardType="phone-pad"
+            placeholder="0612345678"
+            value={phone}
+            onChangeText={setPhone}
           />
           <AppTextInput
             label="كلمة المرور"
@@ -79,7 +80,7 @@ export default function LoginScreen() {
           <PrimaryButton
             label="تسجيل الدخول"
             loading={loading}
-            disabled={!email.trim() || !password}
+            disabled={!phone.trim() || !password}
             onPress={() => void submit()}
           />
 

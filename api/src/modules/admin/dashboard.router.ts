@@ -40,7 +40,7 @@ dashboardRouter.get("/dashboard", async (_req, res) => {
         total: true,
         passed: true,
         finishedAt: true,
-        user: { select: { email: true } },
+        user: { select: { username: true, email: true } },
       },
     }),
   ]);
@@ -62,7 +62,7 @@ dashboardRouter.get("/dashboard", async (_req, res) => {
       total: a.total,
       passed: a.passed,
       finishedAt: a.finishedAt,
-      userEmail: a.user.email,
+      userEmail: a.user.username ?? a.user.email,
     })),
   });
 });

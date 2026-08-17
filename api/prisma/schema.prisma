@@ -29,10 +29,15 @@ enum PayStatus {
 
 model User {
   id           String    @id @default(uuid())
-  email        String    @unique
+  // Login identity (owner decision 2026-08-14): candidates sign in with their
+  // PHONE + password. `username` is their display handle, free-form and often
+  // written like an email ("salah@magueri") without being one.
+  username     String?   @unique
+  // Optional since registration stopped collecting it; existing accounts and
+  // the seeded admin keep theirs, and the admin panel still signs in with it.
+  email        String?   @unique
   phone        String?   @unique
-  // Required at registration; nullable so accounts created before this field
-  // (and the seeded admin) stay valid.
+  // No longer collected at registration; kept for accounts that have it.
   fullName     String?
   passwordHash String
   role         Role      @default(USER)

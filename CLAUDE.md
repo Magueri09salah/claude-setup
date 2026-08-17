@@ -77,4 +77,11 @@ Also: الشق التطبيقي (flat list of streamed practical videos, admin p
 card), Excel/PDF export on users + allowlist, quiz timer starts after the
 question audio ends and pause freezes only the timer, image viewer with
 rotate-to-landscape and pinch zoom.
+2026-08-14: IDENTITY CHANGED. Candidates register with `username` + `phone` +
+password (no email, no full name) and LOG IN WITH THEIR PHONE. `User.username`
+is unique/lowercased, free-form like "salah@magueri"; `User.email` is now
+nullable and kept only for existing accounts + the seeded admin. `/auth/login`
+takes ONE `identifier` field resolved against phone (normalized) | username |
+email, which is how the admin panel still signs in with its email. Existing
+accounts were backfilled with username = email so nobody was locked out.
 Next: PayzoneProvider when merchant docs arrive · store submission.

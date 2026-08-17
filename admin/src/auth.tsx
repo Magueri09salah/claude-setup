@@ -37,10 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  // The API takes one identifier and resolves it to a phone, username or
+  // email. The panel signs in with the admin's email; candidates use a phone.
+  const login = useCallback(async (identifier: string, password: string) => {
     const res = await api<LoginResponse>("/auth/login", {
       method: "POST",
-      json: { email, password },
+      json: { identifier, password },
     });
     if (res.user.role !== "ADMIN") {
       throw new ApiError(403, "This panel is for administrators only");

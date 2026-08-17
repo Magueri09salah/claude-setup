@@ -22,3 +22,11 @@ description: Non-negotiable security checklist for auth, payments, media access,
   secrets in logs. Never commit real credentials — check before every commit.
 - Uploads (admin): whitelist mime types (webp/png/jpg/mp3), max sizes, re-derive
   extension server-side, never trust client filename.
+
+## Auth identity (owner decision 2026-08-14)
+Registration takes `username` + `phone` + password only. Login sends ONE
+`identifier`, matched against phone (normalized via modules/premium/phone) OR
+username OR email — all unique, so it can never resolve to two accounts.
+Keep the constant-time compare against DUMMY_HASH on the miss path: a fast
+"no such phone" reply would let anyone enumerate which numbers are registered.
+Usernames are stored lowercased so they cannot be duplicated by case.

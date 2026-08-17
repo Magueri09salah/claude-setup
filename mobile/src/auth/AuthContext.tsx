@@ -21,12 +21,13 @@ import { registerPushToken, unregisterPushToken } from "../notifications/push";
 interface AuthValue {
   user: SessionUser | null;
   hydrated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  // Candidates sign in with their phone; the API accepts a username or email
+  // in the same field, which is what keeps the seeded admin working.
+  login: (identifier: string, password: string) => Promise<void>;
   register: (
-    fullName: string,
-    email: string,
+    username: string,
+    phone: string,
     password: string,
-    phone?: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
   // Re-fetch the current user (premium may have flipped after a payment).
@@ -46,10 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setHydrated(true));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string) => {
     const res = await api<LoginResponse>("/auth/login", {
       method: "POST",
-      json: { email, password },
+      json: { identifier, password },
     });
     await storeSession(res.user, res.accessToken, res.refreshToken);
     setUser(res.user);
@@ -57,12 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (fullName: string, email: string, password: string, phone?: string) => {
+    async (username: string, phone: string, password: string) => {
       const res = await api<LoginResponse>("/auth/register", {
         method: "POST",
-        json: phone
-          ? { fullName, email, password, phone }
-          : { fullName, email, password },
+        json: { username, phone, password },
       });
       await storeSession(res.user, res.accessToken, res.refreshToken);
       setUser(res.user);

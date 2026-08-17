@@ -8,7 +8,8 @@ const USER_KEY = "tariq.admin.user";
 
 export interface SessionUser {
   id: string;
-  email: string;
+  username: string | null;
+  email: string | null;
   phone: string | null;
   role: "USER" | "ADMIN";
   isPremium: boolean;

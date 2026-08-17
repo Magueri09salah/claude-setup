@@ -74,7 +74,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.headerTexts}>
             <Text style={styles.hello}>أهلاً 👋</Text>
-            <Text style={styles.email}>{user?.email}</Text>
+            <Text style={styles.email}>{user?.username ?? user?.email}</Text>
           </View>
         </View>
 
