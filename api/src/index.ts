@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import { env } from "./env";
+import { env, isProduction } from "./env";
 import { errorHandler } from "./middleware/errors";
 import { adminRouter } from "./modules/admin/admin.router";
 import { authRouter } from "./modules/auth/auth.router";
@@ -32,8 +32,13 @@ app.use("/admin", adminRouter);
 app.use("/content", contentRouter);
 app.use("/attempts", attemptsRouter);
 app.use("/course-requests", courseRequestsRouter);
-app.use("/payments", paymentsRouter);
-app.use("/webhooks", webhookRouter);
+// Payments are OFF by default (see env.PAYMENTS_ENABLED). The app arranges
+// access over WhatsApp, so these routes have no caller — and while they were
+// mounted, any registered user could settle their own payment for free.
+if (env.PAYMENTS_ENABLED) {
+  app.use("/payments", paymentsRouter);
+  app.use("/webhooks", webhookRouter);
+}
 app.use("/lives", livesRouter);
 app.use("/devices", devicesRouter);
 // Static pages (privacy policy) — hostable on the domain.
@@ -41,8 +46,9 @@ app.use("/legal", express.static(path.resolve(process.cwd(), "public")));
 if (storage.kind === "local") {
   app.use("/media/local", localMediaRouter);
 }
-// Dev-only fake gateway page (mock provider).
-if (paymentProvider.kind === "mock") {
+// Dev-only fake gateway page. Its /complete route is unauthenticated by
+// design, so it must never exist on a public server.
+if (env.PAYMENTS_ENABLED && paymentProvider.kind === "mock" && !isProduction) {
   app.use("/mock-pay", mockPayRouter);
 }
 
@@ -50,7 +56,9 @@ app.use(errorHandler);
 
 app.listen(env.PORT, () => {
   console.log(
-    `API listening on http://localhost:${env.PORT} (storage: ${storage.kind}, payments: ${paymentProvider.kind})`,
+    `API listening on port ${env.PORT} (env: ${env.NODE_ENV}, storage: ${storage.kind}, payments: ${
+      env.PAYMENTS_ENABLED ? paymentProvider.kind : "disabled"
+    })`,
   );
   startCron();
 });

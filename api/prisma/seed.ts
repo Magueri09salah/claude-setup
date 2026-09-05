@@ -19,6 +19,8 @@ function silentMp3(frames = 50): Buffer {
   return Buffer.concat(Array.from({ length: frames }, () => frame));
 }
 
+const SEED_DEMO_CONTENT = process.env.SEED_DEMO_CONTENT === "true";
+
 async function main() {
   await prisma.contentVersion.upsert({
     where: { id: 1 },
@@ -29,7 +31,17 @@ async function main() {
   const adminEmail = (
     process.env.SEED_ADMIN_EMAIL ?? "admin@driving.local"
   ).toLowerCase();
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+  // NO fallback password. The old default ("Admin123!") is published in this
+  // repo, so seeding a public server without setting this handed anyone who
+  // read the code a full-privilege admin account.
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminPassword || adminPassword.length < 8) {
+    throw new Error(
+      `SEED_ADMIN_PASSWORD is required (min 8 characters).
+Set it in the environment before seeding, e.g.:
+  SEED_ADMIN_PASSWORD="<a strong password>" npx prisma db seed`,
+    );
+  }
   await prisma.user.upsert({
     where: { email: adminEmail },
     update: { role: "ADMIN" },
@@ -39,6 +51,16 @@ async function main() {
       role: "ADMIN",
     },
   });
+
+  // Placeholder series/questions/signs exist for local development only.
+  // Seeding a production database must create the admin and nothing else —
+  // the demo rows bump contentVersion and ship to every installed phone.
+  if (!SEED_DEMO_CONTENT) {
+    console.log(
+      `Seeded: admin ${adminEmail} (demo content skipped — set SEED_DEMO_CONTENT=true to include it)`,
+    );
+    return;
+  }
 
   const seriesSpecs = [
     { orderNum: 1, title: "السلسلة الأولى", isPremium: false },

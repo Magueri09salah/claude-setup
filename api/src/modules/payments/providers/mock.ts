@@ -32,6 +32,13 @@ export class MockProvider implements PaymentProvider {
   // Dev webhook: a shared-secret header stands in for a real signature. The
   // mock-pay page and the admin "mark as paid" action both post through here.
   verifyWebhook(req: Request): WebhookResult {
+    const expected = env.MOCK_WEBHOOK_SECRET;
+    // No secret configured = nothing can be verified. Without this, an absent
+    // header (undefined) would equal an unset secret (undefined) and every
+    // forged callback would be accepted.
+    if (!expected) {
+      return { valid: false, ref: "", eventId: "", status: "FAILED" };
+    }
     const secret = req.header("x-mock-signature");
     const body = req.body as {
       ref?: unknown;
@@ -39,7 +46,7 @@ export class MockProvider implements PaymentProvider {
       status?: unknown;
     };
     const valid =
-      secret === env.MOCK_WEBHOOK_SECRET &&
+      secret === expected &&
       typeof body.ref === "string" &&
       typeof body.eventId === "string" &&
       (body.status === "PAID" || body.status === "FAILED");
