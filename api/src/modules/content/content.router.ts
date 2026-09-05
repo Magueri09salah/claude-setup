@@ -163,6 +163,26 @@ contentRouter.get("/practical-videos", async (_req, res) => {
   res.json({ videos });
 });
 
+// المتجر — the shop. Not part of the offline bundle: products change often and
+// are not learning content, so pictures are signed on demand like the videos.
+// Free for everyone; buying happens in a WhatsApp conversation.
+contentRouter.get("/products", async (_req, res) => {
+  const rows = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: [{ orderNum: "asc" }, { id: "asc" }],
+  });
+  const products = await Promise.all(
+    rows.map(async (p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      price: Number(p.price),
+      imageUrl: p.imageKey ? await storage.getSignedUrl(p.imageKey) : null,
+    })),
+  );
+  res.json({ products });
+});
+
 // Where to ask for access. Online payment was dropped in favour of a WhatsApp
 // conversation, after which the admin adds the number to the allowlist.
 contentRouter.get("/support", async (_req, res) => {
@@ -199,6 +219,7 @@ contentRouter.get("/series/:id/questions", async (req, res) => {
       audioKey: true,
       correctionText: true,
       correctionAudioKey: true,
+      correctionHidden: true,
       updatedAt: true,
     },
   });

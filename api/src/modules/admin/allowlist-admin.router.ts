@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
 import { applyAllowlistToExistingUser } from "../premium/allowlist.service";
+import { extendPremium, PREMIUM_MONTHS } from "../premium/duration";
 import {
   isValidMoroccanMobile,
   normalizePhone,
@@ -31,7 +32,15 @@ allowlistRouter.get("/allowlist", async (_req, res) => {
     userIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: userIds } },
-          select: { id: true, username: true, email: true, fullName: true },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            fullName: true,
+            // So the page can show "ينتهي في …" and offer a renewal.
+            isPremium: true,
+            premiumUntil: true,
+          },
         })
       : [];
   const byId = new Map(users.map((u) => [u.id, u]));
@@ -109,4 +118,42 @@ allowlistRouter.get("/allowlist/lookup", async (req, res) => {
     }),
   ]);
   res.json({ phone, onList: !!entry, user });
+});
+
+/**
+ * Another PREMIUM_MONTHS for whoever claimed this number.
+ *
+ * The owner's habit is to work from this page, but a number that is already on
+ * the list cannot be added again — so renewal needs its own action. Same rules
+ * as the users page: still-running terms are extended, expired ones restart.
+ */
+allowlistRouter.post("/allowlist/:id/renew", async (req, res) => {
+  const id = idParam.parse(req.params.id);
+  const entry = await prisma.premiumPhone.findUnique({ where: { id } });
+  if (!entry) throw new ApiError(404, "Number not found");
+  if (!entry.claimedBy) {
+    throw new ApiError(
+      400,
+      "لم يُسجّل أي حساب بهذا الرقم بعد — سيُفتح تلقائياً عند التسجيل",
+    );
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: entry.claimedBy } });
+  if (!user) throw new ApiError(404, "Claimed account no longer exists");
+
+  const premiumUntil = extendPremium(user.premiumUntil);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { isPremium: true, premiumUntil },
+  });
+  await prisma.auditLog.create({
+    data: {
+      adminId: req.auth!.userId,
+      action: "renew_premium",
+      targetType: "user",
+      targetId: user.id,
+      detail: `allowlist ${entry.phone} — +${PREMIUM_MONTHS} months, until ${premiumUntil.toISOString().slice(0, 10)}`,
+    },
+  });
+  res.json({ id: user.id, premiumUntil });
 });

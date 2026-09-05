@@ -51,6 +51,7 @@ export const createQuestionSchema = z
     audioKey: mediaKey,
     correctionText: correctionText.optional(),
     correctionAudioKey: mediaKey.nullable().optional(),
+    correctionHidden: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
     if (v.correctAnswers.some((a) => a > v.answersCount)) {
@@ -70,6 +71,7 @@ export const updateQuestionSchema = z.strictObject({
   audioKey: mediaKey.optional(),
   correctionText: correctionText.optional(),
   correctionAudioKey: mediaKey.nullable().optional(),
+  correctionHidden: z.boolean().optional(),
 });
 
 export const listQuestionsQuery = z.strictObject({

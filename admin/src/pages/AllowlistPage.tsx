@@ -26,10 +26,23 @@ import {
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useAuth } from "../auth";
 import type { AllowlistEntry } from "../api/types";
 import { formatCasablanca } from "../casablanca";
 import { exportExcel, exportPdf, type ExportColumn } from "../export";
 import { notifyError, notifySuccess } from "../notify";
+
+/** Subscription state of the account that claimed a number. */
+function termLabel(
+  u: AllowlistEntry["claimedUser"],
+): { text: string; color: string } {
+  if (!u || !u.isPremium) return { text: "لا اشتراك", color: "gray" };
+  if (!u.premiumUntil) return { text: "مدى الحياة", color: "teal" };
+  const days = Math.ceil((new Date(u.premiumUntil).getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return { text: "منتهي", color: "red" };
+  if (days <= 14) return { text: `${days} يوم متبقٍ`, color: "orange" };
+  return { text: `${days} يوم متبقٍ`, color: "teal" };
+}
 
 interface AddResult {
   added: string[];
@@ -39,6 +52,10 @@ interface AddResult {
 }
 
 export function AllowlistPage() {
+  // The WhatsApp number is an app-wide setting, so it stays with the owner —
+  // the assistant only works the list itself. /admin/app-settings is admin-only
+  // server-side, so an assistant must not even request it.
+  const isAdmin = useAuth().user?.role === "ADMIN";
   const [entries, setEntries] = useState<AllowlistEntry[] | null>(null);
   const [modal, setModal] = useState(false);
   const [phones, setPhones] = useState("");
@@ -80,8 +97,8 @@ export function AllowlistPage() {
 
   useEffect(() => {
     void load();
-    void loadSettings();
-  }, [load, loadSettings]);
+    if (isAdmin) void loadSettings();
+  }, [load, loadSettings, isAdmin]);
 
   const saveWhatsapp = async () => {
     setSavingWhatsapp(true);
@@ -97,6 +114,24 @@ export function AllowlistPage() {
       notifyError(e);
     } finally {
       setSavingWhatsapp(false);
+    }
+  };
+
+  // Re-adding an existing number is refused as a duplicate, so renewal from
+  // this page needs its own action.
+  const renew = async (e: AllowlistEntry) => {
+    try {
+      const r = await api<{ premiumUntil: string }>(
+        `/admin/allowlist/${e.id}/renew`,
+        { method: "POST" },
+      );
+      notifySuccess(
+        "تم التجديد",
+        `${e.phone} — 3 أشهر حتى ${new Date(r.premiumUntil).toLocaleDateString("ar-MA")}`,
+      );
+      void load();
+    } catch (err) {
+      notifyError(err);
     }
   };
 
@@ -177,6 +212,19 @@ export function AllowlistPage() {
       width: 30,
     },
     {
+      header: "الاشتراك",
+      value: (e) => (e.claimedUser ? termLabel(e.claimedUser).text : ""),
+      width: 16,
+    },
+    {
+      header: "ينتهي في",
+      value: (e) =>
+        e.claimedUser?.premiumUntil
+          ? new Date(e.claimedUser.premiumUntil).toLocaleDateString("ar-MA")
+          : "",
+      width: 16,
+    },
+    {
       header: "تاريخ التسجيل",
       value: (e) => (e.claimedAt ? formatCasablanca(e.claimedAt) : ""),
       width: 22,
@@ -231,6 +279,7 @@ export function AllowlistPage() {
         .
       </Alert>
 
+      {isAdmin && (
       <Card padding="lg">
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <div style={{ flex: 1, minWidth: 260 }}>
@@ -259,6 +308,7 @@ export function AllowlistPage() {
           </Text>
         )}
       </Card>
+      )}
 
       <Card padding="md">
         <Group align="flex-end" gap="md" wrap="wrap">
@@ -338,8 +388,9 @@ export function AllowlistPage() {
                 <Table.Th w={150}>الرقم</Table.Th>
                 <Table.Th>المجموعة</Table.Th>
                 <Table.Th w={220}>الحساب</Table.Th>
+                <Table.Th w={150}>الاشتراك</Table.Th>
                 <Table.Th w={160}>أُضيف في</Table.Th>
-                <Table.Th w={60} />
+                <Table.Th w={110} />
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -369,19 +420,51 @@ export function AllowlistPage() {
                     )}
                   </Table.Td>
                   <Table.Td>
+                    {e.claimedUser ? (
+                      <>
+                        <Text size="sm" c={termLabel(e.claimedUser).color}>
+                          {termLabel(e.claimedUser).text}
+                        </Text>
+                        {e.claimedUser.premiumUntil && (
+                          <Text size="xs" c="dimmed">
+                            {new Date(e.claimedUser.premiumUntil).toLocaleDateString(
+                              "ar-MA",
+                            )}
+                          </Text>
+                        )}
+                      </>
+                    ) : (
+                      <Text size="xs" c="dimmed">
+                        —
+                      </Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
                     <Text size="xs" c="dimmed">
                       {formatCasablanca(e.createdAt)}
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      aria-label="حذف"
-                      onClick={() => setDeleteTarget(e)}
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
+                    <Group gap={4} justify="flex-end" wrap="nowrap">
+                      {e.claimedUser && (
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          color="green"
+                          onClick={() => void renew(e)}
+                        >
+                          +3 أشهر
+                        </Button>
+                      )}
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        aria-label="حذف"
+                        onClick={() => setDeleteTarget(e)}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}

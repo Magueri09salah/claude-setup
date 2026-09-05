@@ -13,7 +13,12 @@ export default function MockExamScreen() {
   );
   return (
     <QuizRunner
-      source={{ seriesId: MOCK_SERIES_ID, loadQuestions, syncable: false }}
+      source={{
+        seriesId: MOCK_SERIES_ID,
+        title: "امتحان تجريبي",
+        loadQuestions,
+        syncable: false,
+      }}
     />
   );
 }

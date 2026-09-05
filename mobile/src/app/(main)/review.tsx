@@ -1,11 +1,11 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
 import { Icon } from "@/components/Icon";
 import { ImageViewer } from "@/components/ImageViewer";
+import { ZoomableImage } from "@/components/ZoomableImage";
 import { AnswerButton, type AnswerVisual } from "@/components/quiz/AnswerButton";
 import { getAttempt } from "@/db/attempts";
 import { getQuestionById } from "@/db/questions";
@@ -62,16 +62,21 @@ export default function ReviewScreen() {
         </View>
 
         {question?.imagePath ? (
-          <Pressable onPress={() => setViewer(true)} accessibilityLabel="تكبير الصورة">
-            <Image
-              source={{ uri: question.imagePath }}
-              style={styles.image}
-              contentFit="contain"
+          <View style={styles.image}>
+            <ZoomableImage
+              uri={question.imagePath}
+              resetKey={question.id}
+              style={styles.fill}
             />
-            <View style={styles.zoomBadge}>
+            <Pressable
+              onPress={() => setViewer(true)}
+              hitSlop={8}
+              style={styles.zoomBadge}
+              accessibilityLabel="عرض الصورة بملء الشاشة"
+            >
               <Icon name="zoom" size={16} color={colors.text} />
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
         ) : (
           <View style={[styles.image, styles.placeholder]}>
             <Text style={styles.placeholderText}>لا توجد صورة</Text>
@@ -101,10 +106,14 @@ export default function ReviewScreen() {
           </View>
         </View>
 
-        <CorrectionCard
-          text={question?.correctionText ?? null}
-          audioPath={question?.correctionAudioPath ?? null}
-        />
+        {/* Hidden by the admin = nothing renders, even though the text and the
+            voice-over are still stored on the question. */}
+        {question?.correctionHidden ? null : (
+          <CorrectionCard
+            text={question?.correctionText ?? null}
+            audioPath={question?.correctionAudioPath ?? null}
+          />
+        )}
 
         <ImageViewer
           uri={question?.imagePath ?? null}
@@ -173,21 +182,32 @@ function CorrectionCard({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md },
-  content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
+  // Capped like the results screen: rotated, an uncapped column stretched the
+  // picture and the answer buttons across the whole width.
+  content: {
+    padding: space.lg,
+    paddingTop: space.xxl,
+    paddingBottom: space.xxl,
+    gap: space.md,
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+  },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
   back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
   title: { ...type.title, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   status: { alignItems: "flex-start" },
   statusText: { fontFamily: font.bold, fontSize: 16 },
+  // 4:3 like the exam pictures themselves, so a landscape photo is not boxed
+  // into a tall portrait frame with empty bands above and below.
   image: {
     width: "100%",
-    aspectRatio: 3 / 4,
+    aspectRatio: 4 / 3,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    overflow: "hidden",
   },
+  fill: { flex: 1, width: "100%" },
   placeholder: {
     backgroundColor: colors.surfaceAlt,
     alignItems: "center",
@@ -206,7 +226,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
-  gridItem: { width: "22%", minWidth: 64 },
+  // Fixed, not a percentage — 22% of a landscape screen made 200pt buttons.
+  gridItem: { width: 72 },
   legend: { gap: space.xs, marginTop: space.sm },
   legendRow: { flexDirection: "row", alignItems: "center", gap: space.xs },
   legendText: { ...type.label },

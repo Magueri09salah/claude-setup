@@ -13,6 +13,9 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  // Staff account for the owner's helper: the panel shows it only the users
+  // list and the free-access group, and the API refuses everything else.
+  ASSISTANT
 }
 
 enum PayMethod {
@@ -40,6 +43,13 @@ model User {
   // No longer collected at registration; kept for accounts that have it.
   fullName     String?
   passwordHash String
+  // Last 3 digits of the national ID card, used to authorise a password reset.
+  // HASHED like any other secret. Only 1000 combinations, so the per-phone
+  // lockout (PasswordResetAttempt) is what actually protects it.
+  cinLast3Hash String?
+  // Single-use marker for the current reset token. Cleared when the password is
+  // actually changed, so a captured token cannot be replayed.
+  pwResetNonce String?
   role         Role      @default(USER)
   isPremium    Boolean   @default(false)
   premiumUntil DateTime?
@@ -48,6 +58,58 @@ model User {
   attempts      Attempt[]
   devices       Device[]
   refreshTokens RefreshToken[]
+  courseRequests CourseRequest[]
+}
+
+// A candidate asking to take driving lessons in a given city. Created when they
+// press the WhatsApp button on the mobile "التسجيل في الدروس" screen, so the
+// owner has the lead in the panel even if the chat never arrives.
+model CourseRequest {
+  id     String @id @default(uuid())
+  userId String
+  city   String
+  // Snapshot of the number at request time: the admin calls THIS one even if
+  // the candidate edits their profile later.
+  phone  String?
+  status CourseRequestStatus @default(PENDING)
+  // Free text the admin writes while handling the lead.
+  note        String?
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+
+  // One live request per candidate per city — pressing the button again
+  // refreshes the existing lead instead of filling the panel with duplicates.
+  @@unique([userId, city])
+  @@index([status, createdAt])
+  @@index([city])
+}
+
+// Shop item. Selling happens on WhatsApp, not in the app — there is no cart,
+// no stock and no order: a product is a picture, a description and a price.
+model Product {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  // MAD. Decimal like Payment.amount — never a float for money.
+  price       Decimal  @db.Decimal(10, 2)
+  imageKey    String?
+  // Hidden instead of deleted, so a sold-out item can come back.
+  isActive    Boolean  @default(true)
+  orderNum    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, orderNum])
+}
+
+enum CourseRequestStatus {
+  PENDING // new lead, nobody has called yet
+  CONTACTED // spoken to on WhatsApp
+  ENROLLED // signed up for lessons
+  CANCELLED // not interested / unreachable
 }
 
 // Refresh tokens stored hashed (sha256), rotated on every /auth/refresh.
@@ -109,6 +171,9 @@ model Question {
   // never while the quiz is running (owner decision, see quiz-engine skill).
   correctionText     String?
   correctionAudioKey String?
+  // Kill switch per question: hide the correction from candidates without
+  // deleting the text/voice-over the admin already wrote.
+  correctionHidden   Boolean  @default(false)
   updatedAt      DateTime @updatedAt
   series         Series   @relation(fields: [seriesId], references: [id])
 
@@ -210,6 +275,17 @@ model AppSettings {
   // own name and number so the admin knows exactly who to add.
   whatsappMessage String?
   updatedAt       DateTime @updatedAt
+}
+
+// Reset throttling, keyed by PHONE rather than by user — deliberately.
+// Counting on the User row would mean an unknown number could not be counted,
+// and the difference in behaviour told an attacker which numbers are
+// registered. Keying on the phone makes both cases identical.
+model PasswordResetAttempt {
+  phone       String    @id
+  attempts    Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
 }
 
 // Allowlist of phone numbers that get premium WITHOUT paying (a partner

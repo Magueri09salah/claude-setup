@@ -84,4 +84,55 @@ nullable and kept only for existing accounts + the seeded admin. `/auth/login`
 takes ONE `identifier` field resolved against phone (normalized) | username |
 email, which is how the admin panel still signs in with its email. Existing
 accounts were backfilled with username = email so nobody was locked out.
+Registration also takes `cinLast3` (last 3 digits of the ID card, hashed) and
+there is a phone-based password reset: /auth/forgot/verify then /forgot/reset,
+3 wrong codes = 24h lockout, throttled PER PHONE in `PasswordResetAttempt`
+(atomic increment before the bcrypt compare; one identical error for every
+failure; single-use token). Existing accounts have no cinLast3 and cannot
+self-reset.
+2026-08-18: COURSE REQUESTS (lead capture). Mobile home card "التسجيل في الدروس"
+→ /courses: city picker (static list in `mobile/src/courses/cities.ts`, 81 cities,
+searchable, offline) + a docked واتساب button. Pressing it POSTs
+/course-requests {city} (upsert on userId+city, so re-pressing refreshes the lead
+instead of duplicating) then opens wa.me with a city-specific message; a failed
+POST never blocks the chat. Admin "طلبات التسجيل" page = leads + per-city counts,
+status PENDING/CONTACTED/ENROLLED/CANCELLED (audited), note, Excel/PDF export.
+2026-08-19: SHOP. `Product` (title, description, price Decimal MAD, imageKey,
+isActive, orderNum). Admin "المتجر" page = card grid + add/edit dialog (image
+≤5MB webp/png/jpg, immutable keys) + show/hide switch + delete. Mobile home card
+"المتجر" → /shop: product grid, tap opens a detail sheet with the picture, price
+and description, and an "اطلبه عبر واتساب" button (message names the product).
+Like the videos, shop images are signed on demand and NEVER added to the offline
+bundle. Multipart booleans use a string-safe schema — z.coerce.boolean() makes
+"false" true, which silently broke hiding.
+2026-08-19: per-question `correctionHidden` switch (admin question editor,
+"إخفاء التصحيح عن المترشح"). ON = the review screen renders nothing even though
+the text/MP3 stay stored, so an explanation can be drafted before going live.
+Ships to phones in the questions payload; LOCAL_SCHEMA_VERSION bumped to 3 so
+installed apps re-pull instead of sitting on a 304 with a stale flag.
+2026-08-26: ASSISTANT role (staff helper). Panel access is fail-closed in
+`admin.router`: requireStaff → the two assistant routers (users-admin, allowlist)
+→ requireAdmin → everything else, so a NEW admin route is owner-only until it is
+deliberately moved above the line. Assistant sees only المستخدمون + المجموعة
+المجانية (no publish button, no WhatsApp-number card, owner-only URLs redirect).
+The users list + premium toggle were split out of payments-admin into
+`users-admin.router.ts` so the assistant gets them without the payment routes.
+2026-08-26: SUBSCRIPTIONS EXPIRE AFTER 3 MONTHS. `premium/duration.ts` is the
+single source (`PREMIUM_MONTHS = 3`, calendar months with an end-of-month clamp);
+EVERY grant path uses `extendPremium()` — allowlist claim, admin toggle, payment
+webhook — so nothing hands out lifetime access any more. Renewing while still
+active ADDS to the remaining time; renewing after expiry starts 3 months from
+today. Admin المستخدمون: "منتهي" status + filter + expired counter, a
+"الاشتراك" column (days left, orange under 14), a "تجديد 3 أشهر" button per row
+(POST /admin/users/:id/renew, audited `renew_premium`) — the assistant can renew
+too. Expiry needs NO cron: every check is `isPremium && premiumUntil > now`, and
+the manifest ETag flips p1→p0 so phones re-sync and delete premium content.
+Do NOT add a job that flips isPremium=false — that erases the "expired" state.
+Renewal is MANUAL and lives on both admin pages: المستخدمون row button
+(POST /admin/users/:id/renew) and المجموعة المجانية row button
+(POST /admin/allowlist/:id/renew — needed because re-adding a listed number is
+refused as a duplicate); both show days-left and audit as `renew_premium`.
+NOTE: accounts granted before 2026-08-26 have premiumUntil = null = LIFETIME and
+never expire; converting them to a 3-month term is a deliberate data change the
+owner has not asked for yet.
 Next: PayzoneProvider when merchant docs arrive · store submission.

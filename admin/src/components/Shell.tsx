@@ -7,6 +7,8 @@ import {
   IconLayoutGrid,
   IconLogout,
   IconPencil,
+  IconSchool,
+  IconShoppingBag,
   IconSteeringWheel,
   IconUsers,
   IconUsersGroup,
@@ -18,21 +20,32 @@ import { useAuth } from "../auth";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { PublishButton } from "./PublishButton";
 
-const NAV: { to: string; label: string; icon: ComponentType<IconProps> }[] = [
+// `assistant: true` = also visible to the ASSISTANT role. Everything else is
+// the owner's alone; the API enforces the same split (see admin.router).
+const NAV: {
+  to: string;
+  label: string;
+  icon: ComponentType<IconProps>;
+  assistant?: boolean;
+}[] = [
   { to: "/dashboard", label: "لوحة المعلومات", icon: IconLayoutDashboard },
   { to: "/series", label: "السلاسل", icon: IconLayoutGrid },
   { to: "/questions", label: "محرر الأسئلة", icon: IconPencil },
   { to: "/lessons", label: "الدروس", icon: IconBook2 },
   { to: "/practical", label: "الشق التطبيقي", icon: IconSteeringWheel },
   { to: "/lives", label: "البثوث المباشرة", icon: IconBroadcast },
-  { to: "/users", label: "المستخدمون", icon: IconUsers },
-  { to: "/allowlist", label: "المجموعة المجانية", icon: IconUsersGroup },
+  { to: "/course-requests", label: "طلبات التسجيل", icon: IconSchool },
+  { to: "/shop", label: "المتجر", icon: IconShoppingBag },
+  { to: "/users", label: "المستخدمون", icon: IconUsers, assistant: true },
+  { to: "/allowlist", label: "المجموعة المجانية", icon: IconUsersGroup, assistant: true },
   { to: "/payments", label: "المدفوعات", icon: IconCreditCard },
 ];
 
 export function Shell() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
+  const isAssistant = user?.role === "ASSISTANT";
+  const nav = isAssistant ? NAV.filter((item) => item.assistant) : NAV;
 
   return (
     <AppShell
@@ -65,7 +78,12 @@ export function Shell() {
           </Group>
 
           <Group gap="sm">
-            <PublishButton />
+            {!isAssistant && <PublishButton />}
+            {isAssistant && (
+              <Badge variant="light" color="blue" size="lg" fw={500}>
+                مساعد
+              </Badge>
+            )}
             <Badge variant="default" size="lg" fw={500} style={{ direction: "ltr" }}>
               {user?.email ?? user?.username}
             </Badge>
@@ -88,7 +106,7 @@ export function Shell() {
       >
         <Text className="nav-eyebrow">القائمة</Text>
         <Stack gap={2}>
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
             return (

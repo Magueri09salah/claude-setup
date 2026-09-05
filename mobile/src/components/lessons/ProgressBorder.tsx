@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, View, type ViewStyle } from "react-native";
+import {
+  Animated,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Svg, { Rect } from "react-native-svg";
 import { colors } from "../../theme/tokens";
 
@@ -15,7 +21,7 @@ interface Props {
   color?: string;
   /** ms between progress updates; the fill eases over exactly this long. */
   stepMs?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
 }
 

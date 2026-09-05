@@ -15,8 +15,17 @@ export interface SessionUser {
   email: string | null;
   fullName: string | null;
   phone: string | null;
-  role: "USER" | "ADMIN";
+  role: "USER" | "ADMIN" | "ASSISTANT";
   isPremium: boolean;
+  /** ISO date the three-month term ends; null = no term (lifetime/none). */
+  premiumUntil: string | null;
+}
+
+// Local-disk storage (dev) can hand back a relative signed url — resolve it
+// against the API host so <Image> has something it can actually fetch.
+export function mediaUrl(url: string | null): string | null {
+  if (!url) return null;
+  return url.startsWith("/") ? `${API_URL}${url}` : url;
 }
 
 export class ApiError extends Error {

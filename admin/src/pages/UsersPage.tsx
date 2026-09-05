@@ -25,10 +25,30 @@ import { exportExcel, exportPdf, type ExportColumn } from "../export";
 import { notifyError, notifySuccess } from "../notify";
 
 const STATUS_META: Record<UserStatus, { label: string; color: string }> = {
-  paid: { label: "🟢 مدفوع", color: "green" },
+  paid: { label: "🟢 مشترك", color: "green" },
+  expired: { label: "🔴 منتهي", color: "red" },
   pending: { label: "🟡 في انتظار الدفع", color: "yellow" },
   free: { label: "⚪ مجاني", color: "gray" },
 };
+
+/** Whole days until an expiry date; negative once it has passed. */
+function daysLeft(iso: string | null): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  return Math.ceil(ms / 86_400_000);
+}
+
+/** "ينتهي بعد 12 يوماً" / "انتهى منذ 3 أيام" / "مدى الحياة". */
+function expiryLabel(u: AdminUser): { text: string; color: string } {
+  if (!u.isPremium) return { text: "—", color: "dimmed" };
+  if (u.premiumUntil === null) return { text: "مدى الحياة", color: "dimmed" };
+  const d = daysLeft(u.premiumUntil);
+  if (d === null) return { text: "—", color: "dimmed" };
+  if (d < 0) return { text: `انتهى منذ ${Math.abs(d)} يوم`, color: "red" };
+  if (d === 0) return { text: "ينتهي اليوم", color: "red" };
+  // Two weeks out is when the owner wants to notice, not the day it dies.
+  return { text: `${d} يوم متبقٍ`, color: d <= 14 ? "orange" : "dimmed" };
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -80,9 +100,24 @@ export function UsersPage() {
     }
   };
 
+  const renew = async (u: AdminUser) => {
+    try {
+      const r = await api<{ premiumUntil: string }>(`/admin/users/${u.id}/renew`, {
+        method: "POST",
+      });
+      notifySuccess(
+        "تم التجديد",
+        `${u.username ?? u.phone ?? ""} — حتى ${fmtDate(r.premiumUntil)}`,
+      );
+      await load();
+    } catch (e) {
+      notifyError(e);
+    }
+  };
+
   const counts = {
     paid: users.filter((u) => u.status === "paid").length,
-    pending: users.filter((u) => u.status === "pending").length,
+    expired: users.filter((u) => u.status === "expired").length,
     free: users.filter((u) => u.status === "free").length,
   };
 
@@ -98,6 +133,7 @@ export function UsersPage() {
       width: 18,
     },
     { header: "مشترك", value: (u) => (u.isPremium ? "نعم" : "لا"), width: 10 },
+    { header: "ينتهي في", value: (u) => fmtDate(u.premiumUntil), width: 16 },
     { header: "طريقة الدفع", value: (u) => u.method ?? "", width: 14 },
     { header: "آخر دفعة", value: (u) => fmtDate(u.lastPaidAt), width: 18 },
     { header: "الأجهزة", value: (u) => u.deviceCount, width: 10 },
@@ -147,10 +183,10 @@ export function UsersPage() {
         </Card>
         <Card padding="md">
           <Text fz="sm" c="dimmed">
-            في انتظار الدفع
+            اشتراكات منتهية
           </Text>
-          <Text fz={28} fw={700} mt={4}>
-            {counts.pending}
+          <Text fz={28} fw={700} mt={4} c={counts.expired > 0 ? "red" : undefined}>
+            {counts.expired}
           </Text>
         </Card>
         <Card padding="md">
@@ -177,8 +213,8 @@ export function UsersPage() {
             onChange={(v) => setStatus(v as typeof status)}
             data={[
               { value: "all", label: "الكل" },
-              { value: "paid", label: "مدفوع" },
-              { value: "pending", label: "معلّق" },
+              { value: "paid", label: "مشترك" },
+              { value: "expired", label: "منتهي" },
               { value: "free", label: "مجاني" },
             ]}
           />
@@ -191,7 +227,7 @@ export function UsersPage() {
                 <Table.Th>اسم المستخدم</Table.Th>
                 <Table.Th>الهاتف</Table.Th>
                 <Table.Th>الحالة</Table.Th>
-                <Table.Th>الطريقة</Table.Th>
+                <Table.Th>الاشتراك</Table.Th>
                 <Table.Th>الأجهزة</Table.Th>
                 <Table.Th>التسجيل</Table.Th>
                 <Table.Th />
@@ -221,7 +257,14 @@ export function UsersPage() {
                     </Badge>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm">{u.method ?? "—"}</Text>
+                    <Text size="sm" c={expiryLabel(u).color}>
+                      {expiryLabel(u).text}
+                    </Text>
+                    {u.isPremium && u.premiumUntil && (
+                      <Text size="xs" c="dimmed">
+                        {fmtDate(u.premiumUntil)}
+                      </Text>
+                    )}
                   </Table.Td>
                   <Table.Td>{u.deviceCount}</Table.Td>
                   <Table.Td>
@@ -231,14 +274,26 @@ export function UsersPage() {
                   </Table.Td>
                   <Table.Td>
                     {u.role !== "ADMIN" && (
-                      <Button
-                        size="compact-xs"
-                        variant={u.isPremium ? "subtle" : "light"}
-                        color={u.isPremium ? "red" : undefined}
-                        onClick={() => setTarget(u)}
-                      >
-                        {u.isPremium ? "إلغاء الاشتراك" : "منح الاشتراك"}
-                      </Button>
+                      <Group gap={4} justify="flex-end" wrap="nowrap">
+                        {/* The after-expiry path: find them by phone or name,
+                            press this, they get another three months. */}
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          color="green"
+                          onClick={() => void renew(u)}
+                        >
+                          {u.status === "expired" ? "تجديد 3 أشهر" : "+3 أشهر"}
+                        </Button>
+                        <Button
+                          size="compact-xs"
+                          variant={u.isPremium ? "subtle" : "light"}
+                          color={u.isPremium ? "red" : undefined}
+                          onClick={() => setTarget(u)}
+                        >
+                          {u.isPremium ? "إلغاء" : "منح"}
+                        </Button>
+                      </Group>
                     )}
                   </Table.Td>
                 </Table.Tr>
@@ -266,7 +321,7 @@ export function UsersPage() {
         <Text size="sm">
           {target?.isPremium
             ? `سيتم إلغاء الاشتراك المميّز عن ${target?.username ?? target?.email}. سيُسجّل هذا الإجراء.`
-            : `سيتم منح ${target?.username ?? target?.email} اشتراكاً مميّزاً كاملاً. سيُسجّل هذا الإجراء في سجل التدقيق.`}
+            : `سيتم منح ${target?.username ?? target?.email} اشتراكاً كاملاً لمدة 3 أشهر. سيُسجّل هذا الإجراء في سجل التدقيق.`}
         </Text>
         <Group justify="flex-end" mt="lg">
           <Button variant="default" onClick={() => setTarget(null)}>

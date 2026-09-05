@@ -22,6 +22,7 @@ export interface Question {
   audioKey: string;
   correctionText: string | null;
   correctionAudioKey: string | null;
+  correctionHidden: boolean;
   updatedAt: string;
 }
 
@@ -89,6 +90,9 @@ export interface AllowlistEntry {
     username: string | null;
     email: string | null;
     fullName: string | null;
+    isPremium: boolean;
+    /** ISO end of the current 3-month term; null = none / lifetime. */
+    premiumUntil: string | null;
   } | null;
 }
 
@@ -101,7 +105,7 @@ export interface Sign {
   audioKey: string | null;
 }
 
-export type UserStatus = "paid" | "pending" | "free";
+export type UserStatus = "paid" | "expired" | "pending" | "free";
 
 export interface AdminUser {
   id: string;
@@ -182,4 +186,42 @@ export interface AdminPayment {
   createdAt: string;
   paidAt: string | null;
   expiresAt: string | null;
+}
+
+export type CourseRequestStatus =
+  | "PENDING"
+  | "CONTACTED"
+  | "ENROLLED"
+  | "CANCELLED";
+
+/** A candidate asking to take driving lessons in a given city. */
+export interface CourseRequest {
+  id: string;
+  city: string;
+  status: CourseRequestStatus;
+  note: string | null;
+  phone: string | null;
+  createdAt: string;
+  handledAt: string | null;
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+    fullName: string | null;
+    phone: string | null;
+    isPremium: boolean;
+  };
+}
+
+/** Shop item — a picture, a description and a price. Bought over WhatsApp. */
+export interface Product {
+  id: number;
+  title: string;
+  description: string | null;
+  price: number;
+  imageKey: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  orderNum: number;
+  createdAt: string;
 }

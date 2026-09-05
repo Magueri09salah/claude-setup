@@ -53,26 +53,29 @@ export function ImageViewer({ uri, visible, onClose, title }: Props) {
     savedY.value = 0;
   }, [scale, savedScale, x, y, savedX, savedY]);
 
-  // The app is portrait-locked; unlock only while the viewer is open, and
-  // always put it back — leaving the whole app rotatable would be a bug.
+  // The whole app rotates freely now, so closing the viewer must hand control
+  // back to the device (DEFAULT), not force portrait — that would leave the app
+  // stuck upright after every zoom.
   useEffect(() => {
     if (!visible) return;
     return () => {
       setLandscape(false);
-      void ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      ).catch(() => undefined);
+      void ScreenOrientation.unlockAsync().catch(() => undefined);
     };
   }, [visible]);
 
+  // The button still exists because a picture is often easier to read forced
+  // wide, even when the device itself is being held upright.
   const toggleRotate = () => {
     const next = !landscape;
     setLandscape(next);
     reset();
-    void ScreenOrientation.lockAsync(
+    void (
       next
-        ? ScreenOrientation.OrientationLock.LANDSCAPE
-        : ScreenOrientation.OrientationLock.PORTRAIT_UP,
+        ? ScreenOrientation.lockAsync(
+            ScreenOrientation.OrientationLock.LANDSCAPE,
+          )
+        : ScreenOrientation.unlockAsync()
     ).catch(() => undefined);
   };
 

@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
@@ -9,10 +10,14 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const LANE_DASHES = 10;
+/** Side of one result tile — same in portrait and landscape. */
+const TILE = 56;
 
 export default function ResultsScreen() {
   const params = useLocalSearchParams<{ attemptId: string }>();
   const attempt = params.attemptId ? getAttempt(params.attemptId) : null;
+  // Rotated, the last button used to end up under the home indicator.
+  const insets = useSafeAreaInsets();
 
   if (!attempt) {
     return (
@@ -44,7 +49,12 @@ export default function ResultsScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: space.xl + insets.bottom },
+        ]}
+      >
         <Text style={styles.heading}>
           النتيجة{" "}
           <Text style={{ color: attempt.passed ? colors.success : colors.danger }}>
@@ -145,7 +155,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: space.md,
   },
-  content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
+  // Capped and centred so a rotated phone or a tablet doesn't stretch the
+  // verdict, the tiles and the buttons across the whole width.
+  content: {
+    padding: space.lg,
+    paddingTop: space.xxl,
+    gap: space.md,
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+  },
   heading: {
     ...type.display,
     color: colors.text,
@@ -176,10 +195,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: space.sm,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     marginTop: space.md,
   },
-  tileWrap: { width: "18%" },
+  // A fixed size, NOT a percentage: at 18% of a landscape screen the tiles
+  // ballooned to ~160pt each. 56pt still gives five per row on a phone.
+  tileWrap: { width: TILE },
   // Signal-light tile: dark surface, colored ring + numeral (readable in both
   // states, unlike white-on-green fills).
   tile: {
@@ -190,8 +211,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tileNumber: { fontFamily: font.extraBold, fontSize: 22 },
-  actions: { gap: space.md, marginTop: space.xl },
+  tileNumber: { fontFamily: font.extraBold, fontSize: 20 },
+  actions: {
+    gap: space.md,
+    marginTop: space.xl,
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+  },
   actionButton: {
     flexDirection: "row",
     gap: space.sm,

@@ -9,7 +9,7 @@ export const db = SQLite.openDatabaseSync("tariq.db");
 // The sync compares this against `synced_schema_version` and ignores its cached
 // etag until one full manifest fetch has succeeded.
 // (v2: series.category — a moto series stayed filed under B until publish.)
-export const LOCAL_SCHEMA_VERSION = 2;
+export const LOCAL_SCHEMA_VERSION = 3;
 
 // Local mirror of the server content (see architecture skill). DB stores UTC.
 export function migrate(): void {
@@ -40,6 +40,7 @@ export function migrate(): void {
       correction_text TEXT,
       correction_audio_key TEXT,
       correction_audio_path TEXT,
+      correction_hidden INTEGER NOT NULL DEFAULT 0,
       downloaded INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
@@ -121,6 +122,8 @@ export function migrate(): void {
     // Post-M6: video lessons (المركبة).
     "ALTER TABLE lessons ADD COLUMN kind TEXT NOT NULL DEFAULT 'SIGNS'",
     "ALTER TABLE lessons ADD COLUMN video_count INTEGER NOT NULL DEFAULT 0",
+    // 2026-08-19: the admin can hide a question's correction from candidates.
+    "ALTER TABLE questions ADD COLUMN correction_hidden INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       db.execSync(ddl);
@@ -171,6 +174,7 @@ export interface QuestionRow {
   correction_text: string | null;
   correction_audio_key: string | null;
   correction_audio_path: string | null;
+  correction_hidden: number;
   downloaded: number;
   updated_at: string;
 }
@@ -180,6 +184,12 @@ export function listSeries(category: LicenceCategory = "B"): SeriesRow[] {
   return db.getAllSync<SeriesRow>(
     "SELECT * FROM series WHERE category = ? ORDER BY order_num ASC",
     category,
+  );
+}
+
+export function getSeries(id: number): SeriesRow | null {
+  return (
+    db.getFirstSync<SeriesRow>("SELECT * FROM series WHERE id = ?", id) ?? null
   );
 }
 

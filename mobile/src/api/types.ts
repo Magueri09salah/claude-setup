@@ -78,5 +78,7 @@ export interface ApiQuestion {
   audioKey: string;
   correctionText: string | null;
   correctionAudioKey: string | null;
+  /** true = the admin hid it; the review screen must not show it. */
+  correctionHidden: boolean;
   updatedAt: string;
 }

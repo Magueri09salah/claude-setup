@@ -18,6 +18,7 @@ export default function RegisterScreen() {
   const { register } = useAuth();
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
+  const [cinLast3, setCinLast3] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,13 +37,17 @@ export default function RegisterScreen() {
       setError("أدخل رقم هاتفك — هو الذي تسجّل به الدخول");
       return;
     }
+    if (!/^[0-9]{3}$/.test(cinLast3.trim())) {
+      setError("أدخل آخر 3 أرقام من بطاقة التعريف الوطنية");
+      return;
+    }
     if (password.length < 8) {
       setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
       return;
     }
     setLoading(true);
     try {
-      await register(username.trim(), phone.trim(), password);
+      await register(username.trim(), phone.trim(), password, cinLast3.trim());
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         // The API says which of the two is taken — show that, not a guess.
@@ -100,6 +105,18 @@ export default function RegisterScreen() {
             onChangeText={setPhone}
           />
           <AppTextInput
+            label="آخر 3 أرقام من بطاقة التعريف"
+            ltr
+            keyboardType="number-pad"
+            maxLength={3}
+            placeholder="123"
+            value={cinLast3}
+            onChangeText={setCinLast3}
+          />
+          <Text style={styles.hint}>
+            تُستعمل فقط لاستعادة كلمة المرور إذا نسيتها — احفظها جيداً
+          </Text>
+          <AppTextInput
             label="كلمة المرور (8 أحرف فأكثر)"
             ltr
             secureTextEntry
@@ -110,7 +127,9 @@ export default function RegisterScreen() {
           <PrimaryButton
             label="إنشاء الحساب"
             loading={loading}
-            disabled={!username.trim() || !phone.trim() || !password}
+            disabled={
+              !username.trim() || !phone.trim() || !cinLast3.trim() || !password
+            }
             onPress={() => void submit()}
           />
 
@@ -131,6 +150,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: space.lg,
     gap: space.md,
+    // Forms stay a comfortable width when the phone is turned sideways.
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
   },
   title: {
     ...type.display,

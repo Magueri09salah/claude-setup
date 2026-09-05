@@ -52,10 +52,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   texts: { flex: 1, gap: 2 },
+  // Lane yellow, not white: the four menu titles are the loudest thing on the
+  // home screen (owner decision 2026-08-18). The subtitle stays dim so the two
+  // lines don't compete.
   title: {
     fontFamily: font.extraBold,
     fontSize: 20,
-    color: colors.text,
+    color: colors.lessons,
     textAlign: "right",
   },
   subtitle: {

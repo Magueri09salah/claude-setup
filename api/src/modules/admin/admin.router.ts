@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAdmin, requireAuth } from "../../middleware/auth";
+import { requireAdmin, requireAuth, requireStaff } from "../../middleware/auth";
 import { prisma } from "../../prisma";
 import { storage } from "../../storage";
 import { dashboardRouter } from "./dashboard.router";
@@ -10,26 +10,42 @@ import { paymentsAdminRouter } from "./payments-admin.router";
 import { questionsRouter } from "./questions.router";
 import { seriesRouter } from "./series.router";
 import { allowlistRouter } from "./allowlist-admin.router";
+import { courseRequestsAdminRouter } from "./course-requests-admin.router";
 import { practicalRouter } from "./practical.router";
+import { productsRouter } from "./products.router";
 import { settingsAdminRouter } from "./settings-admin.router";
 import { uploadRouter } from "./upload.router";
+import { usersAdminRouter } from "./users-admin.router";
 import { videosRouter } from "./videos.router";
 
 export const adminRouter = Router();
 
-// Security checklist: role=ADMIN enforced server-side on every /admin/* route.
-adminRouter.use(requireAuth, requireAdmin);
+// Security checklist: every /admin/* route is staff-only, and everything below
+// the requireAdmin line is ADMIN-only.
+adminRouter.use(requireAuth, requireStaff);
+
+// ── Assistant-visible surface ────────────────────────────────────────────────
+// The owner's helper handles subscriptions: they read the users list and manage
+// the free-access group. Nothing else.
+adminRouter.use("/", usersAdminRouter);
+adminRouter.use("/", allowlistRouter);
+
+// ── Owner only ───────────────────────────────────────────────────────────────
+// Fail-closed on purpose: any route mounted after this line is unreachable for
+// an assistant, so a new feature is never accidentally exposed to them.
+adminRouter.use(requireAdmin);
 
 adminRouter.use("/series", seriesRouter);
 adminRouter.use("/questions", questionsRouter);
 adminRouter.use("/upload", uploadRouter);
 adminRouter.use("/", settingsAdminRouter);
 adminRouter.use("/", practicalRouter);
-adminRouter.use("/", allowlistRouter);
+adminRouter.use("/", productsRouter);
 adminRouter.use("/", videosRouter);
 adminRouter.use("/", lessonsAdminRouter);
 adminRouter.use("/", paymentsAdminRouter);
 adminRouter.use("/", livesAdminRouter);
+adminRouter.use("/", courseRequestsAdminRouter);
 adminRouter.use("/", dashboardRouter);
 
 adminRouter.get("/content-version", async (_req, res) => {

@@ -11,7 +11,7 @@ export interface SessionUser {
   username: string | null;
   email: string | null;
   phone: string | null;
-  role: "USER" | "ADMIN";
+  role: "USER" | "ADMIN" | "ASSISTANT";
   isPremium: boolean;
 }
 

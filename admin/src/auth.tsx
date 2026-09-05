@@ -44,7 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "POST",
       json: { identifier, password },
     });
-    if (res.user.role !== "ADMIN") {
+    // Staff only. The assistant gets a cut-down panel (see NAV/ROUTES), but the
+    // real limit is server-side — this check just avoids a useless empty shell.
+    if (res.user.role !== "ADMIN" && res.user.role !== "ASSISTANT") {
       throw new ApiError(403, "This panel is for administrators only");
     }
     storeSession(res.user, res.accessToken, res.refreshToken);

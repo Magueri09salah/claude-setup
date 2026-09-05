@@ -37,6 +37,18 @@ const STEPS = [
   "بعد التأكيد يُفتح لك المحتوى كاملاً في نفس الحساب",
 ];
 
+/** 2026-11-26 → "26/11/2026", the way the owner reads a date out loud. */
+function formatExpiry(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+/** Whole days left, or null once it has passed. */
+function remainingDays(iso: string): number | null {
+  const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  return days >= 0 ? days : null;
+}
+
 // Access is requested over WhatsApp instead of being paid for in-app (owner
 // decision 2026-08-13): the admin adds the candidate's number to the allowlist
 // after the conversation, and the API grants premium server-side.
@@ -105,6 +117,19 @@ export default function UnlockScreen() {
         <Text style={styles.doneText}>
           يمكنك الوصول إلى كل السلاسل والدروس.
         </Text>
+        {/* The term is three months, so it must be visible — the lock should
+            never arrive as a surprise mid-revision. */}
+        {user?.premiumUntil && (
+          <View style={styles.expiryPill}>
+            <Icon name="calendar" size={15} color={colors.lessons} />
+            <Text style={styles.expiryText}>
+              اشتراكك صالح حتى {formatExpiry(user.premiumUntil)}
+              {remainingDays(user.premiumUntil) !== null
+                ? ` · ${remainingDays(user.premiumUntil)} يوم متبقٍ`
+                : ""}
+            </Text>
+          </View>
+        )}
         <PressableScale onPress={() => router.back()} style={styles.doneButton}>
           <Text style={styles.doneButtonText}>رجوع</Text>
         </PressableScale>
@@ -261,6 +286,17 @@ const styles = StyleSheet.create({
   },
   secondaryText: { ...type.label, fontSize: 15, color: colors.text },
   note: { ...type.label, fontSize: 12, color: colors.textDim, textAlign: "center" },
+  expiryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+  },
+  expiryText: { ...type.label, fontSize: 13, color: colors.text },
   doneTitle: { ...type.title, color: colors.text, textAlign: "center" },
   doneText: { ...type.body, color: colors.textDim, textAlign: "center" },
   doneButton: {

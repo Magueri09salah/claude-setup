@@ -25,9 +25,6 @@ export const colors = {
   text: "#F2F3F5",
   textDim: "rgba(242,243,245,0.55)",
   border: "rgba(255,255,255,0.07)",
-  // Decorative road-sign wallpaper behind every screen: grey, barely there.
-  // Anything stronger competes with the content — these screens are dense.
-  pattern: "rgba(242,243,245,0.022)",
 } as const;
 
 export const radius = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;

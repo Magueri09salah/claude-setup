@@ -112,6 +112,22 @@ export default function HomeScreen() {
             accent={colors.exam}
             onPress={() => router.push("/practical")}
           />
+          {/* Lead generation: the candidate picks their city and reaches the
+              school on WhatsApp; the request lands in the admin panel. */}
+          <FeatureCard
+            title="التسجيل في الدروس"
+            subtitle="اختر مدينتك وتواصل معنا"
+            icon="school"
+            accent={colors.series}
+            onPress={() => router.push("/courses")}
+          />
+          <FeatureCard
+            title="المتجر"
+            subtitle="منتجات مدرسة السياقة"
+            icon="store"
+            accent={colors.lessons}
+            onPress={() => router.push("/shop")}
+          />
         </View>
 
         {syncing && progress?.phase === "media" && progress.total > 0 && (
@@ -142,7 +158,16 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
+  // Capped so the menu cards stay a readable width on a landscape tablet
+  // instead of stretching the full 1000pt.
+  content: {
+    padding: space.lg,
+    paddingTop: space.xxl,
+    gap: space.md,
+    width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

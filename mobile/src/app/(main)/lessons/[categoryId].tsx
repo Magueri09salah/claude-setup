@@ -5,6 +5,7 @@ import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
 import { getCategory, listChildCategories, listLessons } from "@/db/lessons";
 import { openCategory } from "@/lessons/nav";
+import { gridBasis, useResponsive } from "@/theme/useResponsive";
 import { accentFor } from "@/theme/lessonAccents";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
@@ -13,6 +14,8 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 // its lessons are a 2-COLUMN PICTURE GRID — cover image on top, name beneath
 // (علامات المنع / علامة الإجبار …). That cover is why lessons carry an image.
 export default function CategoryScreen() {
+  const { columns } = useResponsive();
+  const basis = gridBasis(columns);
   const params = useLocalSearchParams<{ categoryId: string }>();
   const id = Number(params.categoryId);
   const category = getCategory(id);
@@ -41,7 +44,7 @@ export default function CategoryScreen() {
                   onPress={() =>
                     locked ? router.push("/payment") : openCategory(c.id)
                   }
-                  style={[styles.gridCard, locked && styles.locked]}
+                  style={[styles.gridCard, { width: basis }, locked && styles.locked]}
                 >
                   {c.icon_path ? (
                     <Image source={{ uri: c.icon_path }} style={styles.thumb} />
@@ -83,7 +86,7 @@ export default function CategoryScreen() {
                             : `/lesson/${l.id}`,
                         )
                   }
-                  style={[styles.gridCard, locked && styles.locked]}
+                  style={[styles.gridCard, { width: basis }, locked && styles.locked]}
                   accessibilityLabel={`${l.title} — ${l.sign_count} علامة`}
                 >
                   {l.image_path ? (
@@ -143,7 +146,6 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   gridCard: {
-    width: "47%",
     flexGrow: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

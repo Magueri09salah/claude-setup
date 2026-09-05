@@ -9,6 +9,8 @@ import { passMarkFor, type QuestionResult } from "./types";
 export interface QuizSource {
   // Real series id, or MOCK_SERIES_ID (0) for the random mock exam.
   seriesId: number;
+  /** Shown above the picture. The mock exam has no series row to read. */
+  title: string;
   loadQuestions: () => LocalQuestion[];
   // false = local-only attempt (mock exam has no server-side series).
   syncable: boolean;

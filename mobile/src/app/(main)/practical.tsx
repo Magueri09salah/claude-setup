@@ -13,6 +13,7 @@ import {
 import { api } from "@/api/client";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
+import { gridBasis, useResponsive } from "@/theme/useResponsive";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
@@ -35,6 +36,8 @@ function sizeLabel(bytes: number | null): string | null {
 // straight from home. Streamed like the lesson videos, so this screen needs a
 // connection and says so plainly when there isn't one.
 export default function PracticalScreen() {
+  const { columns, isWide } = useResponsive();
+  const basis = gridBasis(columns);
   const [videos, setVideos] = useState<PracticalVideo[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -72,7 +75,7 @@ export default function PracticalScreen() {
         </View>
 
         {active && (
-          <View style={styles.playerCard}>
+          <View style={[styles.playerCard, isWide && styles.playerCardWide]}>
             <VideoView
               player={player}
               style={styles.player}
@@ -121,7 +124,7 @@ export default function PracticalScreen() {
               <PressableScale
                 key={v.id}
                 onPress={() => setActiveId(v.id)}
-                style={[styles.card, isActive && styles.cardActive]}
+                style={[styles.card, { width: basis }, isActive && styles.cardActive]}
                 accessibilityLabel={`${v.title} — الدرس ${i + 1}`}
               >
                 <View style={styles.thumbWrap}>
@@ -174,6 +177,8 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   player: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#000000" },
+  // A 16:9 player across a full tablet width pushes the list off-screen.
+  playerCardWide: { alignSelf: "center", width: "70%" },
   playerTitle: {
     ...type.label,
     color: colors.text,
@@ -182,7 +187,6 @@ const styles = StyleSheet.create({
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
   card: {
-    width: "47%",
     flexGrow: 1,
     flex: 1,
     backgroundColor: colors.surface,

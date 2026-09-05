@@ -15,6 +15,9 @@ description: Exact behavioral rules for the exam quiz — timer, multi-select to
    applies from the NEXT question — never move a deadline already running.
    Pause (إيقاف) stops the countdown and the audio and NOTHING else: the
    question image stays visible and the answer buttons stay usable.
+3b. An `AnswerSlots` row above the buttons mirrors the official exam terminal:
+   one slot per answer, POSITIONAL — slot n shows n only when n is selected,
+   otherwise blank. Picking 1 and 3 reads "1 _ 3 _" (owner reference 2026-08-14).
 4. Number buttons (1..answersCount) are TOGGLES — multi-select, clear selected state.
 5. Submit on ✓ press OR timer reaching 0 (auto-submit current selection).
    Empty selection at timeout = wrong, flag timedOut=true. ✗ = skip = wrong.

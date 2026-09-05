@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth";
 import { authRateLimit } from "../../middleware/rate-limit";
-import { loginSchema, refreshSchema, registerSchema } from "./auth.schemas";
+import {
+  forgotResetSchema,
+  forgotVerifySchema,
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+} from "./auth.schemas";
 import * as authService from "./auth.service";
 
 export const authRouter = Router();
@@ -23,6 +29,19 @@ authRouter.post("/login", async (req, res) => {
   const input = loginSchema.parse(req.body);
   const result = await authService.login(input);
   res.json(result);
+});
+
+// Password reset, two steps. Both sit behind the /auth rate limit, and the
+// verify step additionally locks the account for 24h after 3 wrong codes.
+authRouter.post("/forgot/verify", async (req, res) => {
+  const input = forgotVerifySchema.parse(req.body);
+  res.json(await authService.verifyResetCode(input));
+});
+
+authRouter.post("/forgot/reset", async (req, res) => {
+  const input = forgotResetSchema.parse(req.body);
+  await authService.resetPassword(input);
+  res.status(204).end();
 });
 
 authRouter.post("/refresh", async (req, res) => {

@@ -171,6 +171,29 @@ audio, and *nothing else*. The question image stays on screen and the answer
 buttons stay usable — do not veil or disable the question. (An earlier build
 covered it to stop pause buying reading time; the owner overruled that.)
 
+## 6e. Rotation & tablet mode (owner decision 2026-08-14)
+The WHOLE app rotates — app.json `orientation: "default"` and nothing locks it.
+So every screen must survive a wide viewport:
+- Use `theme/useResponsive` for the breakpoint, never a local magic number.
+  `isWide` (>=600pt) means landscape phone or tablet; `columns` gives 2/3/4.
+- Card grids take their width from `gridBasis(columns)` at render time. A
+  hard-coded `width: "47%"` becomes an absurdly wide card in landscape.
+- Reading-width content (forms, the home menu) gets `maxWidth` + `alignSelf:
+  "center"` rather than stretching across a tablet.
+- The quiz switches to image-beside-controls when `isWide`; stacked, each half
+  gets a sliver of a short screen and neither is usable.
+- ImageViewer may force landscape, but on close it calls `unlockAsync()` —
+  never re-locks portrait, which would leave the whole app stuck upright.
+- EVERY `<Modal>` needs `supportedOrientations={["portrait","landscape"]}`.
+  An iOS Modal is portrait-only by default: opening one in landscape forces the
+  app upright, the screen re-renders as portrait while the device is still
+  sideways, and the two fight — the screen spins without stopping.
+- A sheet/modal must also survive a 393pt-tall landscape screen: give it
+  `maxHeight: "100%"` and put its content in a ScrollView.
+- Landscape needs REAL safe-area insets (`useSafeAreaInsets`, with a
+  `SafeAreaProvider` at the root): rotated, the notch and home indicator sit
+  BESIDE the content, so `padding` alone clips the edge controls.
+
 ## 7. Consistency checklist (run mentally on every new screen)
 tokens only (no hex literals in components) · one accent per surface · spacing from
 the scale only · shadows only via shadow.card · every state designed: loading

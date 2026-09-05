@@ -22,12 +22,31 @@ export const phoneSchema = z
   .transform(normalizePhone)
   .refine((p) => /^\d{6,15}$/.test(p), "رقم هاتف غير صالح");
 
+// Last 3 digits of the national ID card. Exactly three digits — keeping it
+// short is the owner's choice; the reset lockout is what makes it safe.
+export const cinLast3Schema = z
+  .string()
+  .trim()
+  .regex(/^\d{3}$/, "أدخل آخر 3 أرقام من بطاقة التعريف");
+
 export const registerSchema = z.strictObject({
   username: usernameSchema,
   // REQUIRED now: it is both the login identifier and what the owner matches
   // against the free-access allowlist.
   phone: phoneSchema,
   password: z.string().min(8).max(72),
+  // Used only to authorise a later password reset.
+  cinLast3: cinLast3Schema,
+});
+
+export const forgotVerifySchema = z.strictObject({
+  phone: phoneSchema,
+  cinLast3: cinLast3Schema,
+});
+
+export const forgotResetSchema = z.strictObject({
+  resetToken: z.string().min(20),
+  newPassword: z.string().min(8).max(72),
 });
 
 // Candidates sign in with their phone; the admin panel still signs in with its

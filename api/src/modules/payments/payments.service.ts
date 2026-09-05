@@ -1,7 +1,8 @@
 import type { Payment, Prisma } from "@prisma/client";
 import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
-import { premiumExpiryFromNow, PRICING } from "./pricing";
+import { extendPremium } from "../premium/duration";
+import { PRICING } from "./pricing";
 import { paymentProvider } from "./providers";
 
 export async function createOnlinePayment(userId: string) {
@@ -104,9 +105,15 @@ export async function settlePaid(paymentId: string): Promise<boolean> {
       where: { id: paymentId },
       data: { status: "PAID", paidAt: new Date() },
     });
+    // Same three-month term as every other grant path, so a future gateway
+    // cannot quietly hand out lifetime access.
+    const current = await tx.user.findUnique({
+      where: { id: p.userId },
+      select: { premiumUntil: true },
+    });
     await tx.user.update({
       where: { id: p.userId },
-      data: { isPremium: true, premiumUntil: premiumExpiryFromNow() },
+      data: { isPremium: true, premiumUntil: extendPremium(current?.premiumUntil) },
     });
     return true;
   });
@@ -179,9 +186,20 @@ export async function setUserPremium(
   isPremium: boolean,
   adminId: string,
 ): Promise<void> {
+  // Granting = a fresh (or extended) three-month term; revoking clears both,
+  // so the account reads as "never had access" rather than "expired".
+  const current = isPremium
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        select: { premiumUntil: true },
+      })
+    : null;
   await prisma.user.update({
     where: { id: userId },
-    data: { isPremium, premiumUntil: isPremium ? premiumExpiryFromNow() : null },
+    data: {
+      isPremium,
+      premiumUntil: isPremium ? extendPremium(current?.premiumUntil) : null,
+    },
   });
   await prisma.auditLog.create({
     data: {

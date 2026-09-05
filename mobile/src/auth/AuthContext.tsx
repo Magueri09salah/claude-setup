@@ -28,6 +28,7 @@ interface AuthValue {
     username: string,
     phone: string,
     password: string,
+    cinLast3: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
   // Re-fetch the current user (premium may have flipped after a payment).
@@ -58,10 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (username: string, phone: string, password: string) => {
+    async (
+      username: string,
+      phone: string,
+      password: string,
+      cinLast3: string,
+    ) => {
       const res = await api<LoginResponse>("/auth/register", {
         method: "POST",
-        json: { username, phone, password },
+        json: { username, phone, password, cinLast3 },
       });
       await storeSession(res.user, res.accessToken, res.refreshToken);
       setUser(res.user);

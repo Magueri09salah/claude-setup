@@ -84,6 +84,10 @@ export default function LoginScreen() {
             onPress={() => void submit()}
           />
 
+          <Link href="/forgot" style={styles.link}>
+            نسيت كلمة المرور؟
+          </Link>
+
           <Link href="/register" style={styles.link}>
             ليس لديك حساب؟ <Text style={styles.linkStrong}>سجّل الآن</Text>
           </Link>
@@ -101,6 +105,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: space.lg,
     gap: space.md,
+    // Forms stay a comfortable width when the phone is turned sideways.
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
   },
   logo: {
     fontFamily: font.extraBold,

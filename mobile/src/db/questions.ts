@@ -11,6 +11,8 @@ export interface LocalQuestion {
   // Shown only in the end-of-quiz review, never while answering.
   correctionText: string | null;
   correctionAudioPath: string | null;
+  /** The admin hid this question's correction — the review must not show it. */
+  correctionHidden: boolean;
 }
 
 function fromRow(r: QuestionRow): LocalQuestion {
@@ -24,6 +26,7 @@ function fromRow(r: QuestionRow): LocalQuestion {
     audioPath: r.audio_path,
     correctionText: r.correction_text,
     correctionAudioPath: r.correction_audio_path,
+    correctionHidden: r.correction_hidden === 1,
   };
 }
 

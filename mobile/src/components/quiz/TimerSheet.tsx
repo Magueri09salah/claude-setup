@@ -1,4 +1,11 @@
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useQuestionSeconds } from "../../quiz/timerPref";
 import { colors, radius, shadow, space, type } from "../../theme/tokens";
 import { Icon } from "../Icon";
@@ -20,11 +27,21 @@ export function TimerSheet({ visible, onClose }: Props) {
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      // Without this an iOS Modal is PORTRAIT-ONLY: opening it in landscape
+      // forced the app upright, which re-rendered the quiz as portrait while
+      // the device was still sideways — the two fought and it span forever.
+      supportedOrientations={["portrait", "landscape"]}
       statusBarTranslucent
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         {/* Swallow taps on the sheet itself so only the backdrop closes it. */}
         <Pressable style={styles.sheet} onPress={() => {}}>
+          {/* Scrollable: the sheet is nearly as tall as a rotated phone, so in
+              landscape it has to be able to scroll rather than clip. */}
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.header}>
             <Pressable onPress={onClose} hitSlop={10}>
               <Icon name="close" size={22} color={colors.text} />
@@ -46,6 +63,7 @@ export function TimerSheet({ visible, onClose }: Props) {
               تُطبَّق المدة الجديدة ابتداءً من السؤال التالي.
             </Text>
           </View>
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -64,10 +82,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: space.lg,
-    gap: space.md,
+    // Never taller than the screen it sits on.
+    maxHeight: "100%",
     ...shadow.card,
   },
+  sheetContent: { padding: space.lg, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
   headerTexts: { flex: 1, gap: 2 },
   title: { ...type.title, color: colors.text, textAlign: "right" },

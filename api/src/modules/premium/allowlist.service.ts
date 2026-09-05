@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma";
+import { extendPremium, PREMIUM_MONTHS } from "./duration";
 import { normalizePhone, phoneVariants } from "./phone";
 
 /**
@@ -10,17 +11,23 @@ import { normalizePhone, phoneVariants } from "./phone";
  */
 const GRANT_ACTION = "grant_premium_allowlist";
 
-/** Grants lifetime premium and records who/why. Idempotent per user. */
+/** Grants PREMIUM_MONTHS of access and records who/why. */
 async function grantPremium(
   tx: Prisma.TransactionClient,
   userId: string,
   adminId: string,
   detail: string,
 ): Promise<void> {
+  // Access runs out after three months; renewing before it does adds to the
+  // remaining time instead of throwing it away.
+  const current = await tx.user.findUnique({
+    where: { id: userId },
+    select: { premiumUntil: true },
+  });
+  const premiumUntil = extendPremium(current?.premiumUntil);
   await tx.user.update({
     where: { id: userId },
-    // premiumUntil null = lifetime, matching a fully paid account.
-    data: { isPremium: true, premiumUntil: null },
+    data: { isPremium: true, premiumUntil },
   });
   await tx.auditLog.create({
     data: {
@@ -28,7 +35,7 @@ async function grantPremium(
       action: GRANT_ACTION,
       targetType: "user",
       targetId: userId,
-      detail,
+      detail: `${detail} — ${PREMIUM_MONTHS} months, until ${premiumUntil.toISOString().slice(0, 10)}`,
     },
   });
 }
@@ -82,14 +89,14 @@ export async function applyAllowlistToExistingUser(
   if (!user) return null;
 
   await prisma.$transaction(async (tx) => {
-    if (!user.isPremium || user.premiumUntil !== null) {
-      await grantPremium(
-        tx,
-        user.id,
-        adminId,
-        `allowlist ${phone}${note ? ` (${note})` : ""} — existing account`,
-      );
-    }
+    // Always grant: an account whose three months ran out must start a new
+    // term, and one still running just gets its expiry pushed further out.
+    await grantPremium(
+      tx,
+      user.id,
+      adminId,
+      `allowlist ${phone}${note ? ` (${note})` : ""} — existing account`,
+    );
     await tx.premiumPhone.update({
       where: { phone },
       data: { claimedAt: new Date(), claimedBy: user.id },

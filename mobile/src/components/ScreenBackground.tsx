@@ -1,78 +1,23 @@
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { memo, useMemo, type ReactNode } from "react";
-import {
-  StyleSheet,
-  useWindowDimensions,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import type { ReactNode } from "react";
+import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { colors } from "../theme/tokens";
-import { Icon, type IconName } from "./Icon";
 
-const SIGNS: IconName[] = [
-  "signWarn",
-  "signStop",
-  "signLight",
-  "signRoad",
-  "signCone",
-  "signDirection",
-];
-
-// Sparse and large on purpose (owner decision 2026-08-13): this is a texture,
-// not a row of icons. Wide spacing + big soft glyphs + very low opacity read as
-// a printed background; anything tighter looks like decoration stuck on top.
-const CELL = 170;
-const GLYPH = 58;
+// The hand-drawn road-sign wallpaper the owner supplied (2026-08-26), replacing
+// the glyph grid this component used to draw itself.
+const PATTERN = require("../../assets/images/sign-pattern.jpg");
 
 /**
- * Road-sign wallpaper. Laid out on a deterministic grid — offset on alternate
- * rows and rotated by a value derived from the cell index — so it reads as
- * scattered without random values that would reshuffle on every render.
+ * How strongly the wallpaper shows through.
+ *
+ * Deliberately low: the artwork's own field is lighter than `colors.bg`, so at
+ * full strength it washes the Night Drive palette out to flat grey. Held down
+ * here, only the pale sign strokes come through and the app stays dark behind
+ * Arabic text. This is the one number to tune if it reads too strong or too
+ * faint on a real screen.
  */
-const SignsBackdrop = memo(function SignsBackdrop() {
-  const { width, height } = useWindowDimensions();
-
-  // Rebuilt only when the screen size changes. Without this the ~60 glyphs
-  // would be recreated on every parent render — and the quiz screen re-renders
-  // once a second while the timer runs.
-  const cells = useMemo(() => {
-    const cols = Math.ceil(width / CELL) + 1;
-    const rows = Math.ceil(height / CELL) + 1;
-    const out = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const i = r * cols + c;
-        out.push(
-          <View
-            key={`${r}-${c}`}
-            style={{
-              position: "absolute",
-              // Half-cell offset on odd rows breaks up the grid lines.
-              left: c * CELL + (r % 2 ? CELL / 2 : 0) - GLYPH / 2,
-              top: r * CELL - GLYPH / 2,
-              // Gentle, deterministic tilt so the grid doesn't read as a grid.
-              transform: [{ rotate: `${((i * 37) % 24) - 12}deg` }],
-            }}
-          >
-            <Icon
-              name={SIGNS[i % SIGNS.length]!}
-              size={GLYPH}
-              color={colors.pattern}
-            />
-          </View>,
-        );
-      }
-    }
-    return out;
-  }, [width, height]);
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {cells}
-    </View>
-  );
-})
+const PATTERN_OPACITY = 0.35;
 
 interface Props {
   style?: StyleProp<ViewStyle>;
@@ -87,7 +32,19 @@ interface Props {
 export function ScreenBackground({ style, children }: Props) {
   return (
     <LinearGradient colors={[colors.bg, colors.bgSoft]} style={style}>
-      <SignsBackdrop />
+      {/* cover, not repeat: the artwork is a screen-shaped picture rather than a
+          seamless tile, so repeating it would show its edges. Cropping keeps it
+          clean when the phone rotates or the app runs on a tablet. */}
+      <Image
+        source={PATTERN}
+        style={[StyleSheet.absoluteFill, { opacity: PATTERN_OPACITY }]}
+        contentFit="cover"
+        // Static asset: no fade, and it must not re-decode between screens.
+        transition={0}
+        cachePolicy="memory-disk"
+        pointerEvents="none"
+        accessible={false}
+      />
       {children}
     </LinearGradient>
   );

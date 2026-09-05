@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
+import { gridBasis, useResponsive } from "@/theme/useResponsive";
 import { Icon } from "@/components/Icon";
 import { ImageViewer } from "@/components/ImageViewer";
 import { ProgressBorder } from "@/components/lessons/ProgressBorder";
@@ -19,6 +20,8 @@ const AUDIO_TICK_MS = 100;
 // from the LOCAL path; one shared player, swapped per sign. The playing card's
 // border fills as the audio advances (owner request 2026-08-07).
 export default function LessonScreen() {
+  const { columns } = useResponsive();
+  const basis = gridBasis(columns);
   const params = useLocalSearchParams<{ lessonId: string }>();
   const id = Number(params.lessonId);
   const lesson = getLesson(id);
@@ -98,7 +101,7 @@ export default function LessonScreen() {
                   progress={progress}
                   radius={radius.lg}
                   stepMs={AUDIO_TICK_MS}
-                  style={styles.cardWrap}
+                  style={[styles.cardWrap, { width: basis }]}
                 >
                   <PressableScale
                     onPress={() => onCardPress(s)}
@@ -160,7 +163,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: space.md,
   },
-  cardWrap: { width: "47%", flexGrow: 1 },
+  // Width comes from useResponsive at render time — the app rotates, so a
+  // hard-coded 2-column basis would give absurdly wide cards in landscape.
+  cardWrap: { flexGrow: 1 },
   card: {
     // Fill the wrapper: a wrapping flex row stretches every item to the tallest
     // in its line, so without this the card floated short inside a tall box and

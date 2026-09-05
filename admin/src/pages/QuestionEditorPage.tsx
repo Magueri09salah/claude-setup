@@ -44,6 +44,7 @@ export function QuestionEditorPage() {
   const [audioKey, setAudioKey] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [correctionText, setCorrectionText] = useState("");
+  const [correctionHidden, setCorrectionHidden] = useState(false);
   const [correctionAudioKey, setCorrectionAudioKey] = useState<string | null>(
     null,
   );
@@ -87,6 +88,7 @@ export function QuestionEditorPage() {
     setAudioKey(null);
     setAudioUrl(null);
     setCorrectionText("");
+    setCorrectionHidden(false);
     setCorrectionAudioKey(null);
     setCorrectionAudioUrl(null);
   }, []);
@@ -117,6 +119,7 @@ export function QuestionEditorPage() {
     setImageKey(q.imageKey);
     setAudioKey(q.audioKey);
     setCorrectionText(q.correctionText ?? "");
+    setCorrectionHidden(q.correctionHidden);
     setCorrectionAudioKey(q.correctionAudioKey);
     setImageUrl(null);
     setAudioUrl(null);
@@ -212,6 +215,7 @@ export function QuestionEditorPage() {
       audioKey,
       correctionText: correctionText.trim(),
       correctionAudioKey,
+      correctionHidden,
     };
     try {
       if (editingId !== null) {
@@ -585,6 +589,20 @@ export function QuestionEditorPage() {
                     يظهر للمترشح في مرحلة التصحيح بعد انتهاء السلسلة فقط، وليس
                     أثناء الإجابة.
                   </Text>
+                  {/* Hides the correction in the app without deleting it, so a
+                      draft explanation can be written before it goes live. */}
+                  <Switch
+                    mb="sm"
+                    checked={correctionHidden}
+                    onChange={(e) => setCorrectionHidden(e.currentTarget.checked)}
+                    label="إخفاء التصحيح عن المترشح"
+                    description={
+                      correctionHidden
+                        ? "مُفعّل — لن يظهر التصحيح في التطبيق."
+                        : "مُعطّل — سيظهر التصحيح للمترشح بعد انتهاء السلسلة."
+                    }
+                    color="red"
+                  />
                   <Stack gap="sm">
                     <Textarea
                       label="نص التصحيح"

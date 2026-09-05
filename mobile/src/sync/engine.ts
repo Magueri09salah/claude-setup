@@ -73,8 +73,8 @@ function upsertQuestions(rows: ApiQuestion[]): void {
            (id, series_id, order_num, answers_count, correct_answers,
             image_key, audio_key, image_path, audio_path,
             correction_text, correction_audio_key, correction_audio_path,
-            downloaded, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            correction_hidden, downloaded, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            series_id = excluded.series_id,
            order_num = excluded.order_num,
@@ -87,6 +87,7 @@ function upsertQuestions(rows: ApiQuestion[]): void {
            correction_text = excluded.correction_text,
            correction_audio_key = excluded.correction_audio_key,
            correction_audio_path = excluded.correction_audio_path,
+           correction_hidden = excluded.correction_hidden,
            downloaded = excluded.downloaded,
            updated_at = excluded.updated_at`,
         q.id,
@@ -101,6 +102,7 @@ function upsertQuestions(rows: ApiQuestion[]): void {
         q.correctionText ?? null,
         q.correctionAudioKey ?? null,
         correctionChanged ? null : (existing?.correction_audio_path ?? null),
+        q.correctionHidden ? 1 : 0,
         mediaChanged ? 0 : (existing?.downloaded ?? 0),
         q.updatedAt,
       );
