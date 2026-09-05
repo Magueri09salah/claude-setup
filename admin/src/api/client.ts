@@ -1,6 +1,20 @@
+/**
+ * Where the API lives.
+ *
+ * Production default is the RELATIVE "/api": the panel and the API share one
+ * origin (codeboujida.com), so requests need no host, no CORS, and no rebuild
+ * if the domain ever changes. A build that forgot VITE_API_URL used to fall
+ * back to localhost:4000 and pointed at the visitor's own machine.
+ * The trailing-slash strip stops "…/api/" + "/auth/login" becoming "//".
+ */
+const configuredApiUrl = (import.meta.env.VITE_API_URL as string | undefined)
+  ?.trim()
+  .replace(/\/+$/, "");
+
+// `||`, not `??`: VITE_API_URL="" survives as an empty string, which is not
+// nullish — it would send every request to the site root instead of /api.
 export const API_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  "http://localhost:4000";
+  configuredApiUrl || (import.meta.env.DEV ? "http://localhost:4000" : "/api");
 
 const ACCESS_KEY = "tariq.admin.access";
 const REFRESH_KEY = "tariq.admin.refresh";

@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import { env, isProduction } from "./env";
+import { bindHost, env, isProduction } from "./env";
 import { errorHandler } from "./middleware/errors";
 import { adminRouter } from "./modules/admin/admin.router";
 import { authRouter } from "./modules/auth/auth.router";
@@ -20,7 +20,23 @@ import { localMediaRouter } from "./storage/local";
 
 const app = express();
 
-app.use(cors({ origin: ["http://localhost:5173"] }));
+// Behind nginx every request arrives from the proxy, so without this req.ip is
+// always 127.0.0.1: the /auth rate limit would put every user in ONE bucket and
+// start returning 429 to everybody. 1 = trust exactly one proxy hop.
+if (isProduction) app.set("trust proxy", 1);
+
+// Allowed browser origins. In production the panel is same-origin
+// (codeboujida.com/admin -> codeboujida.com/api), so the default is NO
+// cross-origin access; CORS_ORIGINS opens it only if the panel ever moves to
+// its own hostname. The Vite dev server keeps working out of the box.
+const corsOrigins = env.CORS_ORIGINS
+  ? env.CORS_ORIGINS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : isProduction
+    ? []
+    : ["http://localhost:5173"];
+app.use(cors({ origin: corsOrigins.length > 0 ? corsOrigins : false }));
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (_req, res) => {
@@ -54,9 +70,9 @@ if (env.PAYMENTS_ENABLED && paymentProvider.kind === "mock" && !isProduction) {
 
 app.use(errorHandler);
 
-app.listen(env.PORT, () => {
+app.listen(env.PORT, bindHost, () => {
   console.log(
-    `API listening on port ${env.PORT} (env: ${env.NODE_ENV}, storage: ${storage.kind}, payments: ${
+    `API listening on ${bindHost}:${env.PORT} (env: ${env.NODE_ENV}, storage: ${storage.kind}, payments: ${
       env.PAYMENTS_ENABLED ? paymentProvider.kind : "disabled"
     })`,
   );

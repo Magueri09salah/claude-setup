@@ -2,6 +2,10 @@ node_modules/
 dist/
 *.log
 
+# Secrets: ignore every .env variant, at any depth...
 .env
 .env.*
+# ...except the templates, which carry placeholders only and MUST be committed
+# (.env.example for development, .env.production.example for the server).
 !.env.example
+!.env.*.example

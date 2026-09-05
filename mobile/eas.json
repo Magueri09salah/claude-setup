@@ -33,7 +33,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.tariq.ma"
+        "EXPO_PUBLIC_API_URL": "https://codeboujida.com/api"
       }
     }
   },

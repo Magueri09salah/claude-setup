@@ -55,7 +55,10 @@ export default function App() {
       <MantineProvider theme={theme}>
         <Notifications position="top-center" />
         <AuthProvider>
-          <BrowserRouter>
+          {/* BASE_URL is whatever vite.config set as `base` ("/admin/"), so
+              the router and the asset paths can never drift apart. Without it
+              a refresh on /admin/users looks like an unknown route. */}
+          <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route

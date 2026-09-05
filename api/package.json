@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
     "tunnel": "npx --yes localtunnel --port 4000"
   },
   "prisma": {
