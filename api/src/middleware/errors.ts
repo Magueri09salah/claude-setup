@@ -1,4 +1,5 @@
-import type { ErrorRequestHandler } from "express";
+import fs from "node:fs/promises";
+import type { ErrorRequestHandler, Request } from "express";
 import { ZodError } from "zod";
 
 export class ApiError extends Error {
@@ -10,7 +11,33 @@ export class ApiError extends Error {
   }
 }
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+/**
+ * Delete multipart temp files left behind by a failed request.
+ *
+ * Video uploads stream to disk (os.tmpdir()) BEFORE the handler can check the
+ * mime type or the title, so a rejected 500MB upload used to sit in /tmp until
+ * someone noticed the disk was full. On success `storage.putFile` consumes the
+ * file itself, so by then there is nothing left to remove and the unlink simply
+ * fails harmlessly.
+ */
+function discardTempUploads(req: Request): void {
+  const files: Express.Multer.File[] = [];
+  if (req.file) files.push(req.file);
+  if (Array.isArray(req.files)) {
+    files.push(...req.files);
+  } else if (req.files) {
+    for (const group of Object.values(req.files)) files.push(...group);
+  }
+  for (const f of files) {
+    // Only disk-backed uploads have a path; memoryStorage ones do not.
+    if (f.path) void fs.unlink(f.path).catch(() => undefined);
+  }
+}
+
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  // Runs for EVERY failed request, so new upload routes are covered too.
+  discardTempUploads(req);
+
   if (err instanceof ZodError) {
     res.status(400).json({
       error: "Validation failed",
