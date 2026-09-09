@@ -135,4 +135,20 @@ refused as a duplicate); both show days-left and audit as `renew_premium`.
 NOTE: accounts granted before 2026-08-26 have premiumUntil = null = LIFETIME and
 never expire; converting them to a 3-month term is a deliberate data change the
 owner has not asked for yet.
+2026-09-09: STORE PREP + REBRAND. App is now "codeboujida"
+(com.codeboujida.app, scheme codeboujida) — package ids are permanent once
+published. RECORD_AUDIO/MODIFY_AUDIO_SETTINGS removed (the app only PLAYS
+audio; an unused mic permission gets a Play rejection). ALL payment framing is
+gone from the app: /payment -> /unlock, no "اشتراك"/"مدفوع"/"مشترك" anywhere,
+because stores require digital purchases to use their billing — the screen is
+an ENROLMENT request ("تواصل مع الإدارة عبر واتساب"), not a checkout. The shop
+keeps its prices: physical goods are exempt. Account deletion added end to end
+(DELETE /auth/me deletes attempts/devices/tokens/course-requests/payments and
+UN-CLAIMS the allowlist row, settings card, api/public/account-deletion.html for
+the Console URL) — mandatory for both stores. Privacy link removed from
+settings (the Console listing still needs the URL). Timer can be switched OFF:
+TIMER_CHOICES includes 0 (NO_TIMER) — getQuestionSeconds MUST guard the unset
+case before Number(), since Number(null)===0 would silently disable the timer
+for everyone; the engine skips the interval AND the timeout submit, and the
+pause button hides because it only ever froze the countdown.
 Next: PayzoneProvider when merchant docs arrive · store submission.
