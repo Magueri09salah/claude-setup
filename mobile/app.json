@@ -10,7 +10,9 @@
     "backgroundColor": "#141519",
     "extra": {
       "supportsRTL": true,
-      "eas": {},
+      "eas": {
+        "projectId": "a273bc9d-359e-41f1-882c-1dcd447ca7c2"
+      },
       "router": {}
     },
     "ios": {
@@ -27,7 +29,9 @@
       },
       "permissions": [
         "POST_NOTIFICATIONS",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "predictiveBackGestureEnabled": false
     },
