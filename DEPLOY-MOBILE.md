@@ -1,432 +1,891 @@
-# Publishing the mobile app
+# Publishing codeboujida on Google Play
 
-From a finished codebase to an app on Google Play, then on the App Store.
+Written for someone who has never published an app before. Every command says
+**where** you run it and **why**. Every Console step says **what to click**.
 
-Follow it top to bottom. Every step says how to check it worked. A step marked
-⚠️ is permanent or can cost you days if you get it wrong.
+Follow it top to bottom. Do not skip a step because it looks obvious — the
+skipped ones are what cause rejections.
 
-**Android first.** iOS is Part 9 — the build steps are nearly identical, the
-paperwork is not.
+> **iOS is not in this guide.** Do Android first, get it live, then come back
+> for Part 16.
+
+---
+
+## What you are actually doing
+
+Your app's code lives on your laptop. Google needs a **signed app file** built
+from that code. You don't build it on your laptop — **Expo's servers (EAS)**
+build it for you and hand you a file. You upload that file to the **Play
+Console**, fill in a lot of forms about privacy, and Google reviews it.
+
+```
+your laptop  ──push──▶  GitHub  ──▶  EAS builds it  ──▶  .aab file
+                                                            │
+                                                            ▼
+                                              Play Console (forms + upload)
+                                                            │
+                                                            ▼
+                                                   Google review → live
+```
+
+**Time:** about 3 hours of work, spread over 2–7 days of waiting (identity
+verification, then review).
+
+**Cost:** $25 once, to Google. Expo and Firebase are free at your size.
+
+---
+
+## The three places you will work
+
+Everything in this guide happens in one of these. When a step starts, it tells
+you which.
+
+| | Where | How to open it |
+|---|---|---|
+| 💻 **LAPTOP** | A terminal on your Windows machine, inside the `mobile` folder | Open PowerShell or Git Bash, then `cd C:\Users\T14s\Desktop\claude-setup\claude-setup\mobile` |
+| 🖥️ **SERVER** | A terminal connected to your VPS | `ssh <DEPLOY_USER>@76.13.63.111` |
+| 🌐 **BROWSER** | Play Console, Expo, or Firebase websites | Links given in each step |
+
+⚠️ **The most common beginner mistake** is running a laptop command on the
+server or vice-versa. Check the icon before every command.
 
 ---
 
 ## Placeholders
 
-| Placeholder | What to put | Example |
+| Placeholder | What it is | Yours |
 |---|---|---|
-| `<EXPO_ACCOUNT>` | Your Expo account name — must match `owner` in app.json | `codeboujida` |
-| `<GOOGLE_ACCOUNT>` | The Google account that will own the app | |
-| `<DEMO_PHONE>` | Phone number of the reviewer demo account you create | `0600000000` |
+| `<DEPLOY_USER>` | Your Linux user on the VPS | |
+| `<EXPO_EMAIL>` | Email for your Expo account | |
+| `<GOOGLE_ACCOUNT>` | Google account that will own the app ⚠️ permanent | |
+| `<DEMO_PHONE>` | Phone number of the account you give Google | |
 | `<DEMO_PASSWORD>` | Its password | |
-| `<APPLE_ID>` | Apple account, for Part 9 only | |
 
-Values already fixed in the repo — do not change them:
+Already decided in the code — **do not change these**:
 
 | | |
 |---|---|
 | App name | **codeboujida** |
-| Android package | **com.codeboujida.app** ⚠️ permanent once published |
+| Package name | **com.codeboujida.app** ⚠️ permanent forever |
+| Expo owner / slug | **codeboujida** |
 | API the app calls | `https://codeboujida.com/api` |
-| Privacy policy | `https://codeboujida.com/legal/privacy.html` |
-| Account deletion | `https://codeboujida.com/legal/account-deletion.html` |
+| Privacy policy URL | `https://codeboujida.com/legal/privacy.html` |
+| Account deletion URL | `https://codeboujida.com/legal/account-deletion.html` |
 
 ---
 
-# Part 0 — Before anything
+# PART 1 — Update your server first
 
-### Step 1. Deploy the API first
+**Why now:** the app has a "delete my account" button, and Google will open the
+deletion web page during review. Both were added after your last deploy, so
+right now the page returns 404 and the button would fail. Google rejects apps
+for exactly this.
 
-The account-deletion page is new and Google will check the URL. It only exists
-on the server after a deploy.
+### Step 1.1 — Connect to the server
 
+🖥️ **SERVER** — from your laptop terminal:
 ```bash
-ssh <DEPLOY_USER>@<SERVER_IP>
-cd /var/www/codeboujida && ./scripts/deploy.sh
+ssh <DEPLOY_USER>@76.13.63.111
+```
+✅ Your prompt changes to something like `salah@srv:~$`.
+
+### Step 1.2 — Go to the project folder
+
+🖥️ **SERVER**
+```bash
+cd /var/www/codeboujida
+```
+**Why:** all the code lives here. Git commands only work inside it.
+
+### Step 1.3 — Download the new code
+
+🖥️ **SERVER**
+```bash
+git pull --ff-only
+```
+**Why:** brings the account-deletion feature from GitHub onto the server.
+`--ff-only` refuses to merge — if it complains, the server has local edits and
+you should stop and ask, not force it.
+
+✅ You should see file names scrolling past, including
+`api/public/account-deletion.html`.
+If it says `Already up to date.`, the code was already pulled — carry on.
+
+### Step 1.4 — Install any new libraries
+
+🖥️ **SERVER**
+```bash
+cd /var/www/codeboujida/api
+npm ci
+```
+**Why:** `npm ci` installs the exact library versions the code expects. Today's
+change adds no new libraries, but running it keeps the folder consistent and
+takes a minute.
+
+✅ Ends with `added NNN packages`. Warnings about "deprecated" are normal.
+
+### Step 1.5 — Rebuild the API
+
+🖥️ **SERVER**
+```bash
+npm run build
+```
+**Why:** the server runs compiled JavaScript, not the TypeScript you wrote.
+Without this, your new code exists on disk but is never executed.
+
+✅ Silent success. Check the file was produced:
+```bash
+ls -l dist/index.js
 ```
 
-✅ Verify both pages answer:
+### Step 1.6 — Apply database changes
+
+🖥️ **SERVER**
 ```bash
-curl -s -o /dev/null -w "privacy:  %{http_code}\n" https://codeboujida.com/legal/privacy.html
-curl -s -o /dev/null -w "deletion: %{http_code}\n" https://codeboujida.com/legal/account-deletion.html
+npx prisma migrate deploy
 ```
-Both must be **200**. A 404 on the deletion page means the code isn't pushed or
-deployed yet — fix that before touching the Play Console.
+**Why:** applies any new database tables. Today there are none, but running it
+is how you find that out safely.
 
-### Step 2. Create the reviewer's demo account
+✅ `No pending migrations to apply.` — that is the expected answer today.
 
-⚠️ **The single most common reason a first submission is rejected.** Your
-content sits behind a lock that opens only when *you* add a number to the
-allowlist. A reviewer cannot do that, sees empty screens, and rejects the app as
-broken or incomplete.
+### Step 1.7 — Restart the API
 
-1. Install the app (or use your phone) and register a normal account with
-   `<DEMO_PHONE>` / `<DEMO_PASSWORD>`
-2. Open `https://codeboujida.com/admin` → **المجموعة المجانية**
-3. Add `<DEMO_PHONE>` with the note `Google Play review`
-4. Open **المستخدمون**, find it, confirm the الاشتراك column shows time left
+🖥️ **SERVER**
+```bash
+cd /var/www/codeboujida
+pm2 reload ecosystem.config.js --update-env
+```
+**Why:** the old code is still in memory. `reload` swaps it for the new build
+without dropping requests.
 
-✅ Log into the app as that account and confirm you can open a premium series
-and a lesson. If you can't, the reviewer can't either.
+✅ A table appears with `codeboujida-api` and status **online**.
 
-⚠️ The term is **three months**. Set a reminder to renew it, or a future update
-gets rejected because the demo account expired.
+### Step 1.8 — Prove it worked
 
-### Step 3. Install the build tools
+🖥️ **SERVER**
+```bash
+curl -s -o /dev/null -w "deletion page: %{http_code}\n" https://codeboujida.com/legal/account-deletion.html
+curl -s -o /dev/null -w "delete route:  %{http_code}\n" -X DELETE https://codeboujida.com/api/auth/me
+curl -s https://codeboujida.com/api/health
+```
 
-On your laptop:
+✅ You need exactly:
+```
+deletion page: 200
+delete route:  401
+{"ok":true,"storage":"r2"}
+```
+
+- **200** = Google can read the deletion page ✅
+- **401** = the delete route exists and correctly refuses a stranger ✅
+  (404 here means the code didn't land — repeat 1.3 to 1.7)
+- **storage: r2** = media is going to Cloudflare, not the server disk ✅
+
+### Step 1.9 — Leave the server
+
+🖥️ **SERVER**
+```bash
+exit
+```
+**Everything from here on is on your laptop or in a browser.**
+
+---
+
+# PART 2 — Create the account you give to Google
+
+⚠️ **The number one reason first submissions get rejected.** Your app hides its
+content behind a lock that only *you* can open from the admin panel. A Google
+reviewer will register, see empty screens, and reject the app as broken. So you
+create an account for them and unlock it yourself.
+
+### Step 2.1 — Register the account
+
+🌐 **BROWSER** — you need the app on a phone to register. If you don't have a
+build yet, that's fine: **come back and do Part 2 after Step 7.4**, when you
+have the test APK installed.
+
+In the app: **إنشاء حساب** with
+- username: `googleplay`
+- phone: `<DEMO_PHONE>` (a real number you control)
+- password: `<DEMO_PASSWORD>`
+- ID digits: any 3 digits — write them down
+
+### Step 2.2 — Unlock it from your admin panel
+
+🌐 **BROWSER** → `https://codeboujida.com/admin`
+
+1. Log in with your admin email and password
+2. Left menu → **المجموعة المجانية**
+3. Click **إضافة أرقام**
+4. Paste `<DEMO_PHONE>` in the box
+5. In the note field type: `Google Play review`
+6. Click **إضافة**
+
+✅ The number appears in the table, and the **الحساب** column shows the
+`googleplay` account (because it already registered).
+
+### Step 2.3 — Confirm the reviewer will see content
+
+🌐 **BROWSER** → admin → **المستخدمون** → find `googleplay`.
+✅ The **الاشتراك** column shows days remaining (about 90).
+
+📱 Then, in the app on your phone, log in as that account and open a **locked**
+series. It must open.
+
+⚠️ **Access lasts 3 months.** Put a reminder in your calendar. If it expires,
+your next app update gets rejected. Renewing is one click: admin → المستخدمون →
+**تجديد 3 أشهر**.
+
+---
+
+# PART 3 — Your Expo account
+
+**What Expo/EAS is:** a service that compiles your app on their computers.
+You avoid installing Android Studio, the Java SDK and 20 GB of tooling.
+
+### Step 3.1 — Create the account
+
+🌐 **BROWSER** → [expo.dev/signup](https://expo.dev/signup)
+
+- Sign up with `<EXPO_EMAIL>`
+- ⚠️ **Username must be exactly `codeboujida`** — your `app.json` says
+  `"owner": "codeboujida"`, and a mismatch fails every build.
+- Confirm the verification email.
+
+✅ Log in at [expo.dev](https://expo.dev) and check the username shown top-right
+is `codeboujida`.
+
+### Step 3.2 — Install the build tool
+
+💻 **LAPTOP** — any folder, this installs globally:
 ```bash
 npm install -g eas-cli
+```
+**Why:** `eas` is the command that talks to Expo's build servers.
+
+✅ Check:
+```bash
 eas --version
 ```
-✅ Prints a version. Then:
+Prints a version number. If it says "command not found", close the terminal and
+open a new one — Windows needs it reopened after a global install.
+
+### Step 3.3 — Log in
+
+💻 **LAPTOP**
 ```bash
 eas login
+```
+Enter your Expo email and password.
+
+✅ Confirm:
+```bash
 eas whoami
 ```
-✅ Prints `<EXPO_ACCOUNT>`. It **must** match `owner` in `mobile/app.json`
-(currently `codeboujida`), or every build fails with an ownership error.
+Must print **`codeboujida`**. If it prints anything else, run `eas logout` and
+log in with the right account — this is checked against `app.json` on every
+build.
 
 ---
 
-# Part 1 — Link the EAS project
+# PART 4 — Connect your code to Expo
 
-### Step 4. Create the project
+### Step 4.1 — Go to the mobile folder
 
+💻 **LAPTOP**
 ```bash
-cd mobile
+cd C:\Users\T14s\Desktop\claude-setup\claude-setup\mobile
+```
+⚠️ **Every command from here to Part 8 runs in this folder.** EAS reads
+`app.json` and `eas.json` from the current directory; run it one level up and it
+finds nothing.
+
+### Step 4.2 — Create the Expo project
+
+💻 **LAPTOP**
+```bash
 eas init
 ```
-It asks to create a project for `@<EXPO_ACCOUNT>/codeboujida` — accept.
+It asks: *"Would you like to create a project for @codeboujida/codeboujida?"* →
+**Yes**.
 
-✅ Check it wrote the id back:
+**Why:** this creates a project on Expo's side and writes its unique ID into
+your `app.json`. The old ID was deliberately removed because it belonged to a
+different Expo account — push notifications sent with someone else's project ID
+never arrive.
+
+✅ Check the ID landed:
 ```bash
 node -p "require('./app.json').expo.extra.eas.projectId"
 ```
-✅ A UUID. It was deliberately left empty in the repo because the previous id
-belonged to a different Expo account — push tokens minted against an account you
-don't own can never be delivered.
+Prints a long id like `a1b2c3d4-....`
 
-⚠️ **Commit this change.** The project id must be in the repo, or the next build
-from a clean checkout creates a *second* project.
+### Step 4.3 — Save that change ⚠️ important
 
+💻 **LAPTOP**
 ```bash
-git add app.json && git commit -m "mobile: link EAS project" && git push
+git add app.json
+git commit -m "mobile: link EAS project"
+git push
 ```
+
+**Why this matters:** EAS builds from your **committed** code, not from the
+files on your disk. Uncommitted changes are invisible to the build. Forget this
+and you'll spend an hour wondering why your fix isn't in the app.
+
+✅ `git status` prints `nothing to commit, working tree clean`.
 
 ---
 
-# Part 2 — Push notifications (Firebase)
+# PART 5 — Push notifications (Firebase)
 
-Skip this and the app still works — the daily live-broadcast notification just
-never arrives on Android. Do it before launch, not after.
+**Why:** Android requires Google's own delivery service (FCM) to wake an app.
+Expo forwards your notifications to it, but only if you give Expo a key.
 
-### Step 5. Create the Firebase project
+Skip this and the app works fine — the daily live-broadcast alert simply never
+arrives. **Do it now**, because adding it later needs a new build.
 
-1. [console.firebase.google.com](https://console.firebase.google.com) → **Add project** → name it `codeboujida`
-2. Google Analytics is optional — you don't need it
-3. Inside the project: **Add app** → **Android**
-4. Android package name: **`com.codeboujida.app`** — must match exactly
-5. Download **`google-services.json`** when offered
+### Step 5.1 — Create a Firebase project
 
-✅ The file downloads and its `package_name` reads `com.codeboujida.app`.
+🌐 **BROWSER** → [console.firebase.google.com](https://console.firebase.google.com)
 
-### Step 6. Give Expo permission to send
+1. **Create a project**
+2. Name: `codeboujida` → **Continue**
+3. Google Analytics: toggle **off** (you don't need it) → **Create project**
+4. Wait for it, then **Continue**
 
-Expo's push service talks to Firebase on your behalf and needs a service
-account key:
+### Step 5.2 — Register the Android app
 
-1. Firebase → ⚙️ **Project settings** → **Service accounts**
-2. **Generate new private key** → a `.json` file downloads
-3. ⚠️ Treat it like a password. Never commit it.
+🌐 **BROWSER** — in the project, on the overview page:
 
-Upload it to EAS:
+1. Click the **Android** icon (a robot)
+2. **Android package name:** `com.codeboujida.app` — ⚠️ exactly this, it must
+   match your app or notifications go nowhere
+3. App nickname: `codeboujida`
+4. Skip the SHA-1 field
+5. **Register app**
+6. It offers `google-services.json` — you can download it, but **you don't need
+   it**; EAS handles this. Click through **Next → Next → Continue to console**.
+
+### Step 5.3 — Create the key Expo needs
+
+🌐 **BROWSER** — in Firebase:
+
+1. Click the **⚙️ gear** next to "Project Overview" → **Project settings**
+2. Open the **Service accounts** tab
+3. Click **Generate new private key** → confirm **Generate key**
+4. A `.json` file downloads
+
+⚠️ **That file is a password to your Firebase project.** Never put it in the
+repo. Keep it with your other secrets; delete it from Downloads afterwards.
+
+### Step 5.4 — Give the key to Expo
+
+💻 **LAPTOP** — in the `mobile` folder:
 ```bash
 eas credentials
 ```
-Choose **Android** → **production** → **Google Service Account** → **Manage your
-Google Service Account Key for Push Notifications (FCM V1)** → upload the file.
 
-✅ `eas credentials` then lists a configured FCM V1 key for the project.
+Answer the menu:
+1. Platform → **Android**
+2. Build profile → **production**
+3. → **Google Service Account**
+4. → **Manage your Google Service Account Key for Push Notifications (FCM V1)**
+5. → **Set up a Google Service Account Key**
+6. Give it the path to the `.json` file you downloaded, e.g.
+   `C:\Users\T14s\Downloads\codeboujida-firebase-adminsdk-xxxxx.json`
+
+✅ The menu then shows a configured FCM V1 key. Press `Ctrl+C` to exit.
 
 ---
 
-# Part 3 — Build
+# PART 6 — Check everything before building
 
-### Step 7. Sanity-check the configuration
+💻 **LAPTOP** — in the `mobile` folder.
+
+### Step 6.1 — Does the code compile?
 
 ```bash
-cd mobile
 npx tsc --noEmit
-node -e "const c=require('./app.json').expo; console.log(c.name, '|', c.android.package, '|', c.android.permissions.join(','), '|', c.owner)"
+```
+**Why:** catches type errors now, in 30 seconds, instead of 20 minutes into a
+cloud build.
+
+✅ Prints nothing at all. Any output is an error to fix first.
+
+### Step 6.2 — Is the configuration right?
+
+```bash
+node -e "const c=require('./app.json').expo; console.log(c.name,'|',c.owner,'|',c.android.package,'|',c.android.permissions.join(','))"
 node -e "console.log(require('./eas.json').build.production.env.EXPO_PUBLIC_API_URL)"
 ```
 
 ✅ Expect exactly:
 ```
-codeboujida | com.codeboujida.app | POST_NOTIFICATIONS,RECEIVE_BOOT_COMPLETED | codeboujida
+codeboujida | codeboujida | com.codeboujida.app | POST_NOTIFICATIONS,RECEIVE_BOOT_COMPLETED
 https://codeboujida.com/api
 ```
-❌ If `RECORD_AUDIO` appears, you're on an old checkout — that permission gets
-the app rejected because nothing in it records audio.
 
-### Step 8. Build the release bundle
+❌ If you see `RECORD_AUDIO`, you are on old code — `git pull` on your laptop.
+That permission alone gets the app rejected, because nothing in it records
+audio.
+
+### Step 6.3 — Is everything committed?
 
 ```bash
-eas build --profile production --platform android
+git status
 ```
-This runs on Expo's servers and takes **10–25 minutes**. The first build asks to
-generate an Android keystore — **answer yes and let EAS manage it.**
+✅ `working tree clean`. If not, commit and push — see Step 4.3 for why.
 
-⚠️ That keystore signs your app **forever**. If it is ever lost, you can never
-update this app again; you'd have to publish a new listing and every user would
-have to reinstall. EAS keeps it safe, but take your own copy once:
-```bash
-eas credentials
-# Android → production → Keystore → Download
-```
-Store it with your other secrets.
+---
 
-✅ The build ends with a URL and `Build successful`. It produces an **.aab** —
-that's what Play wants. Download it.
+# PART 7 — Build a test version first
 
-❌ If it fails, read the log section that turned red. The most common causes are
-in Part 8.
+⚠️ **Do not build the Play version yet.** The Play file (`.aab`) cannot be
+installed on a phone directly, so you cannot test it. Build an installable APK
+from identical code first.
 
-### Step 9. Test the real bundle before uploading
+### Step 7.1 — Start the test build
 
-An .aab can't be installed directly. Build an APK from the same code:
+💻 **LAPTOP**
 ```bash
 eas build --profile preview --platform android
 ```
-Install it on a real Android phone and check:
 
-- [ ] The app is named **codeboujida** under the icon
-- [ ] Register a new account — it works against the live server
-- [ ] Sync downloads content (needs the API to have content published)
-- [ ] Run a quiz, finish it, see the results
-- [ ] Turn on airplane mode → the quiz still works offline
-- [ ] Settings → **بدون مؤقت** → a quiz has no countdown and never auto-submits
-- [ ] Settings → **حذف حسابي نهائياً** → the account is deleted and you're signed out
-- [ ] No microphone permission prompt appears, ever
+**Why `preview`:** that profile produces an `.apk` you can install by hand, and
+it points at your real server `https://codeboujida.com/api`.
 
-✅ Everything passes before you upload. Fixing an app after it's on the store is
-far slower than fixing it now.
+The first Android build asks:
+> *Generate a new Android Keystore?* → **Yes**
+
+⚠️ **What a keystore is:** the signing identity of your app. Google only accepts
+updates signed with the same one, **forever**. EAS stores it for you.
+
+### Step 7.2 — Wait
+
+The terminal prints a link like `https://expo.dev/accounts/codeboujida/...`.
+Building takes **10–25 minutes**. You can close the terminal — the build runs on
+Expo's servers, and the link shows progress.
+
+✅ Ends with `Build successful` and a download link.
+
+### Step 7.3 — Back up the keystore ⚠️ do this once
+
+💻 **LAPTOP**
+```bash
+eas credentials
+```
+Android → **preview** → **Keystore** → **Download existing keystore**.
+
+Store the file and the printed passwords with your other secrets.
+
+**Why:** if your Expo account is ever lost, this file is the only thing that
+lets you keep updating your published app. Without it you must publish a brand
+new listing and every user has to reinstall.
+
+### Step 7.4 — Install it on a real Android phone
+
+🌐 **BROWSER on the phone** — open the build link, tap the download, and allow
+"install from unknown sources" when Android asks.
+
+**Why a real phone:** an emulator won't show you notification delivery, RTL
+rendering with real Arabic fonts, or how the app behaves offline.
+
+### Step 7.5 — Test it properly
+
+📱 **ON THE PHONE** — tick every box:
+
+- [ ] The icon under the app is named **codeboujida**
+- [ ] **No microphone permission** is ever requested
+- [ ] Register a new account — it succeeds (this proves it reaches your server)
+- [ ] Content downloads on first launch
+- [ ] Open a series, answer questions, finish, see results
+- [ ] Turn on **airplane mode** → the quiz still works (it's offline-first)
+- [ ] Settings → **مدة كل سؤال** → choose **بدون مؤقت** → start a quiz →
+      **no countdown appears and it never auto-submits**
+- [ ] Settings → **حذف حسابي نهائياً** → confirm → you are signed out, and that
+      account can no longer log in
+- [ ] A locked series shows **مقفل** and opens the WhatsApp screen — with **no
+      price and no payment wording anywhere**
+
+✅ If anything fails here, fix it before Part 8. Fixing an app after it is on
+the store takes days instead of minutes.
+
+**Now go back and do PART 2** if you haven't — you needed the app installed to
+register the demo account.
 
 ---
 
-# Part 4 — Create the Play listing
+# PART 8 — Build the file for Google
 
-### Step 10. Developer account
+### Step 8.1 — Build it
 
-[play.google.com/console](https://play.google.com/console) — **$25 one time**,
-paid with `<GOOGLE_ACCOUNT>`. Identity verification can take a few days, so do
-this early.
+💻 **LAPTOP** — in the `mobile` folder:
+```bash
+eas build --profile production --platform android
+```
 
-⚠️ Open it with the account that should **own** the app. A developer account
-cannot be transferred to another person later.
+**Why a different profile:** this one produces an **`.aab`** (Android App
+Bundle), the only format Google Play accepts, and it automatically increments
+the version number so it can never collide with something already uploaded.
 
-### Step 11. Create the app
+✅ 10–25 minutes, then `Build successful`.
 
-**Create app** →
-- App name: **codeboujida**
-- Default language: **العربية** (add French as a second language if you like)
-- App or game: **App**
-- Free or paid: **Free**
+### Step 8.2 — Download it
 
-⚠️ **Free is permanent.** A free app can never become paid. Since access is
-arranged by the school outside the app, free is correct.
+🌐 **BROWSER** — open the build link → **Download**. You get a file ending in
+`.aab`. Remember where it saved.
 
-### Step 12. Store listing
+---
 
-You need, at minimum:
+# PART 9 — Create your Google Play developer account
 
-| Asset | Requirement |
+### Step 9.1 — Register
+
+🌐 **BROWSER** → [play.google.com/console](https://play.google.com/console)
+
+1. Sign in with `<GOOGLE_ACCOUNT>` — ⚠️ **this account owns the app forever and
+   cannot be transferred to another person.** Use the one that should own the
+   business.
+2. Choose account type: **Personal** or **Organisation**
+   - **Organisation** requires a D-U-N-S number and takes longer
+   - **Personal** is fine for a first launch
+3. Pay the **$25** one-time fee
+4. Complete identity verification (ID document, address)
+
+⚠️ **Verification can take 1–3 days.** Start this early — you can do Parts 1–8
+while waiting.
+
+✅ You reach the Play Console dashboard with a "Create app" button.
+
+---
+
+# PART 10 — Create the app listing
+
+### Step 10.1 — Create the app
+
+🌐 **BROWSER** → Play Console → **Create app** (top right)
+
+| Field | Value |
 |---|---|
-| App icon | 512×512 PNG |
-| Feature graphic | 1024×500 PNG or JPG |
-| Phone screenshots | at least 2, up to 8 |
-| Short description | max 80 characters |
-| Full description | max 4000 characters |
+| App name | `codeboujida` |
+| Default language | `العربية (ar)` |
+| App or game | **App** |
+| Free or paid | **Free** ⚠️ permanent — a free app can never become paid |
 
-Take screenshots from the preview APK in Step 9: home, a quiz question, the
-lessons grid, the results screen, and the live section.
+Tick both declarations, then **Create app**.
 
-### Step 13. The policy forms
+✅ You land on the app dashboard with a task list.
 
-This is where apps get stuck. Four sections, all mandatory:
+### Step 10.2 — Understand the dashboard
 
-**Privacy policy** → `https://codeboujida.com/legal/privacy.html`
+Google shows two groups of tasks. You must finish **all** of them:
 
-**Data safety** — declare honestly what the app collects:
+- **Set up your app** — the policy forms (Part 11)
+- **Create and publish a release** — uploading your file (Part 12)
 
-| Data | Collected | Why |
-|---|---|---|
-| Phone number | yes | account identity and login |
-| Name (username) | yes | account identity |
-| Other ID (3 digits of the ID card) | yes | password recovery only |
-| App activity (quiz results) | yes | showing the candidate their progress |
-| Device identifiers / push token | yes | notifications and device limit |
-
-Encrypted in transit: **yes** (HTTPS). Users can request deletion: **yes**.
-
-**Account deletion URL** → `https://codeboujida.com/legal/account-deletion.html`
-
-**App access** — choose *"All or some functionality is restricted"* and give:
-```
-Login: <DEMO_PHONE>
-Password: <DEMO_PASSWORD>
-Note: full content is enabled by the driving school on this account.
-```
-
-**Content rating** — fill the questionnaire. An education app with no violence,
-gambling or user-generated content rates as suitable for everyone.
-
-**Target audience** — 18+ is the honest answer for a driving-licence app.
-
-**Ads** — declare **no ads**.
+Work through them in the order below, not the order Google shows.
 
 ---
 
-# Part 5 — Upload and test on the store
+# PART 11 — The forms (this is where people get stuck)
 
-### Step 14. Internal testing first
+🌐 **BROWSER** — all of these are under **Policy → App content** in the left
+menu, unless stated otherwise.
+
+### Step 11.1 — Privacy policy
+
+**App content** → **Privacy policy** → **Start**
+
+Paste:
+```
+https://codeboujida.com/legal/privacy.html
+```
+**Save.**
+
+### Step 11.2 — App access ⚠️ the critical one
+
+**App content** → **App access** → **Start**
+
+1. Choose **All or some functionality is restricted**
+2. Click **Add new instructions**
+3. Fill in:
+   - Name: `Full content access`
+   - Username: `<DEMO_PHONE>`
+   - Password: `<DEMO_PASSWORD>`
+   - Any other instructions:
+     ```
+     Log in with the phone number and password above.
+     Full content is already enabled on this account by the driving school.
+     Content is in Arabic. The app works offline after the first sync.
+     ```
+4. **Add** → **Save**
+
+**Why:** without this the reviewer cannot see your locked content and rejects
+the app.
+
+### Step 11.3 — Ads
+
+**App content** → **Ads** → **Start** → **No, my app does not contain ads** →
+**Save**.
+
+### Step 11.4 — Content rating
+
+**App content** → **Content rating** → **Start**
+
+1. Enter your email
+2. Category: **Reference, News, or Educational**
+3. Answer the questionnaire — for this app everything is **No**: no violence, no
+   sexual content, no profanity, no drugs, no gambling, no user-generated
+   content, no location sharing
+4. **Save** → **Submit**
+
+✅ You receive ratings like PEGI 3 / Everyone.
+
+### Step 11.5 — Target audience
+
+**App content** → **Target audience and content** → **Start**
+
+1. Age groups: tick **18 and over** only
+   **Why:** a driving-licence app is for adults. Ticking a child age group
+   triggers Google's Families policy, which is a much stricter review.
+2. "Appeal to children": **No**
+3. **Save**
+
+### Step 11.6 — Data safety ⚠️ be accurate
+
+**App content** → **Data safety** → **Start**
+
+Answer:
+
+| Question | Answer |
+|---|---|
+| Does your app collect or share user data? | **Yes** |
+| Is all data encrypted in transit? | **Yes** |
+| Do you provide a way to request data deletion? | **Yes** |
+| Deletion URL | `https://codeboujida.com/legal/account-deletion.html` |
+
+Then tick these data types:
+
+| Category | Type | Collected | Shared | Purpose |
+|---|---|---|---|---|
+| Personal info | **Name** (the username) | Yes | No | Account management |
+| Personal info | **Phone number** | Yes | No | Account management |
+| Personal info | **Other info** (3 digits of ID card) | Yes | No | Account management |
+| App activity | **Other actions** (quiz results) | Yes | No | App functionality |
+| Device IDs | **Device or other IDs** | Yes | No | App functionality |
+
+For each, mark it **Required** (not optional) — the app cannot work without an
+account.
+
+**Save** → **Next** → **Submit**.
+
+### Step 11.7 — Government apps / financial features / health
+
+**App content** → each of these → answer **No** → **Save**.
+
+### Step 11.8 — Store listing
+
+Left menu → **Grow → Store presence → Main store listing**
+
+| Field | What to write |
+|---|---|
+| App name | `codeboujida` |
+| Short description (80 chars) | `تطبيق التحضير لامتحان رخصة السياقة بالمغرب — دروس وسلاسل وامتحانات` |
+| Full description | Describe the series, lessons, road signs, practical videos and live sessions. Do **not** mention prices, subscriptions or payment. |
+
+**Graphics you must upload:**
+
+| Asset | Size | How to get it |
+|---|---|---|
+| App icon | 512×512 PNG | Export from `mobile/assets/images/icon.png` |
+| Feature graphic | 1024×500 PNG/JPG | Make one in Canva — app name on the yellow/dark theme |
+| Phone screenshots | min 2, max 8 | Take them on the phone from Part 7: home, a quiz question, lessons grid, results, live section |
+
+**Save.**
+
+---
+
+# PART 12 — Upload and test through Play
 
 ⚠️ **Never send the first build straight to production.** Internal testing
-installs in minutes with no review, and lets you catch a broken build before
-anyone sees it.
+installs in minutes with no review — it is how you discover a broken build
+privately.
 
-Play Console → **Testing → Internal testing** → **Create new release** → upload
-the `.aab` from Step 8 → add your own email as a tester → **Review release** →
-**Start rollout**.
+### Step 12.1 — Create the internal test
 
-✅ You get an opt-in link. Open it on your phone, accept, install from Play.
+🌐 **BROWSER** → left menu → **Test and release → Testing → Internal testing**
+→ **Create new release**
 
-### Step 15. Test the installed app
+1. **App signing:** accept Google Play App Signing (the default) → **Continue**
+2. **App bundles:** drag in the `.aab` from Step 8.2
+3. Release name: fills in automatically (e.g. `1`)
+4. Release notes, inside the `<ar-AR>` tags:
+   ```
+   الإصدار الأول.
+   ```
+5. **Next** → **Save and publish** (or **Start rollout to Internal testing**)
 
-Repeat the Step 9 checklist on the **Play-installed** build, plus:
+### Step 12.2 — Add yourself as a tester
 
-- [ ] A push notification arrives (have the admin panel trigger a live, or wait
-      for the daily one)
-- [ ] The app opens from the notification onto the live screen
+🌐 **BROWSER** — same page → **Testers** tab
 
-✅ Push working here proves Part 2 was done correctly. This is the only place it
-can be verified.
+1. **Create email list** → name it `me` → add your Gmail address → **Save**
+2. Tick the list → **Save changes**
+3. Copy the **join link** at the bottom of the page
 
-### Step 16. Submit for review
+### Step 12.3 — Install from Play
 
-**Production** → **Create new release** → reuse the same bundle → **Review
-release** → **Start rollout to production**.
+📱 **ON THE PHONE** — open the join link in a browser, tap **Accept the
+invitation**, then **Download it on Google Play**.
 
-✅ Status becomes "In review". First reviews typically take **a few days**;
-updates are usually much faster.
+⚠️ First uninstall the APK from Part 7 — it was signed differently and Android
+refuses to replace it.
 
-**Use a staged rollout** — start at 20%. If something is badly wrong you halt it
-before it reaches everyone.
+✅ The app installs from the Play Store.
 
-❌ If it's rejected, the email names the exact policy. The likely ones for this
-app are in Part 8.
+### Step 12.4 — Final test
+
+📱 **ON THE PHONE**, on this Play-installed build:
+
+- [ ] Everything from the Step 7.5 checklist still passes
+- [ ] **A push notification arrives** — this is the only place FCM can be
+      verified. Wait for the daily live reminder, or set the live time in the
+      admin panel to a few minutes from now
+- [ ] Tapping the notification opens the app on the live screen
 
 ---
 
-# Part 6 — Updating later
+# PART 13 — Go live
+
+### Step 13.1 — Promote to production
+
+🌐 **BROWSER** → **Test and release → Production** → **Create new release**
+
+1. Click **Add from library** and pick the same bundle you tested — do **not**
+   build a new one
+2. Same release notes
+3. **Next** → **Save** → **Go to overview** → **Send for review**
+
+### Step 13.2 — Use a staged rollout
+
+On the review screen, set the rollout percentage to **20%**.
+
+**Why:** if something is badly broken, only a fifth of users get it and you can
+halt the rollout. Raise it to 100% after a few days of clean crash reports.
+
+### Step 13.3 — Wait
+
+✅ Status becomes **In review**. A first review usually takes **1–7 days**.
+Google emails you either way.
+
+If rejected, the email names the exact policy — see Part 15.
+
+---
+
+# PART 14 — Updating the app later
 
 **Most changes need no update at all.** Series, questions, lessons, videos, shop
-products and live times all come from your API — you press **نشر** in the admin
-panel and phones pick them up on their next sync. The store is only involved
-when the **app's code** changes.
+products and live times all come from your server — press **نشر** in the admin
+panel and phones pick them up on their next sync.
 
-When it does:
+You only need a new release when the **app's code** changes:
 
+💻 **LAPTOP** — in the `mobile` folder:
 ```bash
-cd mobile
+git pull
 npx tsc --noEmit
+git status                # must be clean — EAS builds committed code only
 eas build --profile production --platform android
 eas submit --profile production --platform android
 ```
 
-The version number increments automatically (`autoIncrement` in `eas.json`), so
-you can never collide with a version already on the store.
+`eas submit` uploads straight to the **internal** track (already configured in
+`eas.json`). Test it there, then promote to production in the Console exactly as
+in Step 13.1.
 
-`eas submit` uploads to the **internal** track first (that's the configured
-default). Promote it to production in the Console once you've checked it.
+The version number increments itself, so you can never clash with a version
+already on the store.
 
-⚠️ **Never change `com.codeboujida.app`.** Changing the package name creates a
-completely different app: existing users keep the old one forever and get no
-updates.
-
----
-
-# Part 7 — After launch
-
-- **Play Console → Quality → Crashes and ANRs** — check weekly. The app has no
-  crash reporting of its own, so this is your only view.
-- **Renew the demo account every three months** or the next update is rejected.
-- **Target API level** — Google raises the minimum every August. When you get
-  the warning email, upgrading the Expo SDK and rebuilding is the fix.
-- **Reviews** — replying is free and visibly improves ratings.
+⚠️ **Never change `com.codeboujida.app`.** A different package name is a
+different app: existing users keep the old one and never receive updates.
 
 ---
 
-# Part 8 — When it goes wrong
+# PART 15 — When something goes wrong
 
-### Build fails: "owner does not match"
-`owner` in `app.json` is `codeboujida`; `eas whoami` prints something else.
-Log in with the right account, or fix `owner`.
+### Build fails: "owner does not match" / "not authorized"
+💻 Run `eas whoami`. It must print `codeboujida`. If not:
+```bash
+eas logout
+eas login
+```
 
 ### Build fails during "Install dependencies"
-Almost always a lockfile that doesn't match `package.json`. On your laptop:
+Your lockfile disagrees with `package.json`:
 ```bash
-cd mobile && npm install && git add package-lock.json && git commit -m "sync lockfile" && git push
+cd mobile
+npm install
+git add package-lock.json
+git commit -m "sync lockfile"
+git push
+```
+
+### My change isn't in the build
+It wasn't committed. EAS builds from git, not from your disk:
+```bash
+git status && git add -A && git commit -m "..." && git push
 ```
 
 ### The app installs but every screen is empty
-It cannot reach the API. Check on the phone's network:
+It cannot reach the server. Check from your laptop:
 ```bash
 curl -s https://codeboujida.com/api/health
 ```
-If that works, you likely built a profile whose `EXPO_PUBLIC_API_URL` points
-somewhere else — `development` deliberately points at a LAN IP.
+If that answers, you probably installed a `development` build — that profile
+points at a LAN IP on purpose. Use `preview` or `production`.
 
 ### Rejected: "Account deletion"
-The URL 404s, or the in-app path is missing. Both exist in this codebase —
-confirm Step 1 actually deployed, then reply to the rejection pointing at
-Settings → الحساب → حذف حسابي نهائياً.
+The URL 404s or the reviewer couldn't find the button. Re-check Step 1.8, then
+reply pointing at **الإعدادات → الحساب → حذف حسابي نهائياً**.
 
-### Rejected: "Payments" or "In-app purchases"
-A reviewer read the unlock screen as selling digital content. Every purchase
-word was removed from the app for exactly this reason — the screen asks the
-school to enable access and never mentions money. Reply explaining that access
-is granted by the driving school as part of enrolment, that nothing is sold in
-the app, and that the shop lists **physical** goods only, which store billing
-rules exempt.
+### Rejected: "Payments" / "In-app purchases"
+A reviewer read the unlock screen as selling something. Reply with:
+> The app sells nothing. Full content is enabled by the driving school as part
+> of a student's enrolment, arranged outside the app. The shop section lists
+> physical items only, which Play billing policy exempts. There is no price,
+> checkout or payment flow anywhere in the app.
 
-### Rejected: "Broken functionality"
-The reviewer couldn't get past the lock. The demo account expired or was never
-added. Renew it (المجموعة المجانية → +3 أشهر) and resubmit.
+### Rejected: "Broken functionality" / "Cannot access content"
+The demo account expired or was never unlocked. Fix it (admin → المستخدمون →
+**تجديد 3 أشهر**), confirm you can log in as that account, then resubmit.
+
+### Push notifications never arrive
+Only testable on a Play or preview build, never in Expo Go. Re-check Part 5,
+especially that the Firebase package name is exactly `com.codeboujida.app`.
 
 ---
 
-# Part 9 — iOS, afterwards
+# PART 16 — iOS, later
 
-The build is the easy half; the account is not.
+Once Android is live, iOS reuses everything you built here.
 
 **What's different:**
 
-1. **Apple Developer Program — $99/year**, and for a company account you need a
-   **D-U-N-S number**, which can take a week or two to obtain. Start early.
-2. **`eas build --profile production --platform ios`** — EAS handles
-   certificates and provisioning profiles for you.
-3. **`eas submit --platform ios`** uploads to App Store Connect.
-4. **TestFlight** is Apple's internal testing, equivalent to Step 14.
-5. **App Privacy** answers mirror the Data Safety table in Step 13.
-6. **Account deletion is required on iOS too** — same URL, same in-app path.
-7. Apple reviews **every** update, typically within a day or two. Rejections
-   come with a specific guideline number and a reply thread.
+1. **$99/year** Apple Developer Program, and a company account needs a
+   **D-U-N-S number** that can take 1–2 weeks. Start it early.
+2. 💻 `eas build --profile production --platform ios` — EAS handles the
+   certificates.
+3. 💻 `eas submit --platform ios` uploads to App Store Connect.
+4. **TestFlight** is Apple's internal testing, the equivalent of Part 12.
+5. **App Privacy** answers mirror your Data safety table from Step 11.6.
+6. **Account deletion is required by Apple too** — same URL, same button.
+7. Apple reviews **every** update, usually within a day or two.
 
-**One Apple-specific risk:** Guideline 3.1.1 covers external purchases more
-strictly than Google. The same argument applies — access is granted by the
-driving school, nothing is sold in the app — but expect a higher chance of
-being asked about it, and answer in the review thread rather than changing the
-app.
+**One extra risk:** Apple's Guideline 3.1.1 on external purchases is applied
+more strictly than Google's. The same answer applies — access is granted by the
+driving school, nothing is sold in the app — but reply in the review thread
+rather than changing the app.
 
-The bundle identifier is already `com.codeboujida.app`, matching Android.
+Your bundle identifier is already `com.codeboujida.app`, matching Android.
