@@ -10,15 +10,20 @@ export function TimerPill({
   seconds,
   total,
   onPress,
+  off = false,
 }: {
   seconds: number;
   /** The full duration for this question, so the alert scales with it. */
   total: number;
   onPress?: () => void;
+  /** Countdown switched off in settings — show why, don't show a frozen 0s. */
+  off?: boolean;
 }) {
   // A fixed "under 10s" alert would keep a 10s question red from the start,
   // so the threshold is a third of the chosen duration instead.
-  const danger = seconds <= Math.max(3, Math.round(total / 3));
+  // `off` first: with total 0 the threshold collapses to 3 and a 0s reading
+  // would sit there pulsing red as though the candidate had run out of time.
+  const danger = !off && seconds <= Math.max(3, Math.round(total / 3));
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -45,6 +50,23 @@ export function TimerPill({
   }, [danger, scale]);
 
   const shown = Math.max(0, seconds);
+
+  if (off) {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        hitSlop={8}
+        style={styles.pill}
+        accessibilityRole="button"
+        accessibilityLabel="المؤقت متوقف — اضغط لتفعيله"
+      >
+        <Icon name="timerOff" size={15} color={colors.textDim} />
+        <Text style={[styles.text, styles.textOff]}>بدون مؤقت</Text>
+      </Pressable>
+    );
+  }
+
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -86,6 +108,7 @@ const styles = StyleSheet.create({
   },
   affordance: { opacity: 0.9 },
   pillDanger: { backgroundColor: colors.danger, borderColor: colors.danger },
+  textOff: { color: colors.textDim, fontSize: 13 },
   text: { fontFamily: font.extraBold, fontSize: 18, color: colors.lessons },
   textDanger: { color: colors.text },
 });

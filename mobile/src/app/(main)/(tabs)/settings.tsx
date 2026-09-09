@@ -1,8 +1,8 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { API_URL } from "@/config";
+import { api } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
 import { PressableScale } from "@/components/PressableScale";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -14,10 +14,44 @@ import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function SettingsScreen() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [seconds, setSeconds] = useQuestionSeconds();
   const [repairing, setRepairing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [progress, setProgress] = useState<SyncProgress | null>(null);
+
+  // Required by Google Play and the App Store: an account created in the app
+  // must be deletable from inside the app. Two taps, both explicit, because it
+  // cannot be undone.
+  const deleteAccount = () => {
+    Alert.alert(
+      "حذف الحساب نهائياً",
+      "سيُحذف حسابك وكل نتائجك وطلباتك بشكل نهائي. لا يمكن التراجع عن هذه العملية.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "حذف حسابي",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setDeleting(true);
+              try {
+                await api("/auth/me", { method: "DELETE" });
+                // The account is gone, so the session must go with it.
+                await logout();
+              } catch {
+                setDeleting(false);
+                Alert.alert(
+                  "تعذّر حذف الحساب",
+                  "تأكد من اتصالك بالإنترنت ثم أعد المحاولة.",
+                );
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
 
   const repair = () => {
     Alert.alert(
@@ -93,13 +127,13 @@ export default function SettingsScreen() {
                   user?.isPremium ? styles.badgeTextPremium : styles.badgeTextFree,
                 ]}
               >
-                {user?.isPremium ? "مشترك" : "مجاني"}
+                {user?.isPremium ? "مفعّل" : "غير مفعّل"}
               </Text>
             </View>
           </View>
           {!user?.isPremium && (
             <PressableScale
-              onPress={() => router.push("/payment")}
+              onPress={() => router.push("/unlock")}
               style={styles.upsell}
             >
               <Text style={styles.upsellText}>افتح المحتوى الكامل ←</Text>
@@ -154,17 +188,26 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>عن التطبيق</Text>
+        <View style={[styles.card, styles.dangerCard]}>
+          <Text style={styles.cardLabel}>الحساب</Text>
+          <Text style={styles.cardTitle}>حذف الحساب</Text>
+          <Text style={styles.cardBody}>
+            حذف نهائي لحسابك ولكل بياناتك من الخادم. لا يمكن التراجع، وستحتاج
+            إلى التسجيل من جديد إذا أردت العودة.
+          </Text>
           <PressableScale
-            onPress={() =>
-              void Linking.openURL(`${API_URL}/legal/privacy.html`).catch(
-                () => undefined,
-              )
-            }
-            style={styles.linkRow}
+            onPress={deleteAccount}
+            disabled={deleting}
+            style={styles.dangerButton}
           >
-            <Text style={styles.linkText}>سياسة الخصوصية ←</Text>
+            {deleting ? (
+              <ActivityIndicator size="small" color={colors.danger} />
+            ) : (
+              <>
+                <Icon name="alert" size={16} color={colors.danger} />
+                <Text style={styles.dangerButtonText}>حذف حسابي نهائياً</Text>
+              </>
+            )}
           </PressableScale>
         </View>
       </ScrollView>
@@ -174,6 +217,18 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  dangerCard: { borderColor: "rgba(229,72,77,0.35)" },
+  dangerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+    height: 48,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  dangerButtonText: { fontFamily: font.bold, fontSize: 15, color: colors.danger },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
   title: { ...type.display, color: colors.text },
@@ -223,6 +278,4 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
   },
   devButtonText: { fontFamily: font.bold, fontSize: 15, color: colors.text },
-  linkRow: { paddingVertical: space.xs },
-  linkText: { ...type.body, color: colors.lessons, textAlign: "right" },
 });

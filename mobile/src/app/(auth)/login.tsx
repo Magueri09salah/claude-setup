@@ -51,7 +51,7 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.logo}>طريق</Text>
+          <Text style={styles.logo}>codeboujida</Text>
           <Text style={styles.title}>مرحباً بعودتك 👋</Text>
           <Text style={styles.subtitle}>
             سجّل الدخول لمتابعة التحضير لامتحان رخصة السياقة

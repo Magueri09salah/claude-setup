@@ -28,8 +28,10 @@ export interface QuizState {
   index: number;
   total: number;
   timeLeft: number;
-  /** Full duration allotted to the current question (10/20/30s). */
+  /** Full duration allotted to the current question (10/20/30s, 0 = off). */
   questionSeconds: number;
+  /** false when the candidate turned the countdown off — no timer, no timeout. */
+  timed: boolean;
   paused: boolean;
   /** True until the question's audio has finished — the timer waits for it. */
   waitingForAudio: boolean;
@@ -147,11 +149,16 @@ export function useQuizEngine(source: QuizSource): QuizState {
 
   // Countdown — one interval, only while playing, not paused, and after the
   // question has been read out.
+  // questionSeconds === 0 means the candidate switched the timer off: no
+  // interval, and (below) no timeout submit — otherwise timeLeft would start at
+  // 0 and every question would submit itself instantly.
+  const timed = questionSeconds > 0;
+
   useEffect(() => {
-    if (phase !== "playing" || paused || waitingForAudio) return;
+    if (!timed || phase !== "playing" || paused || waitingForAudio) return;
     const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(timer);
-  }, [phase, index, paused, waitingForAudio]);
+  }, [timed, phase, index, paused, waitingForAudio]);
 
   // Idempotent: the screen may report the end from several places (status
   // update, missing file, playback error) and only the first one matters.
@@ -161,10 +168,10 @@ export function useQuizEngine(source: QuizSource): QuizState {
 
   // Auto-submit at timeout with the current selection.
   useEffect(() => {
-    if (phase === "playing" && timeLeft <= 0) {
+    if (timed && phase === "playing" && timeLeft <= 0) {
       submit(selected, true);
     }
-  }, [phase, timeLeft, selected, submit]);
+  }, [timed, phase, timeLeft, selected, submit]);
 
   // Pause holds ONLY the countdown (owner decision 2026-08-11): the audio keeps
   // reading, the question stays on screen, answering stays available.
@@ -203,6 +210,7 @@ export function useQuizEngine(source: QuizSource): QuizState {
     total,
     timeLeft,
     questionSeconds,
+    timed,
     paused,
     waitingForAudio,
     audioFinished,

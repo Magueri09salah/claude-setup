@@ -34,7 +34,7 @@ const BENEFITS = [
 const STEPS = [
   "اضغط على زر واتساب بالأسفل",
   "أرسل الرسالة الجاهزة كما هي — تحتوي على رقمك",
-  "بعد التأكيد يُفتح لك المحتوى كاملاً في نفس الحساب",
+  "بعد تأكيد الإدارة يُفتح لك المحتوى كاملاً في نفس الحساب",
 ];
 
 /** 2026-11-26 → "26/11/2026", the way the owner reads a date out loud. */
@@ -49,9 +49,11 @@ function remainingDays(iso: string): number | null {
   return days >= 0 ? days : null;
 }
 
-// Access is requested over WhatsApp instead of being paid for in-app (owner
-// decision 2026-08-13): the admin adds the candidate's number to the allowlist
-// after the conversation, and the API grants premium server-side.
+// There is no purchase in this app. Full content is opened by the school: the
+// candidate sends their number over WhatsApp, the admin adds it to the
+// allowlist, and the API grants access server-side. Nothing here may read as a
+// sale — app stores require digital purchases to go through their own billing,
+// so this screen is an ENROLMENT request, not a checkout.
 export default function UnlockScreen() {
   const { user, refreshUser } = useAuth();
   const [support, setSupport] = useState<Support | null>(null);
@@ -123,7 +125,7 @@ export default function UnlockScreen() {
           <View style={styles.expiryPill}>
             <Icon name="calendar" size={15} color={colors.lessons} />
             <Text style={styles.expiryText}>
-              اشتراكك صالح حتى {formatExpiry(user.premiumUntil)}
+              وصولك مفتوح حتى {formatExpiry(user.premiumUntil)}
               {remainingDays(user.premiumUntil) !== null
                 ? ` · ${remainingDays(user.premiumUntil)} يوم متبقٍ`
                 : ""}
@@ -144,12 +146,12 @@ export default function UnlockScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />
           </Pressable>
-          <Text style={[styles.title, styles.titleFlex]}>افتح المحتوى الكامل</Text>
+          <Text style={[styles.title, styles.titleFlex]}>فتح المحتوى</Text>
         </View>
 
         <View style={styles.pitch}>
           <Icon name="unlock" size={32} color={colors.lessons} />
-          <Text style={styles.pitchTitle}>اشتراك طريق المميّز</Text>
+          <Text style={styles.pitchTitle}>المحتوى الكامل</Text>
           <View style={styles.benefits}>
             {BENEFITS.map((b) => (
               <View key={b} style={styles.benefitRow}>
@@ -161,7 +163,7 @@ export default function UnlockScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>كيف تحصل عليه</Text>
+          <Text style={styles.cardTitle}>كيف تحصل على الوصول</Text>
           {STEPS.map((step, i) => (
             <View key={step} style={styles.stepRow}>
               <View style={styles.stepNum}>
@@ -179,7 +181,7 @@ export default function UnlockScreen() {
         ) : support.whatsappNumber ? (
           <PressableScale onPress={openWhatsapp} style={styles.whatsapp}>
             <BrandIcon platform="WHATSAPP" size={22} color={colors.onAccent} />
-            <Text style={styles.whatsappText}>تواصل معنا على واتساب</Text>
+            <Text style={styles.whatsappText}>تواصل مع الإدارة عبر واتساب</Text>
           </PressableScale>
         ) : (
           <View style={styles.card}>

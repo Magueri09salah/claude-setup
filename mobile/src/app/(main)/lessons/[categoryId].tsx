@@ -42,7 +42,7 @@ export default function CategoryScreen() {
                 <PressableScale
                   key={c.id}
                   onPress={() =>
-                    locked ? router.push("/payment") : openCategory(c.id)
+                    locked ? router.push("/unlock") : openCategory(c.id)
                   }
                   style={[styles.gridCard, { width: basis }, locked && styles.locked]}
                 >
@@ -77,7 +77,7 @@ export default function CategoryScreen() {
                   key={l.id}
                   onPress={() =>
                     locked
-                      ? router.push("/payment")
+                      ? router.push("/unlock")
                       : router.push(
                           // Videos stream from their own screen; signs are the
                           // offline flashcard grid.
@@ -111,7 +111,7 @@ export default function CategoryScreen() {
                   </Text>
                   <Text style={styles.gridMeta}>
                     {locked
-                      ? "للمشتركين فقط"
+                      ? "يتطلب تفعيل الحساب"
                       : l.kind === "VIDEOS"
                         ? `${l.video_count} فيديو`
                         : `${l.sign_count} علامة`}

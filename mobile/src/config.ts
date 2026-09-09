@@ -16,10 +16,19 @@ function devApiUrl(): string | null {
   return isLanIp ? `http://${host}:4000` : null;
 }
 
-const configured = process.env.EXPO_PUBLIC_API_URL;
+const configured = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
 
-// Dev: follow the Metro host. Production build: use the configured URL
-// (EXPO_PUBLIC_API_URL from the EAS build profile).
+/**
+ * Where a RELEASED app talks to. Hardcoded on purpose as the last resort: a
+ * build profile that forgot EXPO_PUBLIC_API_URL used to fall back to
+ * localhost, so the shipped app called the phone itself — every request failed,
+ * and Android blocks cleartext HTTP anyway, so it was unfixable without a new
+ * release. Falling back to the real server keeps a misconfigured build working.
+ */
+const PRODUCTION_API_URL = "https://codeboujida.com/api";
+
+// Dev: follow the Metro host so a new Wi-Fi IP needs no edit. Release build:
+// the configured URL, or the production default.
 export const API_URL: string = __DEV__
   ? (devApiUrl() ?? configured ?? "http://localhost:4000")
-  : (configured ?? "http://localhost:4000");
+  : (configured || PRODUCTION_API_URL);

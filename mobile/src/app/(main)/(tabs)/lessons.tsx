@@ -37,7 +37,7 @@ export default function LessonsHomeScreen() {
               <PressableScale
                 key={c.id}
                 onPress={() =>
-                  locked ? router.push("/payment") : openCategory(c.id)
+                  locked ? router.push("/unlock") : openCategory(c.id)
                 }
                 style={[styles.row, locked && styles.lockedRow]}
               >
@@ -51,7 +51,7 @@ export default function LessonsHomeScreen() {
                 {locked && (
                   <View style={styles.lockChip}>
                     <Icon name="lock" size={13} color={colors.premium} />
-                    <Text style={styles.lockChipText}>مدفوع</Text>
+                    <Text style={styles.lockChipText}>مقفل</Text>
                   </View>
                 )}
                 <Text style={styles.rowTitle}>{c.title}</Text>

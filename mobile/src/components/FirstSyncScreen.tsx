@@ -15,7 +15,7 @@ export function FirstSyncScreen({ progress }: { progress: SyncProgress | null })
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.logo}>طريق</Text>
+      <Text style={styles.logo}>codeboujida</Text>
       <Text style={styles.title}>جاري تحميل المحتوى لأول مرة…</Text>
       <Text style={styles.phase}>{phaseLabel}</Text>
       <View style={styles.track}>

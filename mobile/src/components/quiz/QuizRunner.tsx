@@ -190,18 +190,22 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             >
               <Icon name="close" size={22} color={colors.text} />
             </Pressable>
-            <Pressable
-              onPress={quiz.togglePause}
-              hitSlop={8}
-              style={[styles.railButton, paused && styles.railButtonOn]}
-              accessibilityLabel={paused ? "استئناف" : "إيقاف مؤقت"}
-            >
-              <Icon
-                name={paused ? "play" : "pause"}
-                size={22}
-                color={paused ? colors.onAccent : colors.text}
-              />
-            </Pressable>
+            {/* Pause freezes the countdown only, so it has nothing to do when
+                the candidate turned the timer off. */}
+            {quiz.timed && (
+              <Pressable
+                onPress={quiz.togglePause}
+                hitSlop={8}
+                style={[styles.railButton, paused && styles.railButtonOn]}
+                accessibilityLabel={paused ? "استئناف" : "إيقاف مؤقت"}
+              >
+                <Icon
+                  name={paused ? "play" : "pause"}
+                  size={22}
+                  color={paused ? colors.onAccent : colors.text}
+                />
+              </Pressable>
+            )}
             <Pressable
               onPress={replay}
               hitSlop={8}
@@ -225,9 +229,10 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               <TimerPill
                 seconds={quiz.timeLeft}
                 total={quiz.questionSeconds}
+                off={!quiz.timed}
                 onPress={() => setTimerSheet(true)}
               />
-              {quiz.waitingForAudio && (
+              {quiz.timed && quiz.waitingForAudio && (
                 <Icon name="volume" size={15} color={colors.textDim} />
               )}
               <Text style={styles.stripTitle} numberOfLines={1}>
@@ -295,7 +300,8 @@ export function QuizRunner({ source }: { source: QuizSource }) {
           <Icon name="close" size={24} color={colors.text} />
         </Pressable>
         <View style={styles.topActions}>
-          <Pressable
+          {quiz.timed && (
+            <Pressable
             onPress={quiz.togglePause}
             hitSlop={10}
             style={[styles.pill, paused && styles.pillActive]}
@@ -311,6 +317,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               {paused ? "استئناف" : "إيقاف"}
             </Text>
           </Pressable>
+          )}
           <Pressable onPress={replay} hitSlop={10} style={styles.pill}>
             <Icon name="volume" size={16} color={colors.text} />
             <Text style={styles.pillText}>إعادة</Text>
@@ -322,6 +329,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         <TimerPill
           seconds={quiz.timeLeft}
           total={quiz.questionSeconds}
+          off={!quiz.timed}
           onPress={() => setTimerSheet(true)}
         />
         <View style={styles.chip}>
@@ -331,8 +339,9 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         </View>
       </View>
 
-      {/* A frozen clock looks broken unless you say why it is frozen. */}
-      {quiz.waitingForAudio && (
+      {/* A frozen clock looks broken unless you say why it is frozen. Only
+          relevant while there IS a clock. */}
+      {quiz.timed && quiz.waitingForAudio && (
         <View style={styles.hintRow}>
           <Icon name="volume" size={13} color={colors.textDim} />
           <Text style={styles.hintText}>يبدأ العد بعد انتهاء قراءة السؤال</Text>

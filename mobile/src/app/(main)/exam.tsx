@@ -32,7 +32,7 @@ export default function ExamListScreen() {
   );
 
   const open = (s: SeriesRow) => {
-    router.push(s.locked === 1 ? "/payment" : `/quiz/${s.id}`);
+    router.push(s.locked === 1 ? "/unlock" : `/quiz/${s.id}`);
   };
 
   return (
@@ -69,7 +69,7 @@ export default function ExamListScreen() {
                 {locked ? (
                   <View style={styles.lockChip}>
                     <Icon name="lock" size={13} color={colors.premium} />
-                    <Text style={styles.lockChipText}>مدفوع</Text>
+                    <Text style={styles.lockChipText}>مقفل</Text>
                   </View>
                 ) : (
                   <View style={styles.left}>

@@ -47,6 +47,7 @@ const MAP = {
   clockFast: "clock-fast",
   clock: "clock-outline",
   timer: "timer-outline",
+  timerOff: "timer-off-outline",
   // image viewer
   rotate: "phone-rotate-landscape",
   zoomReset: "fit-to-screen-outline",
