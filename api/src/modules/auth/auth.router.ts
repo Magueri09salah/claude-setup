@@ -19,6 +19,16 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   res.json({ user: await authService.getMe(req.auth!.userId) });
 });
 
+/**
+ * Delete my account. Irreversible, and deliberately requires no body: the
+ * caller is already authenticated, and the app asks for confirmation before
+ * sending this. Store policy requires this to exist in-app.
+ */
+authRouter.delete("/me", requireAuth, async (req, res) => {
+  await authService.deleteAccount(req.auth!.userId);
+  res.status(204).end();
+});
+
 authRouter.post("/register", async (req, res) => {
   const input = registerSchema.parse(req.body);
   const result = await authService.register(input);

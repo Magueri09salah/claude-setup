@@ -345,3 +345,30 @@ export async function resetPassword(input: {
     data: { revokedAt: new Date() },
   });
 }
+
+/**
+ * Permanently delete a candidate's account and all of their data.
+ *
+ * Required by the app stores: any app that lets people create an account must
+ * let them delete it from inside the app.
+ *
+ * Children are removed explicitly rather than by cascade — every relation here
+ * is required, so Prisma's default RESTRICT would refuse the delete and the
+ * candidate would see a generic 500. The allowlist entry is un-claimed rather
+ * than deleted: the number stays on the school's list so the same person can
+ * register again and be granted access, which is what the owner expects.
+ */
+export async function deleteAccount(userId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.attempt.deleteMany({ where: { userId } }),
+    prisma.device.deleteMany({ where: { userId } }),
+    prisma.refreshToken.deleteMany({ where: { userId } }),
+    prisma.courseRequest.deleteMany({ where: { userId } }),
+    prisma.payment.deleteMany({ where: { userId } }),
+    prisma.premiumPhone.updateMany({
+      where: { claimedBy: userId },
+      data: { claimedBy: null, claimedAt: null },
+    }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
+}
