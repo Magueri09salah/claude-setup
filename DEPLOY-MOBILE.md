@@ -192,50 +192,86 @@ exit
 
 ---
 
-# PART 2 — Create the account you give to Google
+# PART 2 — Create the account you will give to Google
 
-⚠️ **The number one reason first submissions get rejected.** Your app hides its
-content behind a lock that only *you* can open from the admin panel. A Google
-reviewer will register, see empty screens, and reject the app as broken. So you
-create an account for them and unlock it yourself.
+### What this account is
 
-### Step 2.1 — Register the account
+**An ordinary student account inside your own app** — one phone number and one
+password, exactly like a real candidate would create. It has nothing to do with
+your Google or Expo accounts.
 
-🌐 **BROWSER** — you need the app on a phone to register. If you don't have a
-build yet, that's fine: **come back and do Part 2 after Step 7.4**, when you
-have the test APK installed.
+You then **unlock it from your admin panel**, so it can see the locked content.
+You type that phone and password into a form in the Play Console. When Google's
+reviewer tests your app, they log in with it and see everything.
 
-In the app: **إنشاء حساب** with
-- username: `googleplay`
-- phone: `<DEMO_PHONE>` (a real number you control)
-- password: `<DEMO_PASSWORD>`
-- ID digits: any 3 digits — write them down
+### Why it decides whether you pass review
 
-### Step 2.2 — Unlock it from your admin panel
+Your app hides its content behind a lock only you can open. A reviewer who
+registers normally would see empty screens, decide the app is broken, and reject
+it. This is the number one reason first submissions fail.
+
+### You do not need the app to create it
+
+The account lives on your server, not on the phone. You create it by talking to
+the server directly — so this works right now, before anything is built.
+
+### Step 2.1 — Create the account
+
+💻 **LAPTOP** — any folder:
+
+```bash
+curl.exe -s -X POST https://codeboujida.com/api/auth/register -H "Content-Type: application/json" -d "{\"username\":\"googleplay\",\"phone\":\"0600000000\",\"password\":\"CHANGEME123\",\"cinLast3\":\"123\"}"
+```
+
+Replace `CHANGEME123` with a password you choose (8+ characters). Keep
+`0600000000` or use another valid Moroccan mobile number — **it is never
+verified by SMS**, so it does not have to be a real line you own.
+
+⚠️ On Windows use **`curl.exe`**, not `curl`. In PowerShell, plain `curl` is a
+different command and this will fail with a confusing error. In Git Bash either
+works.
+
+✅ Success looks like a long line of JSON containing `"accessToken"` and
+`"user"`. That means the account exists.
+
+❌ `"error":"..."` about the phone already existing means you already created it —
+carry on to Step 2.2.
+
+**Write these down**, you will need them in Step 11.2:
+```
+<DEMO_PHONE>    = 0600000000
+<DEMO_PASSWORD> = the one you just chose
+```
+
+### Step 2.2 — Unlock it in your admin panel
 
 🌐 **BROWSER** → `https://codeboujida.com/admin`
 
 1. Log in with your admin email and password
 2. Left menu → **المجموعة المجانية**
 3. Click **إضافة أرقام**
-4. Paste `<DEMO_PHONE>` in the box
+4. Paste the phone number `0600000000` into the box
 5. In the note field type: `Google Play review`
 6. Click **إضافة**
 
-✅ The number appears in the table, and the **الحساب** column shows the
-`googleplay` account (because it already registered).
+**Why this works:** adding a number to that list grants full access to whoever
+registered with it — which you just did in Step 2.1.
+
+✅ The number appears in the table and the **الحساب** column shows the
+`googleplay` account.
 
 ### Step 2.3 — Confirm the reviewer will see content
 
 🌐 **BROWSER** → admin → **المستخدمون** → find `googleplay`.
+
 ✅ The **الاشتراك** column shows days remaining (about 90).
 
-📱 Then, in the app on your phone, log in as that account and open a **locked**
-series. It must open.
-
 ⚠️ **Access lasts 3 months.** Put a reminder in your calendar. If it expires,
-your next app update gets rejected. Renewing is one click: admin → المستخدمون →
-**تجديد 3 أشهر**.
+your next app update is rejected because the reviewer gets locked out. Renewing
+is one click: admin → المستخدمون → **تجديد 3 أشهر**.
+
+You will log in as this account on a real phone later, in Step 7.5, to be
+certain it works.
 
 ---
 
@@ -508,12 +544,12 @@ rendering with real Arabic fonts, or how the app behaves offline.
       account can no longer log in
 - [ ] A locked series shows **مقفل** and opens the WhatsApp screen — with **no
       price and no payment wording anywhere**
+- [ ] **Log out, then log in as the reviewer account** from Part 2
+      (`<DEMO_PHONE>` / `<DEMO_PASSWORD>`) and open a **locked** series — it must
+      open. This is exactly what Google's reviewer will do.
 
 ✅ If anything fails here, fix it before Part 8. Fixing an app after it is on
 the store takes days instead of minutes.
-
-**Now go back and do PART 2** if you haven't — you needed the app installed to
-register the demo account.
 
 ---
 
