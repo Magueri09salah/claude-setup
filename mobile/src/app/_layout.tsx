@@ -8,6 +8,7 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { StyleSheet, Text, View } from "react-native";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -15,7 +16,16 @@ import { AuthProvider, useAuth } from "@/auth/AuthContext";
 import { migrate } from "@/db";
 import { colors } from "@/theme/tokens";
 
-migrate();
+// Runs at import time, before React mounts. A throw here used to kill the app
+// on launch with no UI at all — impossible to diagnose without a USB cable.
+// Caught and remembered instead, so the app still starts and can say why.
+let migrationError: string | null = null;
+try {
+  migrate();
+} catch (e) {
+  migrationError = e instanceof Error ? e.message : String(e);
+  console.error("[db] migrate() failed at startup:", e);
+}
 
 // The WHOLE app rotates (owner decision 2026-08-14): app.json declares
 // "default" orientation and nothing locks it, so every screen must hold up in
@@ -34,6 +44,17 @@ function Gate() {
   useEffect(() => {
     if (hydrated && fontsLoaded) void SplashScreen.hideAsync();
   }, [hydrated, fontsLoaded]);
+
+  // The local database is what every learning screen reads from, so there is no
+  // usable app without it. Say so rather than showing an empty screen.
+  if (migrationError) {
+    return (
+      <View style={styles.fatal}>
+        <Text style={styles.fatalTitle}>تعذّر تشغيل التطبيق</Text>
+        <Text style={styles.fatalBody}>{migrationError}</Text>
+      </View>
+    );
+  }
 
   if (!hydrated || !fontsLoaded) return null;
 
@@ -71,3 +92,16 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  fatal: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 12,
+    backgroundColor: colors.bg,
+  },
+  fatalTitle: { color: colors.text, fontSize: 18, textAlign: "center" },
+  fatalBody: { color: colors.textDim, fontSize: 13, textAlign: "center" },
+});

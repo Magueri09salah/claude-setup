@@ -65,7 +65,7 @@
     ],
     "experiments": {
       "typedRoutes": false,
-      "reactCompiler": true
+      "reactCompiler": false
     },
     "owner": "codeboujida"
   }
