@@ -384,7 +384,43 @@ https://codeboujida.com/api
 That permission alone gets the app rejected, because nothing in it records
 audio.
 
-### Step 5.3 — Is everything committed?
+### Step 5.3 — Are the native libraries consistent? ⚠️ do not skip
+
+```bash
+npx expo-doctor
+```
+
+**Why:** this is the check that catches an app which builds perfectly and then
+crashes the instant it opens. EAS runs it during every build, but only **warns**
+— a yellow "Run expo doctor" step does not stop the build, so you get a
+finished file that does not work.
+
+✅ You want exactly:
+```
+18/18 checks passed. No issues detected!
+```
+
+❌ **"Missing peer dependency"** — a native module is missing. Install it the
+Expo way, never with plain `npm install`, so it picks the version your SDK
+needs:
+```bash
+npx expo install <the-package-it-names>
+```
+
+❌ **"duplicate native module dependencies"** — two versions of the same native
+library. Only one can be linked into an Android build, and if the wrong one
+wins, the app dies at launch.
+
+❌ **"packages match versions required by installed Expo SDK"** — fix all of
+them at once:
+```bash
+npx expo install --fix
+```
+
+After any of these, run `npx expo-doctor` again until it says 18/18, then
+commit the changed `package.json` and `package-lock.json`.
+
+### Step 5.4 — Is everything committed?
 
 ```bash
 git status
