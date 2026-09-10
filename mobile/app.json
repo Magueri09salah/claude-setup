@@ -60,7 +60,8 @@
         }
       ],
       "expo-video",
-      "expo-screen-orientation"
+      "expo-screen-orientation",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": false,
