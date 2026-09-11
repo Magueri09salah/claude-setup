@@ -1,4 +1,13 @@
-import { AppShell, Badge, Button, Group, Stack, Text, UnstyledButton } from "@mantine/core";
+import {
+  AppShell,
+  Badge,
+  Button,
+  Group,
+  ScrollArea,
+  Stack,
+  Text,
+  UnstyledButton,
+} from "@mantine/core";
 import {
   IconBook2,
   IconBroadcast,
@@ -106,24 +115,31 @@ export function Shell() {
         p="md"
         style={{ backgroundColor: "var(--admin-sidebar)" }}
       >
-        <Text className="nav-eyebrow">القائمة</Text>
-        <Stack gap={2}>
-          {nav.map((item) => {
-            const active = pathname === item.to;
-            const Icon = item.icon;
-            return (
-              <UnstyledButton
-                key={item.to}
-                component={Link}
-                to={item.to}
-                className={active ? "nav-item nav-item-active" : "nav-item"}
-              >
-                <Icon size={18} stroke={1.75} />
-                {item.label}
-              </UnstyledButton>
-            );
-          })}
-        </Stack>
+        {/* The heading stays put; only the list scrolls. `grow` makes the list
+            take the remaining height, so on a short window the bottom entries
+            are reachable instead of being cut off. */}
+        <AppShell.Section>
+          <Text className="nav-eyebrow">القائمة</Text>
+        </AppShell.Section>
+        <AppShell.Section grow component={ScrollArea} type="auto" offsetScrollbars>
+          <Stack gap={2} pb="md">
+            {nav.map((item) => {
+              const active = pathname === item.to;
+              const Icon = item.icon;
+              return (
+                <UnstyledButton
+                  key={item.to}
+                  component={Link}
+                  to={item.to}
+                  className={active ? "nav-item nav-item-active" : "nav-item"}
+                >
+                  <Icon size={18} stroke={1.75} />
+                  {item.label}
+                </UnstyledButton>
+              );
+            })}
+          </Stack>
+        </AppShell.Section>
       </AppShell.Navbar>
 
       <AppShell.Main>
