@@ -7,6 +7,7 @@ import "@mantine/notifications/styles.css";
 import "./admin.css";
 import { AuthProvider, useAuth } from "./auth";
 import { Shell } from "./components/Shell";
+import { AccountPage } from "./pages/AccountPage";
 import { AllowlistPage } from "./pages/AllowlistPage";
 import { CourseRequestsPage } from "./pages/CourseRequestsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -74,6 +75,7 @@ export default function App() {
                 <Route path="/practical" element={<AdminOnly><PracticalPage /></AdminOnly>} />
                 <Route path="/course-requests" element={<AdminOnly><CourseRequestsPage /></AdminOnly>} />
                 <Route path="/shop" element={<AdminOnly><ShopPage /></AdminOnly>} />
+                <Route path="/account" element={<AccountPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/allowlist" element={<AllowlistPage />} />
                 <Route path="/payments" element={<AdminOnly><PaymentsPage /></AdminOnly>} />

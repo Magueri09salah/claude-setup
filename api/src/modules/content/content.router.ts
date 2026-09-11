@@ -220,6 +220,7 @@ contentRouter.get("/series/:id/questions", async (req, res) => {
       correctionText: true,
       correctionAudioKey: true,
       correctionHidden: true,
+      correctionAudioHidden: true,
       updatedAt: true,
     },
   });

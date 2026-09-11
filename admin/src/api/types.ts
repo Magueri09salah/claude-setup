@@ -23,6 +23,7 @@ export interface Question {
   correctionText: string | null;
   correctionAudioKey: string | null;
   correctionHidden: boolean;
+  correctionAudioHidden: boolean;
   updatedAt: string;
 }
 

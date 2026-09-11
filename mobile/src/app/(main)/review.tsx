@@ -111,7 +111,13 @@ export default function ReviewScreen() {
         {question?.correctionHidden ? null : (
           <CorrectionCard
             text={question?.correctionText ?? null}
-            audioPath={question?.correctionAudioPath ?? null}
+            // Hiding the voice-over alone keeps the written explanation: a bad
+            // recording should not take the whole correction down with it.
+            audioPath={
+              question?.correctionAudioHidden
+                ? null
+                : (question?.correctionAudioPath ?? null)
+            }
           />
         )}
 

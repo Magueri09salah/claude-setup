@@ -45,6 +45,7 @@ export function QuestionEditorPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [correctionText, setCorrectionText] = useState("");
   const [correctionHidden, setCorrectionHidden] = useState(false);
+  const [correctionAudioHidden, setCorrectionAudioHidden] = useState(false);
   const [correctionAudioKey, setCorrectionAudioKey] = useState<string | null>(
     null,
   );
@@ -89,6 +90,7 @@ export function QuestionEditorPage() {
     setAudioUrl(null);
     setCorrectionText("");
     setCorrectionHidden(false);
+    setCorrectionAudioHidden(false);
     setCorrectionAudioKey(null);
     setCorrectionAudioUrl(null);
   }, []);
@@ -120,6 +122,7 @@ export function QuestionEditorPage() {
     setAudioKey(q.audioKey);
     setCorrectionText(q.correctionText ?? "");
     setCorrectionHidden(q.correctionHidden);
+    setCorrectionAudioHidden(q.correctionAudioHidden);
     setCorrectionAudioKey(q.correctionAudioKey);
     setImageUrl(null);
     setAudioUrl(null);
@@ -216,6 +219,7 @@ export function QuestionEditorPage() {
       correctionText: correctionText.trim(),
       correctionAudioKey,
       correctionHidden,
+      correctionAudioHidden,
     };
     try {
       if (editingId !== null) {
@@ -592,7 +596,7 @@ export function QuestionEditorPage() {
                   {/* Hides the correction in the app without deleting it, so a
                       draft explanation can be written before it goes live. */}
                   <Switch
-                    mb="sm"
+                    mb="xs"
                     checked={correctionHidden}
                     onChange={(e) => setCorrectionHidden(e.currentTarget.checked)}
                     label="إخفاء التصحيح عن المترشح"
@@ -602,6 +606,26 @@ export function QuestionEditorPage() {
                         : "مُعطّل — سيظهر التصحيح للمترشح بعد انتهاء السلسلة."
                     }
                     color="red"
+                  />
+                  {/* Independent of the switch above: a bad recording should not
+                      take the written explanation down with it. Pointless while
+                      the whole correction is already hidden, hence disabled. */}
+                  <Switch
+                    mb="sm"
+                    checked={correctionAudioHidden}
+                    disabled={correctionHidden}
+                    onChange={(e) =>
+                      setCorrectionAudioHidden(e.currentTarget.checked)
+                    }
+                    label="إخفاء صوت التصحيح فقط"
+                    description={
+                      correctionHidden
+                        ? "التصحيح كله مخفي أصلاً."
+                        : correctionAudioHidden
+                          ? "مُفعّل — يظهر النص بدون الصوت."
+                          : "مُعطّل — يظهر النص والصوت معاً."
+                    }
+                    color="orange"
                   />
                   <Stack gap="sm">
                     <Textarea

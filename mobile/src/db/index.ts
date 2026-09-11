@@ -9,7 +9,7 @@ export const db = SQLite.openDatabaseSync("tariq.db");
 // The sync compares this against `synced_schema_version` and ignores its cached
 // etag until one full manifest fetch has succeeded.
 // (v2: series.category — a moto series stayed filed under B until publish.)
-export const LOCAL_SCHEMA_VERSION = 3;
+export const LOCAL_SCHEMA_VERSION = 4;
 
 // Local mirror of the server content (see architecture skill). DB stores UTC.
 export function migrate(): void {
@@ -41,6 +41,7 @@ export function migrate(): void {
       correction_audio_key TEXT,
       correction_audio_path TEXT,
       correction_hidden INTEGER NOT NULL DEFAULT 0,
+      correction_audio_hidden INTEGER NOT NULL DEFAULT 0,
       downloaded INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
@@ -124,6 +125,8 @@ export function migrate(): void {
     "ALTER TABLE lessons ADD COLUMN video_count INTEGER NOT NULL DEFAULT 0",
     // 2026-08-19: the admin can hide a question's correction from candidates.
     "ALTER TABLE questions ADD COLUMN correction_hidden INTEGER NOT NULL DEFAULT 0",
+    // 2026-09-11: the voice-over can be hidden on its own, text kept.
+    "ALTER TABLE questions ADD COLUMN correction_audio_hidden INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       db.execSync(ddl);
@@ -175,6 +178,7 @@ export interface QuestionRow {
   correction_audio_key: string | null;
   correction_audio_path: string | null;
   correction_hidden: number;
+  correction_audio_hidden: number;
   downloaded: number;
   updated_at: string;
 }

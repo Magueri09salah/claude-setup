@@ -9,6 +9,7 @@ import { livesAdminRouter } from "./lives-admin.router";
 import { paymentsAdminRouter } from "./payments-admin.router";
 import { questionsRouter } from "./questions.router";
 import { seriesRouter } from "./series.router";
+import { accountAdminRouter } from "./account-admin.router";
 import { allowlistRouter } from "./allowlist-admin.router";
 import { courseRequestsAdminRouter } from "./course-requests-admin.router";
 import { practicalRouter } from "./practical.router";
@@ -29,6 +30,10 @@ adminRouter.use(requireAuth, requireStaff);
 // the free-access group. Nothing else.
 adminRouter.use("/", usersAdminRouter);
 adminRouter.use("/", allowlistRouter);
+// Changing your own sign-in details is not an owner privilege — an assistant
+// must be able to rotate their own password. The routes that manage OTHER
+// accounts carry requireAdmin inside this router.
+adminRouter.use("/", accountAdminRouter);
 
 // ── Owner only ───────────────────────────────────────────────────────────────
 // Fail-closed on purpose: any route mounted after this line is unreachable for

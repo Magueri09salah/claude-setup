@@ -80,5 +80,7 @@ export interface ApiQuestion {
   correctionAudioKey: string | null;
   /** true = the admin hid it; the review screen must not show it. */
   correctionHidden: boolean;
+  /** true = hide only the voice-over, keep the written explanation. */
+  correctionAudioHidden: boolean;
   updatedAt: string;
 }

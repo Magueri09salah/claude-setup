@@ -13,6 +13,8 @@ export interface LocalQuestion {
   correctionAudioPath: string | null;
   /** The admin hid this question's correction — the review must not show it. */
   correctionHidden: boolean;
+  /** Hide only the voice-over; the written explanation still shows. */
+  correctionAudioHidden: boolean;
 }
 
 function fromRow(r: QuestionRow): LocalQuestion {
@@ -27,6 +29,7 @@ function fromRow(r: QuestionRow): LocalQuestion {
     correctionText: r.correction_text,
     correctionAudioPath: r.correction_audio_path,
     correctionHidden: r.correction_hidden === 1,
+    correctionAudioHidden: r.correction_audio_hidden === 1,
   };
 }
 

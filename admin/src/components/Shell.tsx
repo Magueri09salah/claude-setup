@@ -8,6 +8,7 @@ import {
   IconLogout,
   IconPencil,
   IconSchool,
+  IconUserCog,
   IconShoppingBag,
   IconSteeringWheel,
   IconUsers,
@@ -39,6 +40,7 @@ const NAV: {
   { to: "/users", label: "المستخدمون", icon: IconUsers, assistant: true },
   { to: "/allowlist", label: "المجموعة المجانية", icon: IconUsersGroup, assistant: true },
   { to: "/payments", label: "المدفوعات", icon: IconCreditCard },
+  { to: "/account", label: "الحساب", icon: IconUserCog, assistant: true },
 ];
 
 export function Shell() {
