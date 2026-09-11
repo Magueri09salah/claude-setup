@@ -15,7 +15,7 @@
       },
       "router": {},
       "admob": {
-        "androidInterstitialUnitId": "",
+        "androidInterstitialUnitId": "ca-app-pub-7655131518793372/1398239892",
         "iosInterstitialUnitId": ""
       }
     },
@@ -75,7 +75,7 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "androidAppId": "ca-app-pub-7655131518793372~2467421166",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
       ]
