@@ -151,4 +151,27 @@ TIMER_CHOICES includes 0 (NO_TIMER) — getQuestionSeconds MUST guard the unset
 case before Number(), since Number(null)===0 would silently disable the timer
 for everyone; the engine skips the interval AND the timeout submit, and the
 pause button hides because it only ever froze the countdown.
+2026-09-11: SYNC ROLLBACK BUG + ADS. runSync deleted from `lesson_blocks`
+(dropped in M4 v2) whenever the manifest carried ZERO lesson categories. The
+throw happened inside the same withTransactionSync as the series upsert, so it
+rolled the series back, and the bare `catch {}` returned "offline" — production
+had 4 series and 0 lessons, so every phone downloaded the catalogue, threw it
+away, and blamed the user's internet. NEVER let a schema-drift DELETE sit
+inside a content transaction, and never swallow the error: runSync now records
+`lastSyncError()` and the repair button prints it.
+INTERSTITIAL ADS at the end of a series (`src/ads/interstitial.ts`): preloaded
+when QuizRunner mounts, shown before router.replace to /results. Fail-open
+everywhere — no fill / no network / dead SDK all fall through to the result,
+and nothing waits >1.5s. 60s cooldown so blasting through empty series cannot
+spam ads (an AdMob suspension risk). app.json carries Google's official TEST
+app ids because the GMA SDK HARD-CRASHES at launch on a missing or malformed
+`com.google.android.gms.ads.APPLICATION_ID` — a blank placeholder is not an
+option. Real ids go in the plugin config (app id, build-time) + expo.extra.admob
+(unit ids, runtime). requestNonPersonalizedAdsOnly is ON: there is no UMP
+consent form, so personalised ads would breach Google's EEA/UK policy.
+Ads also oblige: Play Console Ads declaration -> YES, Data safety -> advertising
+ID collected, and the privacy policy must name AdMob.
+Also: expo-audio's plugin re-adds RECORD_AUDIO at prebuild unless configured
+with recordAudioAndroid:false — that is how 19fec48 undid the store-prep
+removal. android.blockedPermissions now pins it shut as well.
 Next: PayzoneProvider when merchant docs arrive · store submission.
