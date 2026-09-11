@@ -7,7 +7,7 @@ Follow it top to bottom. Do not skip a step because it looks obvious — the
 skipped ones are what cause rejections.
 
 > **iOS is not in this guide.** Do Android first, get it live, then come back
-> for Part 15.
+> for Part 16.
 
 ---
 
@@ -31,7 +31,8 @@ your laptop  ──push──▶  GitHub  ──▶  EAS builds it  ──▶  .
 **Time:** about 3 hours of work, spread over 2–7 days of waiting (identity
 verification, then review).
 
-**Cost:** $25 once, to Google. Expo and Firebase are free at your size.
+**Cost:** $25 once, to Google. Expo, Firebase and AdMob are free at your size
+(AdMob pays *you*, once it passes $100).
 
 ---
 
@@ -250,7 +251,7 @@ build.
 ```bash
 cd C:\Users\T14s\Desktop\claude-setup\claude-setup\mobile
 ```
-⚠️ **Every command from here to Part 7 runs in this folder.** EAS reads
+⚠️ **Every command from here to Part 8 runs in this folder.** EAS reads
 `app.json` and `eas.json` from the current directory; run it one level up and it
 finds nothing.
 
@@ -353,11 +354,274 @@ Answer the menu:
 
 ---
 
-# PART 5 — Check everything before building
+# PART 5 — AdMob (the ads at the end of a series)
+
+When a candidate finishes a series, a full-screen ad appears for a few seconds
+before their score. That code is already written and already in the app.
+
+**What is NOT done yet:** the app is currently using *Google's test ad units*.
+Those always show a banner that literally says **"Test Ad"**, and they pay you
+nothing. This Part turns them into real, paying ads.
+
+⚠️ **Do this before Step 8.1 (the build you send to Google).** The ad
+identifiers are baked into the app when it is built, so changing them later
+means building again.
+
+### Step 5.1 — Why there is a fake ID in there at all
+
+You may notice `ca-app-pub-3940256099942544` in `app.json`. That is Google's
+official public test publisher, and it is deliberate.
+
+**Why:** the Google Mobile Ads library **crashes the app on launch** if the ad
+application ID is missing or malformed. An empty placeholder was not an option
+— the app would not open at all. A valid test ID keeps the app working until
+your real one exists.
+
+### Step 5.2 — Create the AdMob account
+
+🌐 **BROWSER** — go to **https://admob.google.com** → **Sign up**.
+
+Sign in with the **same Google account** you used for Play Console. Then:
+
+1. Country: **Morocco**
+2. Time zone: pick yours
+3. Currency: **USD** is the safe choice — Google pays out in it worldwide
+
+⚠️ **Time zone and currency can never be changed afterwards.** Changing them
+later means abandoning the account and starting a new one, so read that screen
+twice before you click.
+
+4. Accept the terms → **Create AdMob account**
+
+✅ You land on the AdMob dashboard.
+
+### Step 5.3 — Add your app to AdMob
+
+🌐 **BROWSER** — AdMob → **Apps** (left menu) → **Add app**.
+
+1. Platform: **Android**
+2. "Is your app listed on a supported app store?"
+   - If you have **not** published to Play yet → **No**
+   - If you already published → **Yes**, then search `com.codeboujida.app`
+3. App name: `codeboujida`
+4. **Add app** → **Done**
+
+**Why "No" is fine:** you can link it to the Play listing later, from the same
+page. You do not have to publish first.
+
+Now copy the **App ID**. It is on **Apps → codeboujida → App settings**, and it
+looks like this:
+
+```
+ca-app-pub-1234567890123456~9876543210
+```
+
+⚠️ Note the **`~`** (tilde) in the middle. This is the *App* ID. The next step
+produces a different ID with a **`/`** (slash) in it. Mixing them up is the most
+common mistake here — write down which is which.
+
+### Step 5.4 — Create the interstitial ad unit
+
+🌐 **BROWSER** — AdMob → **Apps** → **codeboujida** → **Ad units** → **Add ad
+unit**.
+
+1. Format: **Interstitial**
+   **Why:** that is the full-screen type the app shows between the last
+   question and the score. A banner or rewarded unit will not work in that slot.
+2. Ad unit name: `end-of-series`
+3. Leave everything else at its default → **Create ad unit**
+
+Copy the **Ad unit ID**:
+
+```
+ca-app-pub-1234567890123456/1122334455
+```
+
+⚠️ This one has a **`/`** (slash). Keep it separate from the `~` one.
+
+Click **Done**.
+
+### Step 5.5 — Put your two IDs into the app
+
+💻 **LAPTOP** — open `mobile/app.json` in your editor.
+
+**Change 1** — near the bottom, find the `react-native-google-mobile-ads` block
+and replace the Android app ID (the one with `~`):
+
+```json
+[
+  "react-native-google-mobile-ads",
+  {
+    "androidAppId": "ca-app-pub-1234567890123456~9876543210",
+    "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+  }
+]
+```
+
+Leave `iosAppId` alone for now — you are not shipping iOS yet, and the test
+value keeps the project building.
+
+**Change 2** — find the `admob` block inside `extra` and paste the ad unit ID
+(the one with `/`):
+
+```json
+"admob": {
+  "androidInterstitialUnitId": "ca-app-pub-1234567890123456/1122334455",
+  "iosInterstitialUnitId": ""
+}
+```
+
+Save the file.
+
+💻 **LAPTOP** — commit it:
+
+```bash
+git add app.json
+git commit -m "mobile: real AdMob ids"
+git push
+```
+
+**Why commit:** EAS builds from your committed code. An uncommitted `app.json`
+means the cloud build uses the old test IDs and you will not understand why.
+
+**Does the test build show real ads?** Yes. Real ads depend on these IDs, not on
+which build profile you use — a `preview` build, an internal Play test and the
+public release all serve real, paying ads once your IDs are in. That is exactly
+why the next step matters.
+
+### Step 5.6 — Register your phone as a test device ⚠️ do not skip
+
+Once real IDs are in, the ads are **real**. If you tap your own ads — even out
+of curiosity, even once or twice — Google calls it *invalid traffic* and can
+**permanently disable your AdMob account**. There is no appeal that reliably
+works.
+
+So tell Google which phone is yours:
+
+📱 **ON THE PHONE** — install the build (Step 7.4), open the app, and start any
+series.
+
+💻 **LAPTOP** — with the phone connected by USB:
+
+```bash
+adb logcat | grep -i "test device"
+```
+
+You are looking for a line like:
+
+```
+Use RequestConfiguration.Builder.setTestDeviceIds(Arrays.asList("33BE2250B43518CCDA7DE426D04EE231"))
+```
+
+Copy that long code.
+
+🌐 **BROWSER** — AdMob → **Settings** (gear icon) → **Test devices** → **Add
+test device**:
+- Platform: **Android**
+- Device name: `my phone`
+- Advertising ID: paste the code
+- **Save**
+
+✅ From now on that phone gets ads marked **"Test Ad"** even with real IDs, and
+you can tap them freely. Every other phone gets real, paying ads.
+
+**If `adb` does not work for you:** the simpler rule is just *never tap an ad
+in your own app*. Watch it appear, wait, close it with the ✕. Looking at an ad
+is safe — only clicking is dangerous.
+
+### Step 5.7 — Set up getting paid
+
+🌐 **BROWSER** — AdMob → **Payments**.
+
+1. **Name and address** — must match your bank account exactly
+2. **Tax information** — fill the form for Morocco
+3. **Payment method** — add your bank details (wire transfer)
+
+Two thresholds to know about:
+
+| Amount | What happens |
+|---|---|
+| **$10** | Google mails a **PIN on paper** to your address. Enter it in Payments. This can take 2–4 weeks to arrive. |
+| **$100** | The minimum before Google actually sends money. Below that it rolls over to next month. |
+
+**Why to do this early:** the PIN letter is slow. Starting it now means the
+money is not stuck waiting on the post later.
+
+### Step 5.8 — Publish `app-ads.txt` on your domain
+
+This is a small text file that tells ad exchanges "this publisher is allowed to
+sell ads for this app". Without it, many advertisers refuse to bid at all, so
+your ads fill badly and earn very little.
+
+🌐 **BROWSER** — AdMob → **Settings** → **Account information**. Copy your
+**Publisher ID**. It looks like `pub-1234567890123456`.
+
+🖥️ **SERVER** — connect and open the nginx config:
+
+```bash
+ssh root@codeboujida.com
+nano /etc/nginx/sites-available/codeboujida.conf
+```
+
+Find the block that starts `# ── AdMob authorised sellers`. Uncomment the four
+`location` lines (delete the `# ` in front of each) and replace
+`pub-XXXXXXXXXXXXXXXX` with your real Publisher ID, so it reads:
+
+```nginx
+location = /app-ads.txt {
+    default_type text/plain;
+    return 200 "google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0\n";
+}
+```
+
+Leave `f08c47fec0942fa0` exactly as it is — it is Google's own identifier, the
+same for every publisher in the world.
+
+Save (`Ctrl+O`, `Enter`, `Ctrl+X`), then test and reload:
+
+```bash
+nginx -t && systemctl reload nginx
+```
+
+**Why `nginx -t` first:** it checks the file for mistakes. Reloading a broken
+config takes your whole site down, including the admin panel.
+
+✅ Check it worked:
+
+```bash
+curl https://codeboujida.com/app-ads.txt
+```
+
+It should print your one line. Then `exit` the server.
+
+⚠️ One more thing: in your Play listing (Step 11.8), the **Website** field must
+be `https://codeboujida.com`. Google looks for `app-ads.txt` on whatever domain
+you put there, so if they do not match, the file is ignored.
+
+AdMob checks for the file roughly once a day. **Apps → codeboujida** will show
+an `app-ads.txt` warning until it finds it — that is normal for the first day
+and is not an error you need to fix.
+
+### Step 5.9 — What to expect on the first day
+
+| What you see | What it means |
+|---|---|
+| No ad appears at all | Normal for the first few hours. A brand-new ad unit has no demand yet; give it up to 24 hours. |
+| Ad says "Test Ad" | Either you have not rebuilt since Step 5.5, or this phone is registered as a test device (Step 5.6). Both are expected. |
+| Ad appears, earnings say $0.00 | AdMob reporting lags several hours. Not a problem. |
+| App crashes on launch | The app ID is wrong — check it has a `~`, not a `/`, and that you did not paste the ad unit ID into the app ID field. |
+
+**Why so slow at first:** Google will not spend real advertiser money on an app
+with no audience history. Fill rate and earnings climb over the first couple of
+weeks of real installs.
+
+---
+
+# PART 6 — Check everything before building
 
 💻 **LAPTOP** — in the `mobile` folder.
 
-### Step 5.1 — Does the code compile?
+### Step 6.1 — Does the code compile?
 
 ```bash
 npx tsc --noEmit
@@ -367,7 +631,7 @@ cloud build.
 
 ✅ Prints nothing at all. Any output is an error to fix first.
 
-### Step 5.2 — Is the configuration right?
+### Step 6.2 — Is the configuration right?
 
 ```bash
 node -e "const c=require('./app.json').expo; console.log(c.name,'|',c.owner,'|',c.android.package,'|',c.android.permissions.join(','))"
@@ -376,15 +640,26 @@ node -e "console.log(require('./eas.json').build.production.env.EXPO_PUBLIC_API_
 
 ✅ Expect exactly:
 ```
-codeboujida | codeboujida | com.codeboujida.app | POST_NOTIFICATIONS,RECEIVE_BOOT_COMPLETED
+codeboujida | codeboujida | com.codeboujida.app | POST_NOTIFICATIONS,RECEIVE_BOOT_COMPLETED,android.permission.MODIFY_AUDIO_SETTINGS
 https://codeboujida.com/api
 ```
 
 ❌ If you see `RECORD_AUDIO`, you are on old code — `git pull` on your laptop.
 That permission alone gets the app rejected, because nothing in it records
-audio.
+audio. (`MODIFY_AUDIO_SETTINGS` is fine and expected: the app plays the
+question audio, and this one asks for no permission prompt.)
 
-### Step 5.3 — Are the native libraries consistent? ⚠️ do not skip
+Then check the ad IDs:
+
+```bash
+node -e "const e=require('./app.json').expo; const p=e.plugins.find(x=>Array.isArray(x)&&x[0]==='react-native-google-mobile-ads'); console.log('app id :',p[1].androidAppId); console.log('unit id:',e.extra.admob.androidInterstitialUnitId||'(test)')"
+```
+
+✅ Before Part 5 both show Google's test values — that is fine for a test build.
+Before the **release** build (Step 8.1) the app id must be your own and must
+contain a `~`, and the unit id must be your own and contain a `/`.
+
+### Step 6.3 — Are the native libraries consistent? ⚠️ do not skip
 
 ```bash
 npx expo-doctor
@@ -399,6 +674,11 @@ finished file that does not work.
 ```
 18/18 checks passed. No issues detected!
 ```
+
+⚠️ Passing is necessary but **not sufficient**. This project once reported
+18/18 while carrying a library that crashed the release build on launch —
+`expo-doctor` checks version alignment, not whether the app runs. Step 7.5,
+installing it on a real phone, is the check that actually proves anything.
 
 ❌ **"Missing peer dependency"** — a native module is missing. Install it the
 Expo way, never with plain `npm install`, so it picks the version your SDK
@@ -420,7 +700,7 @@ npx expo install --fix
 After any of these, run `npx expo-doctor` again until it says 18/18, then
 commit the changed `package.json` and `package-lock.json`.
 
-### Step 5.4 — Is everything committed?
+### Step 6.4 — Is everything committed?
 
 ```bash
 git status
@@ -429,13 +709,13 @@ git status
 
 ---
 
-# PART 6 — Build a test version, and set up the reviewer account
+# PART 7 — Build a test version, and set up the reviewer account
 
 ⚠️ **Do not build the Play version yet.** The Play file (`.aab`) cannot be
 installed on a phone directly, so you cannot test it. Build an installable APK
 from identical code first.
 
-### Step 6.1 — Start the test build
+### Step 7.1 — Start the test build
 
 💻 **LAPTOP**
 ```bash
@@ -451,7 +731,7 @@ The first Android build asks:
 ⚠️ **What a keystore is:** the signing identity of your app. Google only accepts
 updates signed with the same one, **forever**. EAS stores it for you.
 
-### Step 6.2 — Wait
+### Step 7.2 — Wait
 
 The terminal prints a link like `https://expo.dev/accounts/codeboujida/...`.
 Building takes **10–25 minutes**. You can close the terminal — the build runs on
@@ -459,7 +739,7 @@ Expo's servers, and the link shows progress.
 
 ✅ Ends with `Build successful` and a download link.
 
-### Step 6.3 — Back up the keystore ⚠️ do this once
+### Step 7.3 — Back up the keystore ⚠️ do this once
 
 💻 **LAPTOP**
 ```bash
@@ -473,7 +753,7 @@ Store the file and the printed passwords with your other secrets.
 lets you keep updating your published app. Without it you must publish a brand
 new listing and every user has to reinstall.
 
-### Step 6.4 — Install it on a real Android phone
+### Step 7.4 — Install it on a real Android phone
 
 🌐 **BROWSER on the phone** — open the build link, tap the download, and allow
 "install from unknown sources" when Android asks.
@@ -481,7 +761,7 @@ new listing and every user has to reinstall.
 **Why a real phone:** an emulator won't show you notification delivery, RTL
 rendering with real Arabic fonts, or how the app behaves offline.
 
-### Step 6.5 — Test it properly
+### Step 7.5 — Test it properly
 
 📱 **ON THE PHONE** — tick every box:
 
@@ -498,7 +778,7 @@ rendering with real Arabic fonts, or how the app behaves offline.
 - [ ] A locked series shows **مقفل** and opens the WhatsApp screen — with **no
       price and no payment wording anywhere**
 
-✅ If anything fails here, fix it before Part 7. Fixing an app after it is on
+✅ If anything fails here, fix it before Part 8. Fixing an app after it is on
 the store takes days instead of minutes.
 
 ---
@@ -510,14 +790,14 @@ Now that the app runs on a phone, create the account Google's reviewer will use.
 **What it is:** an ordinary student account in your own app — one phone number
 and one password, exactly like a real candidate creates. Nothing to do with your
 Google or Expo accounts. You unlock it yourself from the admin panel, then type
-those two values into a Play Console form in Step 10.2.
+those two values into a Play Console form in Step 11.2.
 
 **Why it decides whether you pass review:** your app hides its content behind a
 lock only you can open. A reviewer who registers normally sees empty screens,
 concludes the app is broken, and rejects it. This is the single most common
 reason a first submission fails.
 
-### Step 6.6 — Register the account
+### Step 7.6 — Register the account
 
 📱 **ON THE PHONE**, in the app you just installed — tap **إنشاء حساب**:
 
@@ -533,7 +813,7 @@ line you own.
 
 ✅ You land in the app, logged in, with everything locked.
 
-**Write these down** — Step 10.2 needs them:
+**Write these down** — Step 11.2 needs them:
 ```
 <DEMO_PHONE>    = 0600000000
 <DEMO_PASSWORD> = the one you just chose
@@ -548,7 +828,7 @@ On Windows use `curl.exe`, not `curl` — in PowerShell plain `curl` is a
 different command and fails confusingly. Success prints JSON containing
 `"accessToken"`.
 
-### Step 6.7 — Unlock it from your admin panel
+### Step 7.7 — Unlock it from your admin panel
 
 🌐 **BROWSER** → `https://codeboujida.com/admin`
 
@@ -565,7 +845,7 @@ registered with it — which you just did.
 ✅ The number appears in the table, and the **الحساب** column shows the
 `googleplay` account.
 
-### Step 6.8 — Prove the reviewer will see content
+### Step 7.8 — Prove the reviewer will see content
 
 📱 **ON THE PHONE** — still logged in as `googleplay`:
 
@@ -582,9 +862,9 @@ one click — admin → **المستخدمون** → **تجديد 3 أشهر**.
 
 ---
 
-# PART 7 — Build the file for Google
+# PART 8 — Build the file for Google
 
-### Step 7.1 — Build it
+### Step 8.1 — Build it
 
 💻 **LAPTOP** — in the `mobile` folder:
 ```bash
@@ -597,16 +877,16 @@ the version number so it can never collide with something already uploaded.
 
 ✅ 10–25 minutes, then `Build successful`.
 
-### Step 7.2 — Download it
+### Step 8.2 — Download it
 
 🌐 **BROWSER** — open the build link → **Download**. You get a file ending in
 `.aab`. Remember where it saved.
 
 ---
 
-# PART 8 — Create your Google Play developer account
+# PART 9 — Create your Google Play developer account
 
-### Step 8.1 — Register
+### Step 9.1 — Register
 
 🌐 **BROWSER** → [play.google.com/console](https://play.google.com/console)
 
@@ -626,9 +906,9 @@ while waiting.
 
 ---
 
-# PART 9 — Create the app listing
+# PART 10 — Create the app listing
 
-### Step 9.1 — Create the app
+### Step 10.1 — Create the app
 
 🌐 **BROWSER** → Play Console → **Create app** (top right)
 
@@ -643,23 +923,23 @@ Tick both declarations, then **Create app**.
 
 ✅ You land on the app dashboard with a task list.
 
-### Step 9.2 — Understand the dashboard
+### Step 10.2 — Understand the dashboard
 
 Google shows two groups of tasks. You must finish **all** of them:
 
-- **Set up your app** — the policy forms (Part 10)
-- **Create and publish a release** — uploading your file (Part 11)
+- **Set up your app** — the policy forms (Part 11)
+- **Create and publish a release** — uploading your file (Part 12)
 
 Work through them in the order below, not the order Google shows.
 
 ---
 
-# PART 10 — The forms (this is where people get stuck)
+# PART 11 — The forms (this is where people get stuck)
 
 🌐 **BROWSER** — all of these are under **Policy → App content** in the left
 menu, unless stated otherwise.
 
-### Step 10.1 — Privacy policy
+### Step 11.1 — Privacy policy
 
 **App content** → **Privacy policy** → **Start**
 
@@ -669,7 +949,7 @@ https://codeboujida.com/legal/privacy.html
 ```
 **Save.**
 
-### Step 10.2 — App access ⚠️ the critical one
+### Step 11.2 — App access ⚠️ the critical one
 
 **App content** → **App access** → **Start**
 
@@ -677,7 +957,7 @@ https://codeboujida.com/legal/privacy.html
 2. Click **Add new instructions**
 3. Fill in:
    - Name: `Full content access`
-   - Username: `<DEMO_PHONE>` — the values you wrote down in Step 6.6
+   - Username: `<DEMO_PHONE>` — the values you wrote down in Step 7.6
    - Password: `<DEMO_PASSWORD>`
    - Any other instructions:
      ```
@@ -690,12 +970,20 @@ https://codeboujida.com/legal/privacy.html
 **Why:** without this the reviewer cannot see your locked content and rejects
 the app.
 
-### Step 10.3 — Ads
+### Step 11.3 — Ads
 
-**App content** → **Ads** → **Start** → **No, my app does not contain ads** →
+**App content** → **Ads** → **Start** → **Yes, my app contains ads** →
 **Save**.
 
-### Step 10.4 — Content rating
+⚠️ It must be **Yes**. The app shows an interstitial at the end of every series
+(Part 5). Declaring "No" while shipping ads is a policy violation Google
+detects automatically by scanning the build, and it gets the app suspended —
+not politely rejected.
+
+✅ A small **"Contains ads"** label now appears on your Play Store listing. That
+is normal and expected.
+
+### Step 11.4 — Content rating
 
 **App content** → **Content rating** → **Start**
 
@@ -704,11 +992,13 @@ the app.
 3. Answer the questionnaire — for this app everything is **No**: no violence, no
    sexual content, no profanity, no drugs, no gambling, no user-generated
    content, no location sharing
-4. **Save** → **Submit**
+4. If it asks whether the app **displays ads**, answer **Yes** — it does, at the
+   end of every series. This must agree with Step 11.3.
+5. **Save** → **Submit**
 
 ✅ You receive ratings like PEGI 3 / Everyone.
 
-### Step 10.5 — Target audience
+### Step 11.5 — Target audience
 
 **App content** → **Target audience and content** → **Start**
 
@@ -718,7 +1008,7 @@ the app.
 2. "Appeal to children": **No**
 3. **Save**
 
-### Step 10.6 — Data safety ⚠️ be accurate
+### Step 11.6 — Data safety ⚠️ be accurate
 
 **App content** → **Data safety** → **Start**
 
@@ -739,18 +1029,27 @@ Then tick these data types:
 | Personal info | **Phone number** | Yes | No | Account management |
 | Personal info | **Other info** (3 digits of ID card) | Yes | No | Account management |
 | App activity | **Other actions** (quiz results) | Yes | No | App functionality |
-| Device IDs | **Device or other IDs** | Yes | No | App functionality |
+| Device IDs | **Device or other IDs** | Yes | **Yes** | App functionality, **Advertising or marketing** |
 
-For each, mark it **Required** (not optional) — the app cannot work without an
-account.
+Mark the first four **Required** — the app cannot work without an account.
+
+⚠️ **Device or other IDs is the row the ads change.** Google AdMob reads the
+advertising ID off the phone and sends it to advertisers, so for that row you
+must tick **Shared = Yes** and add the purpose **Advertising or marketing**.
+Ticking "Not shared" while running AdMob is the single most common Data safety
+mismatch, and Google checks it against the actual build.
+
+Leave **Third-party advertising** unticked anywhere it asks whether users can
+opt out — the app requests non-personalised ads only, so there is no
+personalised profile to opt out of.
 
 **Save** → **Next** → **Submit**.
 
-### Step 10.7 — Government apps / financial features / health
+### Step 11.7 — Government apps / financial features / health
 
 **App content** → each of these → answer **No** → **Save**.
 
-### Step 10.8 — Store listing
+### Step 11.8 — Store listing
 
 Left menu → **Grow → Store presence → Main store listing**
 
@@ -766,25 +1065,25 @@ Left menu → **Grow → Store presence → Main store listing**
 |---|---|---|
 | App icon | 512×512 PNG | Export from `mobile/assets/images/icon.png` |
 | Feature graphic | 1024×500 PNG/JPG | Make one in Canva — app name on the yellow/dark theme |
-| Phone screenshots | min 2, max 8 | Take them on the phone from Part 6: home, a quiz question, lessons grid, results, live section |
+| Phone screenshots | min 2, max 8 | Take them on the phone from Part 7: home, a quiz question, lessons grid, results, live section |
 
 **Save.**
 
 ---
 
-# PART 11 — Upload and test through Play
+# PART 12 — Upload and test through Play
 
 ⚠️ **Never send the first build straight to production.** Internal testing
 installs in minutes with no review — it is how you discover a broken build
 privately.
 
-### Step 11.1 — Create the internal test
+### Step 12.1 — Create the internal test
 
 🌐 **BROWSER** → left menu → **Test and release → Testing → Internal testing**
 → **Create new release**
 
 1. **App signing:** accept Google Play App Signing (the default) → **Continue**
-2. **App bundles:** drag in the `.aab` from Step 7.2
+2. **App bundles:** drag in the `.aab` from Step 8.2
 3. Release name: fills in automatically (e.g. `1`)
 4. Release notes, inside the `<ar-AR>` tags:
    ```
@@ -792,7 +1091,7 @@ privately.
    ```
 5. **Next** → **Save and publish** (or **Start rollout to Internal testing**)
 
-### Step 11.2 — Add yourself as a tester
+### Step 12.2 — Add yourself as a tester
 
 🌐 **BROWSER** — same page → **Testers** tab
 
@@ -800,21 +1099,21 @@ privately.
 2. Tick the list → **Save changes**
 3. Copy the **join link** at the bottom of the page
 
-### Step 11.3 — Install from Play
+### Step 12.3 — Install from Play
 
 📱 **ON THE PHONE** — open the join link in a browser, tap **Accept the
 invitation**, then **Download it on Google Play**.
 
-⚠️ First uninstall the APK from Part 6 — it was signed differently and Android
+⚠️ First uninstall the APK from Part 7 — it was signed differently and Android
 refuses to replace it.
 
 ✅ The app installs from the Play Store.
 
-### Step 11.4 — Final test
+### Step 12.4 — Final test
 
 📱 **ON THE PHONE**, on this Play-installed build:
 
-- [ ] Everything from the Step 6.5 checklist still passes
+- [ ] Everything from the Step 7.5 checklist still passes
 - [ ] **A push notification arrives** — this is the only place FCM can be
       verified. Wait for the daily live reminder, or set the live time in the
       admin panel to a few minutes from now
@@ -822,9 +1121,9 @@ refuses to replace it.
 
 ---
 
-# PART 12 — Go live
+# PART 13 — Go live
 
-### Step 12.1 — Promote to production
+### Step 13.1 — Promote to production
 
 🌐 **BROWSER** → **Test and release → Production** → **Create new release**
 
@@ -833,23 +1132,23 @@ refuses to replace it.
 2. Same release notes
 3. **Next** → **Save** → **Go to overview** → **Send for review**
 
-### Step 12.2 — Use a staged rollout
+### Step 13.2 — Use a staged rollout
 
 On the review screen, set the rollout percentage to **20%**.
 
 **Why:** if something is badly broken, only a fifth of users get it and you can
 halt the rollout. Raise it to 100% after a few days of clean crash reports.
 
-### Step 12.3 — Wait
+### Step 13.3 — Wait
 
 ✅ Status becomes **In review**. A first review usually takes **1–7 days**.
 Google emails you either way.
 
-If rejected, the email names the exact policy — see Part 14.
+If rejected, the email names the exact policy — see Part 15.
 
 ---
 
-# PART 13 — Updating the app later
+# PART 14 — Updating the app later
 
 **Most changes need no update at all.** Series, questions, lessons, videos, shop
 products and live times all come from your server — press **نشر** in the admin
@@ -868,7 +1167,7 @@ eas submit --profile production --platform android
 
 `eas submit` uploads straight to the **internal** track (already configured in
 `eas.json`). Test it there, then promote to production in the Console exactly as
-in Step 12.1.
+in Step 13.1.
 
 The version number increments itself, so you can never clash with a version
 already on the store.
@@ -878,7 +1177,7 @@ different app: existing users keep the old one and never receive updates.
 
 ---
 
-# PART 14 — When something goes wrong
+# PART 15 — When something goes wrong
 
 ### Build fails: "owner does not match" / "not authorized"
 💻 Run `eas whoami`. It must print `codeboujida`. If not:
@@ -915,6 +1214,39 @@ points at a LAN IP on purpose. Use `preview` or `production`.
 The URL 404s or the reviewer couldn't find the button. Re-check Step 1.8, then
 reply pointing at **الإعدادات → الحساب → حذف حسابي نهائياً**.
 
+### Every ad says "Test Ad"
+Either the build predates Step 5.5, or this phone is a registered test device
+(Step 5.6). Check which by opening `mobile/app.json`: if `androidAppId` still
+starts `ca-app-pub-3940256099942544`, the real IDs were never pasted in. If it
+holds your own ID, rebuild — IDs are baked in at build time, so editing
+`app.json` changes nothing until you build again.
+
+### No ad appears at all
+Normal for the first 24 hours of a new ad unit — Google has no demand for it
+yet. The app is built to carry on regardless: a missing ad never blocks the
+score. To confirm the code is trying, watch the log while finishing a series:
+```bash
+adb logcat | grep -i "\[ads\]"
+```
+`load failed: no fill` means everything works and there is simply no ad to
+show. Silence means the SDK never initialised — check the app ID.
+
+### The app crashes the moment it opens, after adding ad IDs
+The App ID and the Ad unit ID were swapped. In `mobile/app.json`:
+- `androidAppId` must contain a **`~`** (tilde)
+- `androidInterstitialUnitId` must contain a **`/`** (slash)
+
+The Google Mobile Ads library aborts on launch if the app ID is malformed, which
+looks exactly like the app dying instantly.
+
+### AdMob shows "Ads.txt — not found"
+The file is not reachable yet. Check it:
+```bash
+curl https://codeboujida.com/app-ads.txt
+```
+Nothing back means Step 5.8 was not applied or nginx was not reloaded. If it
+does answer, just wait — AdMob only rescans about once a day.
+
 ### Rejected: "Payments" / "In-app purchases"
 A reviewer read the unlock screen as selling something. Reply with:
 > The app sells nothing. Full content is enabled by the driving school as part
@@ -932,7 +1264,7 @@ especially that the Firebase package name is exactly `com.codeboujida.app`.
 
 ---
 
-# PART 15 — iOS, later
+# PART 16 — iOS, later
 
 Once Android is live, iOS reuses everything you built here.
 
@@ -943,8 +1275,8 @@ Once Android is live, iOS reuses everything you built here.
 2. 💻 `eas build --profile production --platform ios` — EAS handles the
    certificates.
 3. 💻 `eas submit --platform ios` uploads to App Store Connect.
-4. **TestFlight** is Apple's internal testing, the equivalent of Part 11.
-5. **App Privacy** answers mirror your Data safety table from Step 10.6.
+4. **TestFlight** is Apple's internal testing, the equivalent of Part 12.
+5. **App Privacy** answers mirror your Data safety table from Step 11.6.
 6. **Account deletion is required by Apple too** — same URL, same button.
 7. Apple reviews **every** update, usually within a day or two.
 
