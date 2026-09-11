@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { SyncProgress } from "../sync/engine";
+import { BrandLogo } from "./BrandLogo";
 import { colors, font, radius, space } from "../theme/tokens";
 
 // First-launch full-screen progress: "جاري تحميل المحتوى… 45/120".
@@ -15,7 +16,7 @@ export function FirstSyncScreen({ progress }: { progress: SyncProgress | null })
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.logo}>codeboujida</Text>
+      <BrandLogo size={132} style={styles.logo} />
       <Text style={styles.title}>جاري تحميل المحتوى لأول مرة…</Text>
       <Text style={styles.phase}>{phaseLabel}</Text>
       <View style={styles.track}>
@@ -40,12 +41,7 @@ const styles = StyleSheet.create({
     padding: space.xl,
     gap: space.md,
   },
-  logo: {
-    fontFamily: font.extraBold,
-    fontSize: 44,
-    color: colors.lessons,
-    marginBottom: space.lg,
-  },
+  logo: { marginBottom: space.lg },
   title: {
     fontFamily: font.bold,
     fontSize: 18,

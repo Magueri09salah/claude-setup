@@ -4,7 +4,7 @@
     "slug": "codeboujida",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "codeboujida",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#141519",
@@ -16,16 +16,14 @@
       "router": {}
     },
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/app-icon.png",
       "bundleIdentifier": "com.codeboujida.app"
     },
     "android": {
       "package": "com.codeboujida.app",
       "adaptiveIcon": {
-        "backgroundColor": "#FFD348",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#141519",
+        "foregroundImage": "./assets/images/app-icon-adaptive.png"
       },
       "permissions": [
         "POST_NOTIFICATIONS",
@@ -45,8 +43,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#141519",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "image": "./assets/images/app-splash.png",
+          "imageWidth": 220
         }
       ],
       "expo-sqlite",

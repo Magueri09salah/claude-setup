@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { ApiError } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
+import { BrandLogo } from "@/components/BrandLogo";
 import { AppTextInput } from "@/components/AppTextInput";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { colors, font, space, type } from "@/theme/tokens";
@@ -51,7 +52,7 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.logo}>codeboujida</Text>
+          <BrandLogo size={132} style={styles.logo} />
           <Text style={styles.title}>مرحباً بعودتك 👋</Text>
           <Text style={styles.subtitle}>
             سجّل الدخول لمتابعة التحضير لامتحان رخصة السياقة
@@ -110,13 +111,7 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     alignSelf: "center",
   },
-  logo: {
-    fontFamily: font.extraBold,
-    fontSize: 44,
-    color: colors.lessons,
-    textAlign: "center",
-    marginBottom: space.sm,
-  },
+  logo: { marginBottom: space.sm },
   title: {
     ...type.display,
     color: colors.text,
