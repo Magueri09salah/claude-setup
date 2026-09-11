@@ -13,7 +13,11 @@
       "eas": {
         "projectId": "a273bc9d-359e-41f1-882c-1dcd447ca7c2"
       },
-      "router": {}
+      "router": {},
+      "admob": {
+        "androidInterstitialUnitId": "",
+        "iosInterstitialUnitId": ""
+      }
     },
     "ios": {
       "icon": "./assets/images/app-icon.png",
@@ -28,10 +32,12 @@
       "permissions": [
         "POST_NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
-        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -49,7 +55,13 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -59,7 +71,14 @@
       ],
       "expo-video",
       "expo-screen-orientation",
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false,

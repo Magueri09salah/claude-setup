@@ -5,8 +5,9 @@ import {
   type AudioPlayer,
 } from "expo-audio";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { preloadInterstitial, showInterstitial } from "@/ads/interstitial";
 import { Icon } from "@/components/Icon";
 import { ImageViewer } from "@/components/ImageViewer";
 import { ZoomableImage } from "@/components/ZoomableImage";
@@ -126,11 +127,28 @@ export function QuizRunner({ source }: { source: QuizSource }) {
     }
   };
 
-  // When finished, hand off to results.
+  // Fetch the end-of-series ad now, while the candidate is still answering.
+  // Loading one takes a few seconds; asking for it at the finish line would
+  // mean either a stall or no ad at all.
   useEffect(() => {
-    if (phase === "finished" && attemptId) {
-      router.replace(`/results?attemptId=${attemptId}`);
-    }
+    preloadInterstitial();
+  }, []);
+
+  // When finished, hand off to results — behind the ad.
+  useEffect(() => {
+    if (phase !== "finished" || !attemptId) return;
+    let alive = true;
+    // showInterstitial never rejects and never waits long when nothing is
+    // ready, so the result is at most a short beat behind the last answer.
+    void showInterstitial().then(() => {
+      // Guard the navigation, not the ad: the user can back out while the ad
+      // is up, and replacing the route after that would drag them into a
+      // results screen they had already left.
+      if (alive) router.replace(`/results?attemptId=${attemptId}`);
+    });
+    return () => {
+      alive = false;
+    };
   }, [phase, attemptId]);
 
   if (phase === "empty") {
@@ -148,7 +166,13 @@ export function QuizRunner({ source }: { source: QuizSource }) {
   }
 
   if (phase === "finished" || !question) {
-    return <ScreenBackground style={styles.centered} />;
+    // Used to flash by. Now the ad sits in front of the results, so this can
+    // hold for a beat and needs to look like work, not like a hang.
+    return (
+      <ScreenBackground style={styles.centered}>
+        <ActivityIndicator color={colors.series} />
+      </ScreenBackground>
+    );
   }
 
   const overlays = (
