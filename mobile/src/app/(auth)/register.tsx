@@ -91,7 +91,7 @@ export default function RegisterScreen() {
             ltr
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="salah@magueri"
+            placeholder="prenom@nom"
             value={username}
             onChangeText={setUsername}
           />
