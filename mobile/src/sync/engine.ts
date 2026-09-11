@@ -112,6 +112,17 @@ function upsertQuestions(rows: ApiQuestion[]): void {
   });
 }
 
+/**
+ * Why the last sync failed, for the repair screen. Null once one succeeds.
+ * A network drop and a bug in this file are not the same thing and must not
+ * read the same to the person holding the phone.
+ */
+let lastError: string | null = null;
+
+export function lastSyncError(): string | null {
+  return lastError;
+}
+
 export async function runSync(
   onProgress?: (p: SyncProgress) => void,
 ): Promise<SyncResult> {
@@ -195,7 +206,10 @@ export async function runSync(
       // Lesson categories: upsert + prune (teaser rows stay for locked ones).
       const catIds = manifest.lessonCategories.map((c) => c.id);
       if (catIds.length === 0) {
-        db.runSync("DELETE FROM lesson_blocks");
+        // NOT lesson_blocks — that table was dropped in M4 v2. Deleting from it
+        // threw "no such table" INSIDE this transaction, which rolled back the
+        // series written just above and surfaced as "offline": a server with
+        // series but no lessons showed an empty app.
         db.runSync("DELETE FROM lessons");
         db.runSync("DELETE FROM lesson_categories");
       } else {
@@ -486,6 +500,7 @@ export async function runSync(
                   WHERE icon_key IS NOT NULL AND icon_path IS NULL) AS n`,
       )?.n ?? 0;
     if (failed === 0 && remaining === 0) {
+      lastError = null;
       setMeta("content_version", String(manifest.version));
       if (newEtag) setMeta("manifest_etag", newEtag);
       setMeta("last_sync", new Date().toISOString());
@@ -493,8 +508,15 @@ export async function runSync(
       setMeta("synced_schema_version", String(LOCAL_SCHEMA_VERSION));
       return "synced";
     }
+    lastError = null;
     return "partial";
-  } catch {
+  } catch (e) {
+    // Every failure used to return "offline" silently, so a SQL error in this
+    // file was indistinguishable from a dead connection — and the repair button
+    // told the user to check their internet while the real fault was local.
+    // The message is cheap and shows up in `adb logcat`.
+    console.error("[sync] failed:", e);
+    lastError = e instanceof Error ? e.message : String(e);
     return "offline";
   } finally {
     running = false;

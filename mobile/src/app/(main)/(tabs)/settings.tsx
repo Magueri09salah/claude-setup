@@ -9,7 +9,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { TimerChoiceList } from "@/components/quiz/TimerChoiceList";
 import { sendTestLocalNotification } from "@/notifications/push";
 import { useQuestionSeconds } from "@/quiz/timerPref";
-import { wipeAndResync, type SyncProgress } from "@/sync/engine";
+import { lastSyncError, wipeAndResync, type SyncProgress } from "@/sync/engine";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
@@ -69,16 +69,23 @@ export default function SettingsScreen() {
               const result = await wipeAndResync(setProgress);
               setRepairing(false);
               setProgress(null);
+              // "offline" is the engine's catch-all, so it covers a real
+              // network drop AND a fault inside the app. Showing the message
+              // means the next bug like this is readable from the phone rather
+              // than needing a USB cable.
+              const reason = lastSyncError();
               Alert.alert(
                 result === "synced"
                   ? "تم بنجاح"
                   : result === "offline"
-                    ? "لا يوجد اتصال"
+                    ? "تعذّر التحميل"
                     : "اكتمل جزئياً",
                 result === "synced"
                   ? "أُعيد تحميل كل المحتوى."
                   : result === "offline"
-                    ? "تعذّر الاتصال بالخادم — حاول لاحقاً."
+                    ? `تعذّر إتمام التحميل — تحقق من الاتصال وحاول لاحقاً.${
+                        reason ? `\n\n(${reason})` : ""
+                      }`
                     : "بقيت بعض الملفات — اضغط تحديث لاحقاً لإكمالها.",
               );
             })();
