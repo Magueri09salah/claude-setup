@@ -707,6 +707,16 @@ prerequisites is missing or hasn't propagated. Wait, then re-run.
 Certbot edits your nginx config in place, adding the certificate lines and an
 HTTP→HTTPS redirect. You don't need to change anything yourself.
 
+⚠️ **From this moment, `/etc/nginx/sites-available/codeboujida` and the repo's
+`nginx/codeboujida.conf` are different files, and the live one is the important
+one.** The repo copy is still port-80-only. Never `cp` it over the live config
+again — that deletes everything certbot just added, and it fails silently:
+`nginx -t` passes, the reload succeeds, and port 443 simply stops answering.
+To change nginx later, edit the live file with
+`sudo nano /etc/nginx/sites-available/codeboujida` and mirror the change back
+into the repo by hand. If you do clobber it, re-run the command above and
+choose *"1: Attempt to reinstall this existing certificate"*.
+
 ### Step 38. Confirm renewal is automatic
 
 ```bash

@@ -556,18 +556,38 @@ your ads fill badly and earn very little.
 🌐 **BROWSER** — AdMob → **Settings** → **Account information**. Copy your
 **Publisher ID**. It looks like `pub-1234567890123456`.
 
-🖥️ **SERVER** — connect and open the config **in the project folder**:
+🖥️ **SERVER** — connect and open the **live** config:
 
 ```bash
 ssh <DEPLOY_USER>@76.13.63.111
-nano /var/www/codeboujida/nginx/codeboujida.conf
+sudo nano /etc/nginx/sites-available/codeboujida
 ```
 
-⚠️ **Edit this file, not the one in `/etc/nginx/`.** The live config is a
-*copy* made by Step 34 of `DEPLOY.md`, and it is named `codeboujida` with **no
-`.conf` on the end**. If you `nano /etc/nginx/sites-available/codeboujida.conf`
-you do not open the live file — you create a brand-new empty one, save your work
-into it, and nothing changes. Step 5.8b below copies your edit into place.
+⚠️ **Two traps in that one path.**
+
+**No `.conf` on the end.** `DEPLOY.md` Step 34 installs the file as
+`sites-available/codeboujida`. Typing `codeboujida.conf` does not open the live
+file — nano cheerfully creates a brand-new empty one, you save your work into
+it, and nothing changes.
+
+**Never `cp` the repo file over this one.** `/var/www/codeboujida/nginx/
+codeboujida.conf` is a *first-install template*: it is port 80 only. certbot
+rewrote the live config when it issued your certificate, adding `listen 443`,
+the certificate lines and the HTTP→HTTPS redirect — none of which are in the
+template. Copying it over silently **deletes HTTPS**, and it does so quietly:
+`nginx -t` still passes because what is left is valid nginx, the reload
+succeeds, and then nothing answers on port 443 at all. Admin panel, API and the
+mobile app all go dark together.
+
+If you have already done it, put HTTPS back:
+
+```bash
+sudo certbot --nginx -d codeboujida.com -d www.codeboujida.com
+```
+
+Choose **`1: Attempt to reinstall this existing certificate`** — the
+certificate itself is fine, only nginx's reference to it was lost. Option 2
+requests a new one and burns Let's Encrypt rate limit for nothing.
 
 Find the block that starts `# ── AdMob authorised sellers`. Uncomment the four
 `location` lines (delete the `# ` in front of each) and replace
@@ -585,12 +605,11 @@ same for every publisher in the world.
 
 Save (`Ctrl+O`, `Enter`, `Ctrl+X`).
 
-### Step 5.8b — Copy it live, test, reload
+### Step 5.8b — Test and reload
 
 🖥️ **SERVER**
 
 ```bash
-sudo cp /var/www/codeboujida/nginx/codeboujida.conf /etc/nginx/sites-available/codeboujida
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -613,10 +632,10 @@ first line is the giveaway that you are not root.
 **Why `nginx -t` before reloading:** it checks the file for mistakes. Reloading a
 broken config takes your whole site down, including the admin panel.
 
-⚠️ **One thing to remember for later:** you have now edited a file that git
-also tracks. The next `git pull` on the server will refuse to run with *"local
-changes would be overwritten"*. When that happens, tell me your Publisher ID and
-I will commit it properly — then the server just pulls it like any other change.
+✅ Because you edited the live config and not the repo copy, `git pull` on the
+server stays clean. Mirror the same block into
+`/var/www/codeboujida/nginx/codeboujida.conf` by hand when convenient, so a
+future rebuild from the template does not lose it.
 
 ✅ Check it worked:
 
