@@ -556,12 +556,18 @@ your ads fill badly and earn very little.
 🌐 **BROWSER** — AdMob → **Settings** → **Account information**. Copy your
 **Publisher ID**. It looks like `pub-1234567890123456`.
 
-🖥️ **SERVER** — connect and open the nginx config:
+🖥️ **SERVER** — connect and open the config **in the project folder**:
 
 ```bash
-ssh root@codeboujida.com
-nano /etc/nginx/sites-available/codeboujida.conf
+ssh <DEPLOY_USER>@76.13.63.111
+nano /var/www/codeboujida/nginx/codeboujida.conf
 ```
+
+⚠️ **Edit this file, not the one in `/etc/nginx/`.** The live config is a
+*copy* made by Step 34 of `DEPLOY.md`, and it is named `codeboujida` with **no
+`.conf` on the end**. If you `nano /etc/nginx/sites-available/codeboujida.conf`
+you do not open the live file — you create a brand-new empty one, save your work
+into it, and nothing changes. Step 5.8b below copies your edit into place.
 
 Find the block that starts `# ── AdMob authorised sellers`. Uncomment the four
 `location` lines (delete the `# ` in front of each) and replace
@@ -577,14 +583,40 @@ location = /app-ads.txt {
 Leave `f08c47fec0942fa0` exactly as it is — it is Google's own identifier, the
 same for every publisher in the world.
 
-Save (`Ctrl+O`, `Enter`, `Ctrl+X`), then test and reload:
+Save (`Ctrl+O`, `Enter`, `Ctrl+X`).
+
+### Step 5.8b — Copy it live, test, reload
+
+🖥️ **SERVER**
 
 ```bash
-nginx -t && systemctl reload nginx
+sudo cp /var/www/codeboujida/nginx/codeboujida.conf /etc/nginx/sites-available/codeboujida
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-**Why `nginx -t` first:** it checks the file for mistakes. Reloading a broken
-config takes your whole site down, including the admin panel.
+⚠️ **`sudo` on all three.** Without it you get this, which looks alarming and
+is not:
+
+```
+[warn] the "user" directive makes sense only if the master process runs with
+       super-user privileges, ignored in /etc/nginx/nginx.conf:1
+[emerg] cannot load certificate "/etc/letsencrypt/live/codeboujida.com/fullchain.pem":
+        ... Permission denied ...
+nginx: configuration file /etc/nginx/nginx.conf test failed
+```
+
+That is **not a mistake in your config**. The Let's Encrypt private keys are
+readable only by root, so as a normal user nginx cannot open the certificate and
+gives up before it ever checks your syntax. The `user` directive warning on the
+first line is the giveaway that you are not root.
+
+**Why `nginx -t` before reloading:** it checks the file for mistakes. Reloading a
+broken config takes your whole site down, including the admin panel.
+
+⚠️ **One thing to remember for later:** you have now edited a file that git
+also tracks. The next `git pull` on the server will refuse to run with *"local
+changes would be overwritten"*. When that happens, tell me your Publisher ID and
+I will commit it properly — then the server just pulls it like any other change.
 
 ✅ Check it worked:
 
