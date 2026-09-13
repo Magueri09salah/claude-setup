@@ -16,7 +16,8 @@
       "router": {},
       "admob": {
         "androidInterstitialUnitId": "ca-app-pub-7655131518793372/1398239892",
-        "iosInterstitialUnitId": ""
+        "iosInterstitialUnitId": "",
+        "forceTestAds": true
       }
     },
     "ios": {

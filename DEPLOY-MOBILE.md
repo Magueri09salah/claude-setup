@@ -703,12 +703,24 @@ question audio, and this one asks for no permission prompt.)
 Then check the ad IDs:
 
 ```bash
-node -e "const e=require('./app.json').expo; const p=e.plugins.find(x=>Array.isArray(x)&&x[0]==='react-native-google-mobile-ads'); console.log('app id :',p[1].androidAppId); console.log('unit id:',e.extra.admob.androidInterstitialUnitId||'(test)')"
+node -e "const e=require('./app.json').expo; const p=e.plugins.find(x=>Array.isArray(x)&&x[0]==='react-native-google-mobile-ads'); console.log('app id :',p[1].androidAppId); console.log('unit id:',e.extra.admob.androidInterstitialUnitId||'(test)'); console.log('forceTestAds:',e.extra.admob.forceTestAds===true?'ON  <-- must be false before release':'off')"
 ```
 
-✅ Before Part 5 both show Google's test values — that is fine for a test build.
-Before the **release** build (Step 8.1) the app id must be your own and must
-contain a `~`, and the unit id must be your own and contain a `/`.
+✅ Before Part 5 the ids show Google's test values — fine for a test build.
+Before the **release** build (Step 8.1) all three must be right:
+
+| | Required for release |
+|---|---|
+| `app id` | your own, contains a **`~`** |
+| `unit id` | your own, contains a **`/`** |
+| `forceTestAds` | **off** |
+
+⚠️ `forceTestAds` is a diagnostic switch. Turned on, it ignores your real ad
+unit and uses Google's test unit, which always fills — that is how you tell "no
+ad appeared because AdMob has nothing to send yet" apart from "no ad appeared
+because the code is broken". Shipping it **on** means every candidate sees
+"Test Ad" and you earn nothing. Turn it off in `mobile/app.json` under
+`expo.extra.admob`.
 
 ### Step 6.3 — Are the native libraries consistent? ⚠️ do not skip
 

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { lastAdStatus } from "@/ads/interstitial";
 import { Icon } from "@/components/Icon";
 import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
@@ -46,6 +47,9 @@ export default function ResultsScreen() {
       message: `حصلت على ${attempt.score}/${attempt.total} في تطبيق codeboujida لتعليم السياقة 🚦`,
     });
   };
+
+  // Null unless the diagnostic flag is on — see lastAdStatus().
+  const adNote = lastAdStatus();
 
   return (
     <ScreenBackground style={styles.screen}>
@@ -142,12 +146,24 @@ export default function ResultsScreen() {
             </Text>
           </PressableScale>
         </View>
+
+        {/* Only ever rendered while expo.extra.admob.forceTestAds is on, so a
+            real candidate never sees it. It exists because "the ad did not
+            appear" and "the ad code never ran" look identical from the outside
+            and the owner has no easy way to read a device log. */}
+        {adNote ? <Text style={styles.adNote}>{adNote}</Text> : null}
       </ScrollView>
     </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  adNote: {
+    ...type.label,
+    color: colors.textDim,
+    textAlign: "center",
+    marginTop: space.lg,
+  },
   screen: { flex: 1 },
   centered: {
     flex: 1,

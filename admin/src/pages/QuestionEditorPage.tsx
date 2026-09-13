@@ -9,7 +9,6 @@ import {
   Image,
   Modal,
   NumberInput,
-  SegmentedControl,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -27,7 +26,8 @@ import type { Question, Series } from "../api/types";
 import { LICENCES, licence, licenceLabel } from "../licence";
 import { notifyError, notifySuccess } from "../notify";
 
-type AnswersCount = "2" | "3" | "4";
+// Fixed by the exam format: every question has four answers.
+const ANSWERS_COUNT = 4;
 
 export function QuestionEditorPage() {
   const [seriesList, setSeriesList] = useState<Series[] | null>(null);
@@ -37,7 +37,6 @@ export function QuestionEditorPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [orderNum, setOrderNum] = useState<number | string>(1);
-  const [answersCount, setAnswersCount] = useState<AnswersCount>("4");
   const [correct, setCorrect] = useState<string[]>([]);
   const [imageKey, setImageKey] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -82,7 +81,6 @@ export function QuestionEditorPage() {
         : 1;
     setEditingId(null);
     setOrderNum(nextOrder);
-    setAnswersCount("4");
     setCorrect([]);
     setImageKey(null);
     setImageUrl(null);
@@ -116,7 +114,6 @@ export function QuestionEditorPage() {
   const editQuestion = (q: Question) => {
     setEditingId(q.id);
     setOrderNum(q.orderNum);
-    setAnswersCount(String(q.answersCount) as AnswersCount);
     setCorrect(q.correctAnswers.map(String));
     setImageKey(q.imageKey);
     setAudioKey(q.audioKey);
@@ -139,11 +136,6 @@ export function QuestionEditorPage() {
         setCorrectionAudioUrl(r.correctionAudioUrl);
       })
       .catch(notifyError);
-  };
-
-  const changeAnswersCount = (value: string) => {
-    setAnswersCount(value as AnswersCount);
-    setCorrect((prev) => prev.filter((n) => Number(n) <= Number(value)));
   };
 
   const uploadFile = async (
@@ -212,7 +204,7 @@ export function QuestionEditorPage() {
     setSaving(true);
     const payload = {
       orderNum: Number(orderNum),
-      answersCount: Number(answersCount),
+      answersCount: ANSWERS_COUNT,
       correctAnswers: correct.map(Number).sort((a, b) => a - b),
       imageKey,
       audioKey,
@@ -266,9 +258,8 @@ export function QuestionEditorPage() {
     }
   };
 
-  const answerOptions = Array.from(
-    { length: Number(answersCount) },
-    (_, i) => String(i + 1),
+  const answerOptions = Array.from({ length: ANSWERS_COUNT }, (_, i) =>
+    String(i + 1),
   );
 
   // Drives the cards directly, so what you search is exactly what you see.
@@ -484,25 +475,12 @@ export function QuestionEditorPage() {
                 </Group>
               </Group>
               <Stack>
-                <Group grow align="flex-start">
-                  <NumberInput
-                    label="رقم الترتيب"
-                    min={1}
-                    value={orderNum}
-                    onChange={setOrderNum}
-                  />
-                  <div>
-                    <Text size="sm" fw={500} mb={4}>
-                      عدد الأجوبة
-                    </Text>
-                    <SegmentedControl
-                      fullWidth
-                      data={["2", "3", "4"]}
-                      value={answersCount}
-                      onChange={changeAnswersCount}
-                    />
-                  </div>
-                </Group>
+                <NumberInput
+                  label="رقم الترتيب"
+                  min={1}
+                  value={orderNum}
+                  onChange={setOrderNum}
+                />
 
                 <Checkbox.Group
                   label="الأجوبة الصحيحة"

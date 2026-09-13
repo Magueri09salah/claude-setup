@@ -22,7 +22,11 @@ import mobileAds, {
 // is labelled "Test Ad" — that is the state the app ships in until the real
 // AdMob unit ids are pasted in.
 const extra = (Constants.expoConfig?.extra ?? {}) as {
-  admob?: { androidInterstitialUnitId?: string; iosInterstitialUnitId?: string };
+  admob?: {
+    androidInterstitialUnitId?: string;
+    iosInterstitialUnitId?: string;
+    forceTestAds?: boolean;
+  };
 };
 
 const configured = Platform.select({
@@ -31,10 +35,40 @@ const configured = Platform.select({
   default: "",
 });
 
-const UNIT_ID = configured && configured.length > 0 ? configured : TestIds.INTERSTITIAL;
+/**
+ * Diagnostic switch. A brand-new AdMob unit returns "no fill" for hours, and
+ * serves almost nothing at all until the app is live on the store — so a real
+ * unit showing no ad is indistinguishable from the integration being broken.
+ * Google's test unit ALWAYS fills, which turns that guess into an answer.
+ *
+ * Set expo.extra.admob.forceTestAds back to false before the release build, or
+ * every candidate sees "Test Ad" and the account earns nothing.
+ */
+const FORCE_TEST = extra.admob?.forceTestAds === true;
+
+const UNIT_ID =
+  !FORCE_TEST && configured && configured.length > 0
+    ? configured
+    : TestIds.INTERSTITIAL;
 
 /** Using a real unit id is the signal that this is a production ad setup. */
 export const usingTestAds = UNIT_ID === TestIds.INTERSTITIAL;
+
+/**
+ * What the ad layer last did, in plain Arabic, for the diagnostic build.
+ * Null when ads are configured normally — nothing should be shown to a real
+ * candidate about advertising plumbing.
+ */
+let lastAdNote: string | null = null;
+
+export function lastAdStatus(): string | null {
+  return FORCE_TEST ? lastAdNote : null;
+}
+
+function note(msg: string): void {
+  lastAdNote = msg;
+  console.log("[ads]", msg);
+}
 
 // A series takes minutes, so this never fires in normal use. It exists for the
 // degenerate case — opening and abandoning empty series in a row — which would
@@ -92,14 +126,16 @@ export function preloadInterstitial(): void {
       loaded = false;
       const done = next.addAdEventListener(AdEventType.LOADED, () => {
         loaded = true;
+        note("إعلان جاهز");
         done();
       });
       next.addAdEventListener(AdEventType.ERROR, (e) => {
         // No fill is the normal case for a new account, not a bug.
-        console.warn("[ads] load failed:", e?.message ?? e);
         loaded = false;
+        note(`فشل التحميل: ${e?.message ?? e}`);
       });
       ad = next;
+      note("جاري تحميل الإعلان…");
       next.load();
     } catch (e) {
       console.warn("[ads] preload failed:", e);
@@ -115,8 +151,14 @@ export function preloadInterstitial(): void {
  */
 export function showInterstitial(): Promise<void> {
   const current = ad;
-  if (!current || !loaded) return Promise.resolve();
-  if (Date.now() - lastShownAt < COOLDOWN_MS) return Promise.resolve();
+  if (!current || !loaded) {
+    note(lastAdNote ? `لم يُعرض — ${lastAdNote}` : "لم يُعرض — لا يوجد إعلان جاهز");
+    return Promise.resolve();
+  }
+  if (Date.now() - lastShownAt < COOLDOWN_MS) {
+    note("لم يُعرض — فاصل زمني قصير بين السلاسل");
+    return Promise.resolve();
+  }
 
   // Consumed either way: an interstitial object is single-use, and leaving a
   // stale one around would make the next series think an ad is ready.
@@ -145,7 +187,7 @@ export function showInterstitial(): Promise<void> {
       current.addAdEventListener(AdEventType.OPENED, () => clearTimeout(timer));
       current.show();
     } catch (e) {
-      console.warn("[ads] show failed:", e);
+      note(`فشل العرض: ${e instanceof Error ? e.message : String(e)}`);
       finish();
     }
   });
