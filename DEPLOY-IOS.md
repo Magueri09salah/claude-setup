@@ -1,10 +1,13 @@
 # Publishing codeboujida on the App Store
 
-The iOS companion to `DEPLOY-MOBILE.md`. Same style: every command says **where**
-you run it and **why**, every Console step says **what to click**.
+The iOS companion to `DEPLOY-MOBILE.md`. Written for someone who has never
+published to Apple before. Every command says **where** you run it and **why**.
+Every Console step says **what to click**.
 
-**Do Android first.** It is cheaper, faster, and far more forgiving. Come here
-once the Play listing is live.
+Follow it top to bottom. Parts 1–7 are setup you do once. Part 8 gives you a
+**test build on your iPhone**. Part 10 onward is the **public release**.
+
+**Do Android first.** It is cheaper, faster, and far more forgiving.
 
 ---
 
@@ -12,55 +15,61 @@ once the Play listing is live.
 
 ### You do NOT need a Mac
 
-EAS builds iOS apps on Apple hardware in the cloud. Your Windows laptop is fine.
+EAS builds iOS apps on Apple hardware in the cloud. Your Windows laptop is fine
+for everything in this guide.
 
 ### You DO need $99 a year
 
-This is the part that has no way around it:
-
 | What you want | Costs | Works on your setup? |
 |---|---|---|
-| **Simulator build** (`.app`) | Free, no Apple account | ❌ Only runs in the iOS Simulator, **which only exists on a Mac** |
-| **Internal / ad-hoc build** | **$99/year** | ✅ Installs on iPhones whose UDID you register |
+| **Simulator build** (`.app`) | Free, no Apple account | ❌ Runs only in the iOS Simulator, **which exists only on a Mac** |
+| **Ad-hoc build** (direct install) | **$99/year** | ✅ Installs on iPhones whose UDID you register |
 | **TestFlight** | **$99/year** | ✅ The real equivalent of your Android `preview` build |
 | **App Store** | **$99/year** | ✅ |
 
-So: there is no free way to get this app onto an iPhone from a Windows machine.
-The one free option needs a Mac you do not have.
+There is no free way to put this app on an iPhone from a Windows machine. The
+one free option needs a Mac you do not have.
 
-The $99 is a yearly subscription, not a one-off like Google's $25. If you stop
-paying, your app is **removed from the App Store**.
+The $99 is a **yearly subscription**, not a one-off like Google's $25. Stop
+paying and your app is removed from the App Store.
 
 ### ⚠️ The risk worth knowing before you pay
 
-Your app unlocks its content when the owner adds a phone number to the
-allowlist, after the candidate contacts the school on WhatsApp. Google accepted
-this framing. **Apple is much stricter**, and this is the single most likely
-reason for rejection.
+Your app unlocks content when the owner adds a phone number to the allowlist,
+after the candidate contacts the school on WhatsApp. Google accepted this.
+**Apple is much stricter**, and this is the single most likely rejection.
 
 Apple's guideline **3.1.1** says digital content unlocked inside an app must be
-sold through Apple's in-app purchase, with Apple taking 15–30%. Apple's
-reviewers routinely reject apps that unlock paid digital content bought
-elsewhere.
+sold through Apple's in-app purchase, with Apple taking 15–30%.
 
-Your defence is guideline **3.1.3(b) Multiplatform Services**: access is granted
-as part of enrolment at a physical driving school, the enrolment is a real-world
-service, and nothing is ever sold inside the app. That is a legitimate
-exemption — but it is an argument you may have to *make*, possibly more than
-once. Part 10 gives you the exact wording.
+Your defence is guideline **3.1.3(b) Multiplatform Services**: access is part of
+enrolment at a physical driving school, arranged in the real world, and nothing
+is ever sold inside the app. That is a legitimate exemption — but it is an
+argument you may have to *make*. Part 12 gives you the exact wording to paste.
 
-**Be realistic:** budget for one or two rejections and a few rounds of replies.
-If you cannot accept that risk, stay on Android.
+**Budget for one or two rejections.** If you cannot accept that, stay on Android.
 
 ---
 
-## Placeholders
+## The three places you will work
+
+| | Where | How to open it |
+|---|---|---|
+| 💻 **LAPTOP** | A terminal on Windows, inside the `mobile` folder | PowerShell or Git Bash, then `cd C:\Users\T14s\Desktop\claude-setup\claude-setup\mobile` |
+| 🌐 **BROWSER** | Apple Developer, App Store Connect, AdMob | Links given in each step |
+| 📱 **IPHONE** | The test device | |
+
+---
+
+## Placeholders — fill these in as you go
 
 | Placeholder | What it is | Yours |
 |---|---|---|
-| `<APPLE_ID>` | The Apple ID email that owns the developer account ⚠️ permanent | |
-| `<APPLE_TEAM_ID>` | 10 characters, from the Apple developer portal | |
-| `<ASC_APP_ID>` | The numeric App Store Connect app id | |
+| `<APPLE_ID>` | Apple ID email owning the developer account ⚠️ permanent | |
+| `<APPLE_TEAM_ID>` | 10 characters, from the developer portal | |
+| `<ASC_APP_ID>` | Numeric App Store Connect app id | |
+| `<IOS_ADMOB_APP_ID>` | AdMob iOS app id, has a `~` | |
+| `<IOS_ADMOB_UNIT_ID>` | AdMob iOS interstitial id, has a `/` | |
 | `<DEMO_PHONE>` | Phone of the account you give Apple's reviewer | |
 | `<DEMO_PASSWORD>` | Its password | |
 
@@ -77,202 +86,400 @@ Already fixed in the code — **do not change these**:
 
 ---
 
-# PART 1 — The Apple Developer Program
+# PART 1 — Create the Apple developer account
 
-### Step 1.1 — Get an Apple ID with two-factor on
+### Step 1.1 — An Apple ID with two-factor on
 
 🌐 **BROWSER** → [appleid.apple.com](https://appleid.apple.com)
 
-Use an address you will keep for years. Everything — the apps, the
-certificates, the money — is tied to it permanently.
+Sign in, or **Create Your Apple ID**. Use an address you will keep for years —
+the apps, the certificates and the money are tied to it permanently.
 
-Turn on **two-factor authentication**. Apple will not let you enrol without it,
-and you will be typing codes constantly from here on.
+Then **Sign-In and Security** → **Two-Factor Authentication** → turn it **on**.
 
-### Step 1.2 — Choose individual or organization ⚠️ decide carefully
+**Why:** Apple refuses enrolment without it, and you will be typing 6-digit
+codes constantly from here on. Keep the trusted iPhone nearby for the whole
+process.
 
-🌐 **BROWSER** → [developer.apple.com/programs](https://developer.apple.com/programs/) →
-**Enroll**
+### Step 1.2 — Individual or Organization ⚠️ decide carefully
+
+🌐 **BROWSER** → [developer.apple.com/programs](https://developer.apple.com/programs/)
+→ **Enroll**
 
 | | Individual | Organization |
 |---|---|---|
-| Seller name on the store | **your own legal name** | the company name |
-| Extra paperwork | none | **D-U-N-S number**, legal entity proof |
-| Time to approve | hours to a few days | **1–4 weeks** |
+| Seller name shown on the store | **your own legal name** | the company name |
+| Extra paperwork | none | **D-U-N-S number** + legal entity proof |
+| Approval time | hours to a few days | **1–4 weeks** |
+| Cost | $99/yr | $99/yr |
 
-⚠️ **You cannot convert an Individual account into an Organization later** — you
-start over with a new account, and the app's ownership moves with it.
+⚠️ **You cannot convert Individual into Organization later.** You would start a
+new account and move the app across.
 
-If the driving school is a registered company and you want the store to say
-"Auto Ecole Boujida" rather than your personal name, get the D-U-N-S number
-first at [dnb.com](https://www.dnb.com/duns-number.html) (free, but slow).
+If you want the store to say "Auto Ecole Boujida" rather than your personal
+name, get a D-U-N-S number first at
+[dnb.com](https://www.dnb.com/duns-number.html) — free, but slow. Otherwise
+pick **Individual** and move on today.
 
-### Step 1.3 — Pay and wait
+### Step 1.3 — Fill in the enrolment
 
-$99. Apple verifies your identity, sometimes with a phone call.
+You will be asked for:
 
-✅ You are done when [developer.apple.com/account](https://developer.apple.com/account)
-shows **Certificates, Identifiers & Profiles** in the sidebar.
+1. Legal name exactly as on your ID
+2. Address in Morocco
+3. Phone number
+4. A government ID (Apple may ask you to photograph your CIN)
 
-### Step 1.4 — Write down your Team ID
+Then pay **$99** by card.
 
-🌐 **BROWSER** → [developer.apple.com/account](https://developer.apple.com/account) →
-**Membership details**
+### Step 1.4 — Wait for approval
 
-Copy the **Team ID** — 10 characters like `A1B2C3D4E5`. That is
-`<APPLE_TEAM_ID>`. You need it in Part 6.
+Usually a few hours for Individual, sometimes a day or two. Apple occasionally
+telephones to verify.
 
-### Step 1.5 — Accept the agreements
+✅ You are approved when
+[developer.apple.com/account](https://developer.apple.com/account) shows
+**Certificates, Identifiers & Profiles** in the left sidebar.
 
-🌐 **BROWSER** → [appstoreconnect.apple.com](https://appstoreconnect.apple.com) →
-**Business** (or **Agreements, Tax, and Banking**)
+❌ If it still says "Your enrollment is being processed", just wait — there is
+nothing to fix.
+
+### Step 1.5 — Write down your Team ID
+
+🌐 **BROWSER** → [developer.apple.com/account](https://developer.apple.com/account)
+→ **Membership details**
+
+Copy the **Team ID** — 10 characters like `A1B2C3D4E5`. Write it in the
+placeholder table as `<APPLE_TEAM_ID>`. You need it in Part 4.
+
+### Step 1.6 — Accept the agreements ⚠️ easy to forget
+
+🌐 **BROWSER** → [appstoreconnect.apple.com](https://appstoreconnect.apple.com)
+→ **Business** (older accounts: **Agreements, Tax, and Banking**)
 
 Accept the **Free Applications** agreement.
 
-**Why:** an unaccepted agreement silently blocks your app from ever going live,
-and App Store Connect does not warn you until the end.
+**Why:** an unaccepted agreement silently blocks the app from going live, and
+App Store Connect does not warn you until the very end of the process.
 
-Your app is free, so you do **not** need the Paid Applications agreement, and
-you do **not** need to give Apple your bank details.
+Your app is free, so you do **not** need the Paid Applications agreement and you
+do **not** need to give Apple bank details.
+
+### Step 1.7 — Create an app-specific password
+
+🌐 **BROWSER** → [appleid.apple.com](https://appleid.apple.com) → **Sign-In and
+Security** → **App-Specific Passwords** → **+**
+
+Name it `eas`. Copy the password it gives you (`xxxx-xxxx-xxxx-xxxx`) and keep
+it safe.
+
+**Why:** `eas submit` uploads to Apple on your behalf and cannot answer a
+two-factor prompt. This password is what it uses instead. It is not your normal
+Apple password and can be revoked any time.
 
 ---
 
-# PART 2 — Prepare the code for iOS
+# PART 2 — Tools on your laptop
 
-Right now `app.json` has only an icon and a bundle identifier for iOS. These
-are the pieces it is missing. **Ask me to make these changes** — each needs a
-value only you can get, and getting one wrong costs a 20-minute build.
+If you already published to Android, you have all of this. Check anyway.
 
-### Step 2.1 — What has to be added
+### Step 2.1 — Go to the mobile folder
 
-| Setting | Why it is needed |
+💻 **LAPTOP**
+
+```bash
+cd C:\Users\T14s\Desktop\claude-setup\claude-setup\mobile
+```
+
+### Step 2.2 — Confirm the build tool
+
+💻 **LAPTOP**
+
+```bash
+eas --version
+```
+
+If it says "command not found":
+
+```bash
+npm install -g eas-cli
+```
+
+Then close the terminal and open a new one — Windows needs that after a global
+install.
+
+### Step 2.3 — Confirm you are the right Expo user
+
+💻 **LAPTOP**
+
+```bash
+eas whoami
+```
+
+✅ Must print **`codeboujida`**. If not:
+
+```bash
+eas logout
+eas login
+```
+
+**Why:** `app.json` says `"owner": "codeboujida"`, and a mismatch fails every
+build before it starts.
+
+---
+
+# PART 3 — Register the app with Apple
+
+### Step 3.1 — Register the bundle identifier
+
+🌐 **BROWSER** →
+[developer.apple.com/account/resources/identifiers](https://developer.apple.com/account/resources/identifiers)
+→ **+**
+
+1. **App IDs** → **Continue**
+2. **App** → **Continue**
+3. Description: `codeboujida`
+4. Bundle ID: select **Explicit**, type `com.codeboujida.app`
+5. Scroll the Capabilities list and tick **Push Notifications**
+6. **Continue** → **Register**
+
+⚠️ **Do this by hand rather than letting EAS do it.** EAS will create the
+identifier automatically but will not tick Push Notifications, and a missing
+capability produces a build that installs perfectly and then never receives a
+single notification.
+
+### Step 3.2 — Create the app record in App Store Connect
+
+🌐 **BROWSER** → [appstoreconnect.apple.com](https://appstoreconnect.apple.com)
+→ **Apps** → **+** → **New App**
+
+| Field | Value |
 |---|---|
-| `ios.supportsTablet` | The app already has landscape/tablet layouts. Without this Apple reviews it as iPhone-only and it runs letterboxed on iPad. |
-| `ios.infoPlist.ITSAppUsesNonExemptEncryption: false` | Skips the export-compliance question on **every single upload**. The app only uses HTTPS, which is exempt. |
-| `ios.config.usesNonExemptEncryption` | Same answer, older key. |
-| `iosAppId` in the AdMob plugin | Currently Google's **test** id. Part 3. |
-| `extra.admob.iosInterstitialUnitId` | Currently empty. Part 3. |
-| `skAdNetworkItems` | Lets advertisers measure installs on iOS. Without it, iOS ad revenue is markedly worse. |
-| `eas.json` → `submit.production.ios` | Apple ID, Team ID and App Store Connect app id, so `eas submit` works. |
+| Platforms | **iOS** |
+| Name | `codeboujida` — must be unique across the entire App Store |
+| Primary language | **Arabic** (or French — this is the listing's language) |
+| Bundle ID | `com.codeboujida.app` (pick it from the dropdown) |
+| SKU | `codeboujida-ios` — internal only, never shown to anyone |
+| User Access | **Full Access** |
 
-### Step 2.2 — What is already done
+**Create**.
 
-Nothing to do here — listed so you know it is covered:
+❌ If the name is taken, Apple tells you here. Pick a variation — the *display*
+name may differ from the bundle id, which is fixed forever.
 
-- ✅ Bundle identifier `com.codeboujida.app`
-- ✅ App icon (iOS uses the opaque `app-icon.png`, not the Android adaptive one)
-- ✅ Account deletion, which Apple requires exactly as Google does
-- ✅ No microphone permission
-- ✅ No payment UI anywhere in the app
-- ✅ `appVersionSource: "remote"`, so build numbers increment themselves
+### Step 3.3 — Copy the App Store Connect app id
+
+Once created, look at the address bar:
+
+```
+https://appstoreconnect.apple.com/apps/6740123456/appstore/ios/version/...
+                                        ^^^^^^^^^^
+```
+
+That number is `<ASC_APP_ID>`. Write it in the placeholder table.
 
 ---
 
-# PART 3 — AdMob for iOS
+# PART 4 — Set up AdMob for iOS
 
 Your Android ad setup does **not** carry over. iOS is a separate app inside
-AdMob, with its own app id and its own ad unit.
+AdMob with its own app id and its own ad unit.
 
-### Step 3.1 — Add the iOS app in AdMob
+Skip this Part only if you are happy shipping iOS with no ads at all.
 
-🌐 **BROWSER** → [admob.google.com](https://admob.google.com) → **Apps** → **Add app**
+### Step 4.1 — Add the iOS app in AdMob
+
+🌐 **BROWSER** → [admob.google.com](https://admob.google.com) → **Apps** →
+**Add app**
 
 1. Platform: **iOS**
-2. "Is your app listed on a supported app store?" → **No** (not yet)
+2. "Is your app listed on a supported app store?" → **No**
 3. App name: `codeboujida`
 4. **Add app** → **Done**
 
-Copy the **App ID** from **App settings** — it has a **`~`** in it.
+Open **Apps → codeboujida (iOS) → App settings** and copy the **App ID**:
 
-### Step 3.2 — Create the iOS interstitial unit
+```
+ca-app-pub-7655131518793372~1234567890
+```
+
+⚠️ Note the **`~`** (tilde). That is `<IOS_ADMOB_APP_ID>`.
+
+### Step 4.2 — Create the iOS interstitial unit
 
 **Apps → codeboujida (iOS) → Ad units → Add ad unit**
 
 1. Format: **Interstitial**
 2. Name: `end-of-series`
-3. **Create ad unit**
+3. Leave the rest default → **Create ad unit**
 
-Copy the **Ad unit ID** — it has a **`/`** in it.
+Copy the **Ad unit ID**:
 
-⚠️ Same trap as Android: `~` is the app, `/` is the unit. Keep them apart.
+```
+ca-app-pub-7655131518793372/9876543210
+```
 
-### Step 3.3 — About the tracking prompt
+⚠️ This one has a **`/`** (slash). That is `<IOS_ADMOB_UNIT_ID>`.
+
+Mixing these two up makes the app **crash on launch**. Keep them apart.
+
+### Step 4.3 — app-ads.txt already covers iOS
+
+Nothing to do. `https://codeboujida.com/app-ads.txt` is per *publisher*, not per
+platform, and your publisher id is the same. It already authorises the iOS app.
+
+### Step 4.4 — About the tracking prompt
 
 You may have seen iOS apps ask *"Allow codeboujida to track you across other
-apps?"*. **Yours will not, and should not.**
+apps?"*. **Yours will not, and does not need to.**
 
-The app requests **non-personalised ads only** (`requestNonPersonalizedAdsOnly:
-true` in `src/ads/interstitial.ts`), which does not touch the advertising
-identifier. No tracking, so no prompt, and no App Tracking Transparency
-paperwork.
+The app requests **non-personalised ads only**
+(`requestNonPersonalizedAdsOnly: true` in `src/ads/interstitial.ts`), which
+never touches the advertising identifier. No tracking means no prompt and no App
+Tracking Transparency paperwork.
 
-The trade-off: non-personalised ads pay less. Adding the prompt later is a real
-option once the app has users — it needs an ATT permission string, a consent
-flow, and an update to the App Privacy answers in Part 9.
-
-### Step 3.4 — app-ads.txt already covers iOS
-
-Nothing to do. The file at `https://codeboujida.com/app-ads.txt` is per
-*publisher*, not per platform, and your publisher id is the same. It already
-covers the iOS app.
+The trade-off is that non-personalised ads pay less. Adding the prompt later is
+a real option once the app has users — it needs a permission string, a consent
+flow, and a change to the App Privacy answers in Step 11.1.
 
 ---
 
-# PART 4 — Create the app in App Store Connect
+# PART 5 — Prepare the code for iOS
 
-### Step 4.1 — Register the bundle identifier
+💻 **LAPTOP** — open `mobile/app.json` in your editor.
 
-🌐 **BROWSER** → [developer.apple.com/account/resources/identifiers](https://developer.apple.com/account/resources/identifiers) →
-**+**
+Everything in this Part is a text edit you make yourself. Take your time; each
+mistake costs a 25-minute build.
 
-1. **App IDs** → **Continue** → **App** → **Continue**
-2. Description: `codeboujida`
-3. Bundle ID: **Explicit** → `com.codeboujida.app`
-4. Capabilities: tick **Push Notifications**
-5. **Continue** → **Register**
+### Step 5.1 — Expand the `ios` block
 
-**Why do it by hand:** EAS can create this for you, but it will not tick Push
-Notifications, and a missing capability produces a build that installs fine and
-then never receives a notification.
+Find this near the top:
 
-### Step 4.2 — Create the app record
+```json
+    "ios": {
+      "icon": "./assets/images/app-icon.png",
+      "bundleIdentifier": "com.codeboujida.app"
+    },
+```
 
-🌐 **BROWSER** → [appstoreconnect.apple.com](https://appstoreconnect.apple.com) →
-**Apps** → **+** → **New App**
+Replace it with:
 
-| Field | Value |
+```json
+    "ios": {
+      "icon": "./assets/images/app-icon.png",
+      "bundleIdentifier": "com.codeboujida.app",
+      "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+```
+
+What each line does:
+
+| Line | Why |
 |---|---|
-| Platforms | **iOS** |
-| Name | `codeboujida` — must be unique across the whole App Store |
-| Primary language | **Arabic** (or French, whichever you want the listing in) |
-| Bundle ID | `com.codeboujida.app` |
-| SKU | `codeboujida-ios` — internal only, never shown |
-| User Access | **Full Access** |
+| `supportsTablet` | The app already has landscape and tablet layouts. Without this Apple runs it letterboxed on iPad and reviews it as iPhone-only. ⚠️ It also **obliges you to supply iPad screenshots** (Step 11.4). Set it to `false` if you want to skip that work for version 1. |
+| `usesNonExemptEncryption` / `ITSAppUsesNonExemptEncryption` | Answers the export-compliance question permanently. Without them Apple asks you on **every single upload**, forever. The app only uses HTTPS, which is exempt, so `false` is the correct and honest answer. |
 
-**Create**.
+### Step 5.2 — Put in the iOS AdMob app id
 
-⚠️ If the name is taken, Apple says so here. Pick a variation — the *display*
-name can differ from the bundle id, which is fixed.
+Find the AdMob plugin near the bottom of `plugins`:
 
-### Step 4.3 — Copy the App Store Connect app id
-
-Once created, look at the browser URL:
-
-```
-https://appstoreconnect.apple.com/apps/6740123456/appstore/...
-                                        ^^^^^^^^^^
+```json
+[
+  "react-native-google-mobile-ads",
+  {
+    "androidAppId": "ca-app-pub-7655131518793372~2467421166",
+    "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+  }
+]
 ```
 
-That number is `<ASC_APP_ID>`. You need it for `eas submit`.
+Replace `iosAppId` with `<IOS_ADMOB_APP_ID>` from Step 4.1. **Leave
+`androidAppId` exactly as it is.**
+
+⚠️ `ca-app-pub-3940256099942544` is Google's *test* publisher. Ship that and
+iOS shows "Test Ad" forever and earns nothing.
+
+### Step 5.3 — Put in the iOS ad unit id
+
+Find the `admob` block inside `extra`:
+
+```json
+"admob": {
+  "androidInterstitialUnitId": "ca-app-pub-7655131518793372/1398239892",
+  "iosInterstitialUnitId": "",
+  "forceTestAds": true
+}
+```
+
+Set `iosInterstitialUnitId` to `<IOS_ADMOB_UNIT_ID>` from Step 4.2.
+
+Leave `forceTestAds` as `true` for your **test** build — it forces Google's
+always-filling test ads so you can confirm the ad actually appears. Set it to
+`false` before the **production** build (Step 10.1).
+
+### Step 5.4 — Add the submit details to `eas.json`
+
+💻 **LAPTOP** — open `mobile/eas.json`. Find the `submit` block at the bottom:
+
+```json
+"submit": {
+  "production": {
+    "android": {
+      "track": "internal"
+    }
+  }
+}
+```
+
+Replace it with:
+
+```json
+"submit": {
+  "production": {
+    "android": {
+      "track": "internal"
+    },
+    "ios": {
+      "appleId": "<APPLE_ID>",
+      "ascAppId": "<ASC_APP_ID>",
+      "appleTeamId": "<APPLE_TEAM_ID>"
+    }
+  }
+}
+```
+
+Fill in the three real values from Parts 1 and 3. Keep the quotes.
+
+**Why:** without this, `eas submit` asks you for all three every single time and
+cannot run unattended.
+
+### Step 5.5 — Commit ⚠️ do not skip
+
+💻 **LAPTOP**
+
+```bash
+git add app.json eas.json
+git commit -m "mobile: iOS configuration"
+git push
+```
+
+**Why:** EAS builds from your **committed** code, not from your disk. Skip this
+and the cloud build silently uses the old settings and you will not understand
+why nothing changed.
 
 ---
 
-# PART 5 — Push notifications (APNs)
+# PART 6 — Push notifications (APNs)
 
-Android used Firebase. iOS uses Apple's own service, and EAS can set the whole
-thing up for you.
+Android used Firebase. iOS uses Apple's own service, and EAS sets it up for you.
 
-### Step 5.1 — Let EAS create the key
+### Step 6.1 — Let EAS create the key
 
 💻 **LAPTOP** — in the `mobile` folder:
 
@@ -280,75 +487,96 @@ thing up for you.
 eas credentials
 ```
 
+Answer the menu:
+
 1. Platform → **iOS**
 2. Build profile → **production**
 3. → **Push Notifications: Manage your Apple Push Notifications Key**
 4. → **Set up your Push Notifications Key**
-5. Log in with `<APPLE_ID>` when asked
+5. Log in with `<APPLE_ID>` and your 2FA code when asked
 
-✅ It reports a configured APNs key. `Ctrl+C` to exit.
+✅ The menu then shows a configured APNs key. Press `Ctrl+C` to exit.
 
-**Why let EAS do it:** Apple lets you download a `.p8` push key **exactly
-once**, ever. Lose the file and you must revoke and regenerate. EAS stores it
-for you and never needs you to handle the file.
+⚠️ **Two things about Apple push keys.**
 
-⚠️ Apple allows a maximum of **2 APNs keys per account**. Do not generate
-spares "to test" — you will lock yourself out of making the one you need.
+Apple lets you download the `.p8` key file **exactly once, ever**. Letting EAS
+create and store it means you never handle the file and can never lose it.
+
+Apple allows a maximum of **2 APNs keys per account**. Do not generate spares
+"just to test" — you will lock yourself out of creating the one you need.
 
 ---
 
-# PART 6 — Check everything before building
+# PART 7 — Check everything before building
 
 💻 **LAPTOP** — in the `mobile` folder.
 
-### Step 6.1 — Does it compile?
+### Step 7.1 — Does the code compile?
 
 ```bash
 npx tsc --noEmit
 ```
-✅ Prints nothing.
 
-### Step 6.2 — Is the iOS config right?
+✅ Prints nothing at all. Any output is an error to fix first.
+
+**Why:** catches mistakes in 30 seconds instead of 25 minutes into a cloud build.
+
+### Step 7.2 — Is the iOS config right?
 
 ```bash
-node -e "const e=require('./app.json').expo; const p=e.plugins.find(x=>Array.isArray(x)&&x[0]==='react-native-google-mobile-ads'); console.log('bundle id   :',e.ios.bundleIdentifier); console.log('ios app id  :',p[1].iosAppId); console.log('ios unit id :',e.extra.admob.iosInterstitialUnitId||'(test)'); console.log('forceTestAds:',e.extra.admob.forceTestAds===true?'ON  <-- must be false before release':'off')"
+node -e "const e=require('./app.json').expo; const p=e.plugins.find(x=>Array.isArray(x)&&x[0]==='react-native-google-mobile-ads'); console.log('bundle id   :',e.ios.bundleIdentifier); console.log('tablet      :',e.ios.supportsTablet===true?'on (iPad screenshots required)':'off'); console.log('ios app id  :',p[1].iosAppId); console.log('ios unit id :',e.extra.admob.iosInterstitialUnitId||'(empty - will use test)'); console.log('forceTestAds:',e.extra.admob.forceTestAds===true?'ON':'off')"
 ```
 
-✅ For the **release** build:
+✅ Expect:
 
-| | Required |
-|---|---|
-| `bundle id` | `com.codeboujida.app` |
-| `ios app id` | your own, contains a **`~`** |
-| `ios unit id` | your own, contains a **`/`** |
-| `forceTestAds` | **off** |
+```
+bundle id   : com.codeboujida.app
+tablet      : on (iPad screenshots required)
+ios app id  : ca-app-pub-7655131518793372~...
+ios unit id : ca-app-pub-7655131518793372/...
+forceTestAds: ON
+```
 
-❌ An `ios app id` starting `ca-app-pub-3940256099942544` is still Google's test
-publisher. Real ads will never show.
+❌ An `ios app id` starting `ca-app-pub-3940256099942544` means Step 5.2 was not
+saved — that is Google's test publisher.
 
-### Step 6.3 — Native libraries consistent?
+### Step 7.3 — Are the native libraries consistent?
 
 ```bash
 npx expo-doctor
 ```
-✅ `18/18 checks passed`.
 
-⚠️ Necessary but not sufficient — it once reported 18/18 while a library was
-crashing the Android release build on launch. Only TestFlight on a real iPhone
-proves anything.
+✅ `18/18 checks passed. No issues detected!`
 
-### Step 6.4 — Is everything committed?
+⚠️ Necessary but **not sufficient**. This project once reported 18/18 while
+carrying a library that crashed the Android release build on launch. Only
+installing on a real iPhone proves anything.
+
+### Step 7.4 — Is everything committed?
 
 ```bash
 git status
 ```
-✅ Must be clean. **EAS builds from git, not from your disk.**
+
+✅ Must say `nothing to commit, working tree clean`.
 
 ---
 
-# PART 7 — Build it
+# PART 8 — Build a TEST version
 
-### Step 7.1 — Start the build
+Two routes. **Use TestFlight** unless you have a specific reason not to.
+
+| | TestFlight | Ad-hoc (direct install) |
+|---|---|---|
+| Device registration | none needed | **every** iPhone's UDID, by hand |
+| Testers | up to 100 internal, instantly | only registered devices |
+| Apple review | none for internal testers | none |
+| Expires | 90 days per build | when the profile expires (1 year) |
+| Best for | almost everything | a phone with no Apple ID signed in |
+
+## Route A — TestFlight (recommended)
+
+### Step 8.1 — Build it
 
 💻 **LAPTOP**
 
@@ -356,22 +584,16 @@ git status
 eas build --profile production --platform ios
 ```
 
-The first time, EAS asks to log in to Apple and then offers to create the
-signing certificate and provisioning profile. Say **yes** to everything —
-letting EAS manage credentials is the whole point.
+The **first time**, EAS asks to log in to Apple and then offers to create the
+distribution certificate and provisioning profile. Say **yes** to everything —
+letting EAS manage credentials is the entire point of using it.
 
-⏱ Roughly 20–30 minutes, longer than Android.
+⏱ 20–30 minutes. Longer than Android. You can close the terminal; the build
+continues on Expo's servers and the link is in your account.
 
-### Step 7.2 — Back up nothing, but understand this
+✅ Ends with `Build finished` and a link.
 
-Unlike Android, there is no keystore file you must guard. Apple certificates
-can be revoked and regenerated from your developer account at any time, so
-losing one is an inconvenience, not a catastrophe.
-
-What you **cannot** recover is the Apple Developer account itself. Keep
-`<APPLE_ID>` and its 2FA device safe.
-
-### Step 7.3 — Upload to App Store Connect
+### Step 8.2 — Upload it to Apple
 
 💻 **LAPTOP**
 
@@ -379,151 +601,276 @@ What you **cannot** recover is the Apple Developer account itself. Keep
 eas submit --profile production --platform ios
 ```
 
-It asks for `<APPLE_ID>`, then an **app-specific password**. That is not your
-normal Apple password — generate one at
-[appleid.apple.com](https://appleid.apple.com) → **Sign-In and Security** →
-**App-Specific Passwords** → **+**.
+It uses the `appleId` / `ascAppId` / `appleTeamId` from Step 5.4, and asks for
+the **app-specific password** from Step 1.7 (not your normal Apple password).
 
-✅ Ends with the build uploaded.
+✅ Ends with the build uploaded to App Store Connect.
 
-### Step 7.4 — Wait for processing
+### Step 8.3 — Wait for processing
 
-🌐 **BROWSER** → App Store Connect → your app → **TestFlight**
+🌐 **BROWSER** → App Store Connect → your app → **TestFlight** tab
 
-The build shows **"Processing"** for 5–30 minutes. This is Apple scanning it,
+The build shows **"Processing"** for 5–30 minutes. That is Apple scanning it,
 not a problem.
 
 ❌ If you get an email saying the build was rejected during processing, it is
-almost always a missing Info.plist key. The email names it exactly.
+almost always a missing Info.plist key — and the email names the exact key. Send
+it to me and I will tell you what to add.
+
+### Step 8.4 — Add yourself as an internal tester
+
+🌐 **BROWSER** → **TestFlight** → **Internal Testing** → **+** beside Testers
+
+Add `<APPLE_ID>`. Internal testers need **no Apple review** and get the build
+immediately.
+
+⚠️ If App Store Connect asks about **export compliance** here, Step 5.1 was not
+applied. Answer "No" to encryption and fix `app.json` before the next build.
+
+### Step 8.5 — Install it on the iPhone
+
+📱 **IPHONE**
+
+1. Install **TestFlight** from the App Store
+2. Sign in with `<APPLE_ID>`
+3. `codeboujida` is waiting — tap **Install**
+
+✅ The app appears on the home screen with a small orange dot beside its name in
+TestFlight.
+
+## Route B — Ad-hoc, direct install
+
+Use this when you want the app on a phone without signing it into TestFlight.
+
+### Step 8.6 — Register the device
+
+💻 **LAPTOP**
+
+```bash
+eas device:create
+```
+
+Choose **Website** — it prints a URL and a QR code.
+
+📱 **IPHONE** — open that URL in **Safari** (not Chrome), download the profile,
+then **Settings → General → VPN & Device Management** → install it.
+
+✅ The device's UDID is now registered with your Apple account.
+
+⚠️ Repeat for every phone that needs the build. Apple caps you at **100 iPhones
+per year**, and the count only resets at renewal.
+
+### Step 8.7 — Build for those devices
+
+💻 **LAPTOP**
+
+```bash
+eas build --profile preview --platform ios
+```
+
+The `preview` profile is already `"distribution": "internal"`, which is what
+makes this an ad-hoc build.
+
+✅ When it finishes, EAS gives you an install link and a QR code. Open it in
+Safari **on a registered iPhone** and tap Install.
+
+❌ "Unable to install" almost always means that phone's UDID was registered
+*after* the build. Register it, then build again — the device list is baked in.
 
 ---
 
-# PART 8 — Test through TestFlight
+# PART 9 — Test it properly
 
-### Step 8.1 — Add yourself as an internal tester
-
-🌐 **BROWSER** → **TestFlight** → **Internal Testing** → **+** next to Testers
-
-Add `<APPLE_ID>`. Internal testers (up to 100) need **no review** and get the
-build immediately.
-
-### Step 8.2 — Install it
-
-📱 **ON THE IPHONE** — install **TestFlight** from the App Store, sign in with
-`<APPLE_ID>`, and your app is waiting.
-
-### Step 8.3 — Test properly
-
-Do not skip this. Check specifically:
+📱 **IPHONE** — do not skip this. It is the only thing that proves the app works.
 
 - [ ] It opens without crashing (the Android build crashed twice on launch)
 - [ ] Register a new account, then log in with the phone number
 - [ ] Series appear — free ones open, locked ones show the قفل card
-- [ ] Finish a series: the ad appears, then the score
+- [ ] Finish a series: **the ad appears**, then the score
 - [ ] The correction screen plays its audio
 - [ ] **Rotate to landscape** on every quiz screen
-- [ ] Arabic text is right-aligned everywhere, nothing reversed or clipped
-- [ ] الإعدادات → حذف حسابي نهائياً actually deletes
-- [ ] Turn the timer off in settings, confirm no countdown appears
-- [ ] Kill the app, reopen offline — content still there
+- [ ] Arabic is right-aligned everywhere, nothing reversed or clipped
+- [ ] الإعدادات → حذف حسابي نهائياً actually deletes the account
+- [ ] Turn the timer off in settings — no countdown appears
+- [ ] Live section shows (only if the platform URLs are set in the admin panel)
+- [ ] Kill the app, reopen with WiFi off — content is still there
+- [ ] Push notification arrives (ask me to send a test)
 
-⚠️ **Test on a real iPhone, not just the newest one.** If the owner's phone is
-old, test on that: it is the floor your candidates will be on.
+⚠️ **Test on an old iPhone if the owner has one.** The newest phone hides
+performance problems your candidates will hit.
+
+⚠️ **If `forceTestAds` is on, the ad says "Test Ad".** That is correct and safe
+to tap. Once you switch to real ads, never tap your own — Google permanently
+disables accounts for it.
 
 ---
 
-# PART 9 — The App Store forms
+# PART 10 — Build the PRODUCTION version
+
+Only once Part 9 passes.
+
+### Step 10.1 — Turn off the test ads ⚠️ the one people forget
+
+💻 **LAPTOP** — in `mobile/app.json`, in the `admob` block:
+
+```json
+"forceTestAds": false
+```
+
+```bash
+git add app.json
+git commit -m "mobile: real ads for release"
+git push
+```
+
+**Why:** shipping with it on means every candidate sees "Test Ad" and you earn
+nothing.
+
+### Step 10.2 — Re-run the checks
+
+💻 **LAPTOP**
+
+```bash
+npx tsc --noEmit
+node -e "const e=require('./app.json').expo; const p=e.plugins.find(x=>Array.isArray(x)&&x[0]==='react-native-google-mobile-ads'); console.log('ios app id  :',p[1].iosAppId); console.log('ios unit id :',e.extra.admob.iosInterstitialUnitId||'(empty)'); console.log('forceTestAds:',e.extra.admob.forceTestAds===true?'ON  <-- WRONG for release':'off')"
+git status
+```
+
+✅ For release you need all four:
+
+| | Required |
+|---|---|
+| `ios app id` | yours, contains a **`~`** |
+| `ios unit id` | yours, contains a **`/`** |
+| `forceTestAds` | **off** |
+| `git status` | clean |
+
+### Step 10.3 — Build and upload
+
+💻 **LAPTOP**
+
+```bash
+eas build --profile production --platform ios
+eas submit --profile production --platform ios
+```
+
+The version number increments itself (`appVersionSource: "remote"` in
+`eas.json`), so you can never clash with a build already on Apple's servers.
+
+✅ The new build appears under **TestFlight** after processing. Install it once
+more and confirm the ad now shows a **real** ad rather than "Test Ad".
+
+---
+
+# PART 11 — The App Store forms
 
 🌐 **BROWSER** → App Store Connect → your app → **App Store** tab.
 
-### Step 9.1 — App Privacy ⚠️ must match Android
+This is where people get stuck. Work down the left sidebar.
+
+### Step 11.1 — App Privacy ⚠️ must match your Android answers
 
 **App Privacy** → **Get Started**
 
-| Data | Collected | Linked to identity | Used for tracking | Purpose |
+| Data type | Collected | Linked to identity | Used for tracking | Purpose |
 |---|---|---|---|---|
 | **Phone Number** | Yes | Yes | No | App Functionality |
 | **Name** (the username) | Yes | Yes | No | App Functionality |
 | **Other Data** (3 ID digits) | Yes | Yes | No | App Functionality |
-| **Product Interaction** (quiz results) | Yes | Yes | No | App Functionality |
+| **Product Interaction** (quiz results) | Yes | Yes | No | Analytics, App Functionality |
 | **Device ID** | Yes | **No** | **No** | **Third-Party Advertising** |
 
 ⚠️ **Device ID is the row the ads create.** AdMob reads a device identifier and
-sends it to advertisers, so it must be declared. Mark **"Used for tracking" =
+passes it to advertisers, so it must be declared. Mark **Used for tracking =
 No** — correct, because the app requests non-personalised ads only. If you ever
-add the ATT prompt (Step 3.3), this answer must change to **Yes**.
+add the ATT prompt (Step 4.4), that answer must become **Yes**.
 
-Also set the deletion URL: `https://codeboujida.com/legal/account-deletion.html`
+Also set the account deletion URL:
+`https://codeboujida.com/legal/account-deletion.html`
 
-### Step 9.2 — Age rating
+**Publish** when done.
+
+### Step 11.2 — Age rating
 
 **Age Rating** → **Edit**
 
-Everything **None** / **No** — no violence, no sexual content, no profanity, no
-gambling, no user-generated content, no unrestricted web access.
+Answer **None** / **No** to everything: no violence, no sexual content, no
+profanity, no horror, no gambling, no user-generated content, no unrestricted
+web access.
 
-There is a question about **advertising**: answer honestly that the app
-contains third-party ads.
+There is a question about whether the app **contains advertising** — answer
+**Yes**. It must agree with Step 11.1.
 
 ✅ You should land on **4+**.
 
-### Step 9.3 — The listing
+### Step 11.3 — Pricing and availability
+
+**Pricing and Availability**
+
+- Price: **Free**
+- Availability: **Morocco** at minimum. Adding the whole world costs nothing and
+  reaches Moroccans abroad.
+
+### Step 11.4 — Screenshots ⚠️ the fiddly part
+
+Apple demands **exact pixel dimensions** and rejects anything else.
+
+| Device | Accepted sizes | Required? |
+|---|---|---|
+| iPhone 6.9" | 1290 × 2796 **or** 1320 × 2868 | **Yes, always** |
+| iPad 13" | 2048 × 2732 **or** 2064 × 2752 | **Only if `supportsTablet` is true** |
+
+Minimum 3 per size, maximum 10.
+
+**How to get them without a Mac:** take screenshots on a real iPhone from your
+TestFlight build, then resize to the exact pixel size in any image editor. The
+aspect ratio must match, so crop rather than stretch.
+
+**If you set `supportsTablet: false` in Step 5.1**, you skip the iPad set
+entirely. That is a legitimate choice for version 1 — but the app does have
+tablet layouts already, so it is a shame to hide them.
+
+### Step 11.5 — The listing text
 
 | Field | What to put |
 |---|---|
-| Subtitle | 30 characters, Arabic, e.g. `دروس ورموز السياقة` |
-| Promotional text | 170 chars, changeable without review |
-| Description | What the app does. **Do not mention prices, WhatsApp payments, or subscriptions.** |
-| Keywords | 100 characters total, comma-separated, no spaces |
+| Subtitle | 30 chars, e.g. `دروس ورموز السياقة` |
+| Promotional text | 170 chars — changeable later **without** a review |
+| Description | What the app does. ⚠️ **Never mention prices, WhatsApp payment, or subscriptions.** |
+| Keywords | 100 characters total, comma-separated, **no spaces after commas** |
 | Support URL | `https://codeboujida.com` |
 | Marketing URL | optional |
 | Privacy Policy URL | `https://codeboujida.com/legal/privacy.html` |
 
-⚠️ **The description is read by the reviewer.** Anything that sounds like
-selling digital access inside the app hands them a reason to invoke 3.1.1.
-Describe it as exam preparation material provided by the driving school.
+⚠️ **The reviewer reads the description.** Anything that sounds like selling
+digital access inside the app hands them a reason to invoke 3.1.1. Describe it
+as exam preparation material provided by the driving school.
 
-### Step 9.4 — Screenshots ⚠️ the fiddly part
+### Step 11.6 — App Review Information
 
-Apple requires **exact pixel dimensions**, and rejects anything else.
-
-| Device | Size | Required? |
-|---|---|---|
-| iPhone 6.9" (16 Pro Max) | 1320 × 2868 | **Yes** |
-| iPad 13" | 2064 × 2752 | **Yes, if `supportsTablet` is on** |
-
-Take them from TestFlight on a real device, or from the Simulator if you can
-borrow a Mac. Minimum 3 per size, maximum 10.
-
-**Why iPad matters:** turning on `supportsTablet` (Step 2.1) obliges you to
-supply iPad screenshots. If you would rather skip that work for version 1,
-leave tablet support off — but the app does have tablet layouts already, so it
-is a shame to waste them.
-
-### Step 9.5 — App Review Information
-
-This is where you hand the reviewer an account and get ahead of 3.1.1.
+Scroll to the bottom of the version page.
 
 | Field | Value |
 |---|---|
 | Sign-in required | **Yes** |
-| Phone | `<DEMO_PHONE>` |
+| User name | `<DEMO_PHONE>` |
 | Password | `<DEMO_PASSWORD>` |
 | Contact | your name, email, phone |
 
-⚠️ **Unlock the demo account before you submit** — admin panel → المستخدمون →
-find the number → **تجديد 3 أشهر**. A reviewer who hits a locked screen
-rejects the app for "incomplete functionality", and that also invites the
-payment question.
+⚠️ **Unlock the demo account before submitting** — admin panel → المستخدمون →
+find that number → **تجديد 3 أشهر**. A reviewer who hits a locked screen rejects
+for "incomplete functionality", and that also invites the payment question.
+
+⚠️ Remember the subscription lasts **3 months**. If Apple reviews an update
+later, check the demo account has not expired.
 
 ---
 
-# PART 10 — Submit, and the 3.1.1 argument
+# PART 12 — Submit, and the 3.1.1 argument
 
-### Step 10.1 — Notes for the reviewer
+### Step 12.1 — Reviewer notes ⚠️ the highest-value step in this guide
 
-Paste this into **Notes** in App Review Information. It is the single highest
-value thing in this guide.
+Paste this into **Notes** in App Review Information:
 
 ```
 This app contains NO purchases of any kind. Nothing is sold inside it.
@@ -546,37 +893,61 @@ delivered by hand). Physical goods are outside in-app purchase per 3.1.1.
 A demo account with full access is provided above.
 ```
 
-### Step 10.2 — Submit
+### Step 12.2 — Attach the build and submit
 
-**Add for Review** → **Submit to App Review**.
-
-Choose **manual release** rather than automatic, so you decide when it goes
-live after approval.
+1. On the version page, scroll to **Build** → **+** → pick the build from Step
+   10.3
+2. Choose **Manually release this version** — so you decide when it goes live
+3. **Add for Review** → **Submit to App Review**
 
 ⏱ Usually 24–48 hours.
 
-### Step 10.3 — If it is rejected for 3.1.1
+### Step 12.3 — If it is rejected for 3.1.1
 
-Do not resubmit unchanged and do not panic. In **Resolution Center**:
+Do not resubmit unchanged, and do not panic. Go to **Resolution Center**:
 
-1. Reply in writing, restating Step 10.1 and adding: the school is a physical
-   business, the app is free, no digital goods are transacted.
-2. Ask directly: *"Which in-app purchase would you expect here, given nothing
-   is sold?"* Making them be specific often surfaces a misunderstanding.
+1. Reply in writing, restating Step 12.1, and add that the school is a physical
+   business, the app is free, and no digital goods are transacted anywhere.
+2. Ask directly: *"Which in-app purchase would you expect here, given nothing is
+   sold in the app?"* Forcing them to be specific often surfaces a
+   misunderstanding.
 3. If they hold firm, ask to escalate to the **App Review Board**.
 
-**If Apple will not move**, your options are, honestly:
+**If Apple will not move**, your options are honestly only these:
 
-- Remove the locked content from iOS entirely and ship a free-only version
+- Ship iOS with the free content only, and no locked series
 - Add Apple in-app purchase and give Apple 15–30%
 - Stay Android-only
 
-This is why "Read this before you spend anything" told you to budget for it
-before paying the $99.
+This is exactly why the top of this guide told you to decide before paying.
 
 ---
 
-# PART 11 — Updating later
+# PART 13 — Go live
+
+### Step 13.1 — Release it
+
+🌐 **BROWSER** → App Store Connect → your app
+
+When the status turns **Pending Developer Release**, press **Release This
+Version**.
+
+⏱ It appears on the App Store within a few hours. Search takes up to 24 hours to
+catch up, so use the direct link at first.
+
+### Step 13.2 — Link AdMob to the live listing
+
+🌐 **BROWSER** → AdMob → **Apps** → **codeboujida (iOS)** → **App settings** →
+**Link to app store**
+
+Search `com.codeboujida.app` and link it.
+
+**Why:** AdMob serves very little to an unlisted app. Linking it is what turns
+the fill rate from near-zero into something real — often within a day.
+
+---
+
+# PART 14 — Updating later
 
 💻 **LAPTOP**
 
@@ -584,7 +955,7 @@ before paying the $99.
 cd mobile
 git pull
 npx tsc --noEmit
-git status                  # must be clean
+git status                    # must be clean
 eas build --profile production --platform ios
 eas submit --profile production --platform ios
 ```
@@ -592,51 +963,64 @@ eas submit --profile production --platform ios
 Then in App Store Connect: **+ Version**, write "What's New", attach the new
 build, submit.
 
-Every update goes through review again, though updates are usually faster than
-the first submission.
+Apple reviews **every** update, though updates are usually faster than the first
+submission.
 
 ⚠️ **Never change `com.codeboujida.app`.** A different bundle id is a different
-app: existing users keep the old one and never get updates.
+app: existing users keep the old one and never receive updates.
 
 ---
 
-# PART 12 — When something goes wrong
+# PART 15 — When something goes wrong
 
 ### "No suitable application records were found"
 The bundle id in `app.json` does not match any app in App Store Connect. Check
-Step 4.2, and that you are logged into the right Apple team.
+Step 3.2, and that `eas whoami` and your Apple login are the right accounts.
 
-### "Invalid Swift Support" / "Missing Info.plist key"
-The rejection email names the exact key. Tell me which one and I will add it to
+### Build fails: "Provisioning profile doesn't include signing certificate"
+Let EAS rebuild them:
+```bash
+eas credentials
+```
+→ iOS → production → **Build Credentials** → **Set up a new provisioning profile**.
+
+### "Missing Info.plist key" after upload
+The rejection email names the exact key. Send it to me and I will add it to
 `app.json`.
 
-### Build succeeds, TestFlight says "Processing" forever
-Over an hour is stuck. Check your email — Apple sends the real reason there,
-not to App Store Connect.
+### TestFlight stuck on "Processing" for over an hour
+Check your **email**, not App Store Connect — Apple sends the real reason there.
 
 ### Push notifications never arrive
-Three things must all be true: Push Notifications ticked on the App ID (Step
-4.1), an APNs key configured in `eas credentials` (Step 5.1), and the user
-actually granted permission on the phone. Check in that order.
+Three things must all be true, in this order: Push Notifications ticked on the
+App ID (Step 3.1), an APNs key configured (Step 6.1), and the user granted
+permission on the phone.
 
-### No ads on iOS but ads work on Android
-The iOS app id and unit id are separate (Part 3). Run the Step 6.2 check — if
-`ios app id` still starts `ca-app-pub-3940256099942544`, that is the test
-publisher and real ads will never serve.
+### Ads work on Android but not iOS
+Separate ids. Run the Step 7.2 check — if `ios app id` starts
+`ca-app-pub-3940256099942544` it is still Google's test publisher.
+
+### No ad at all on a fresh AdMob unit
+Normal for the first 24 hours, and near-total until Step 13.2 links the app to
+the live listing. Set `forceTestAds: true` to prove the code works.
 
 ### "Guideline 2.1 — Information Needed"
-Usually the reviewer could not sign in. Confirm the demo account still works
-and that its subscription has not expired — it lasts 3 months and Apple may
-review months after you first entered it.
+Usually the reviewer could not sign in. Confirm the demo account still works and
+that its 3-month subscription has not expired.
+
+### Ad-hoc build says "Unable to install"
+That iPhone's UDID was registered after the build was made. Register it, then
+build again — the device list is fixed at build time.
 
 ---
 
-# What I need from you to start
+# What to send me when you are ready
 
-Give me these and I will make every code change in Part 2 in one commit:
+I can make every edit in Part 5 in one commit. I need:
 
-1. `<APPLE_TEAM_ID>` — Step 1.4
-2. `<ASC_APP_ID>` — Step 4.3
-3. The Apple ID email for `eas submit`
-4. iOS AdMob **app id** (`~`) and **interstitial unit id** (`/`) — Part 3
-5. Whether you want **iPad support** on — it means supplying iPad screenshots
+1. `<APPLE_ID>` — the email for `eas submit`
+2. `<APPLE_TEAM_ID>` — Step 1.5
+3. `<ASC_APP_ID>` — Step 3.3
+4. `<IOS_ADMOB_APP_ID>` (the `~` one) — Step 4.1
+5. `<IOS_ADMOB_UNIT_ID>` (the `/` one) — Step 4.2
+6. Whether you want **iPad support on** — it means supplying iPad screenshots
