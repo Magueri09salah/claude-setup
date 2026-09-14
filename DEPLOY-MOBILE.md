@@ -1329,6 +1329,9 @@ especially that the Firebase package name is exactly `com.codeboujida.app`.
 
 # PART 16 — iOS, later
 
+👉 **The full iOS walkthrough is its own file: `DEPLOY-IOS.md`.** What follows
+is the summary, so you know what you are in for before opening it.
+
 Once Android is live, iOS reuses everything you built here.
 
 **What's different:**
@@ -1349,3 +1352,12 @@ driving school, nothing is sold in the app — but reply in the review thread
 rather than changing the app.
 
 Your bundle identifier is already `com.codeboujida.app`, matching Android.
+
+⚠️ **You cannot test an iOS build for free.** EAS builds iOS in the cloud so no
+Mac is needed, but the only build that costs nothing is a Simulator build, and
+the Simulator only exists on a Mac. Getting the app onto a real iPhone —
+TestFlight or ad-hoc — needs the paid membership. There is no Android-style
+"just install the APK" path on iOS.
+
+Read `DEPLOY-IOS.md` before paying: it opens with the two things worth deciding
+up front, the $99/year and the Guideline 3.1.1 risk.
