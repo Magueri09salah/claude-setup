@@ -1,5 +1,13 @@
 import { db, type LicenceCategory, type QuestionRow } from "./index";
 
+/**
+ * Every exam question has four answers. The admin editor was fixed at four
+ * on 2026-09-15, but rows synced before that still carry 2 or 3 — and a
+ * three-button grid under a picture showing four options is simply wrong.
+ * Pinned here because fromRow is the one funnel every loader below uses.
+ */
+const ANSWERS_COUNT = 4;
+
 export interface LocalQuestion {
   id: number;
   seriesId: number;
@@ -22,7 +30,7 @@ function fromRow(r: QuestionRow): LocalQuestion {
     id: r.id,
     seriesId: r.series_id,
     orderNum: r.order_num,
-    answersCount: r.answers_count,
+    answersCount: ANSWERS_COUNT,
     correctAnswers: JSON.parse(r.correct_answers) as number[],
     imagePath: r.image_path,
     audioPath: r.audio_path,

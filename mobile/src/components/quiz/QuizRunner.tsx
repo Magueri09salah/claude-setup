@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { preloadInterstitial, showInterstitial } from "@/ads/interstitial";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Icon } from "@/components/Icon";
 import { ImageViewer } from "@/components/ImageViewer";
 import { ZoomableImage } from "@/components/ZoomableImage";
@@ -319,10 +320,18 @@ export function QuizRunner({ source }: { source: QuizSource }) {
   /* ----------------------------- PORTRAIT ----------------------------- */
   return (
     <ScreenBackground style={styles.screen}>
-      <View style={styles.topBar}>
+      <View
+        style={[styles.topBar, { marginTop: Math.max(insets.top, space.md) }]}
+      >
         <Pressable onPress={() => router.back()} hitSlop={10}>
           <Icon name="close" size={24} color={colors.text} />
         </Pressable>
+        {/* Centred on the SCREEN, not inside the row: the close button and the
+            control pills have different widths, so as a flex child the badge
+            would sit visibly off-centre. */}
+        <View style={styles.topLogo} pointerEvents="none">
+          <BrandLogo size={34} />
+        </View>
         <View style={styles.topActions}>
           {quiz.timed && (
             <Pressable
@@ -349,6 +358,8 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         </View>
       </View>
 
+      <View style={styles.rule} />
+
       <View style={styles.statusRow}>
         <TimerPill
           seconds={quiz.timeLeft}
@@ -364,13 +375,16 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       </View>
 
       {/* A frozen clock looks broken unless you say why it is frozen. Only
-          relevant while there IS a clock. */}
+          relevant while there IS a clock. It explains the timer, so it belongs
+          INSIDE the status band — above the rule, not below it. */}
       {quiz.timed && quiz.waitingForAudio && (
         <View style={styles.hintRow}>
           <Icon name="volume" size={13} color={colors.textDim} />
           <Text style={styles.hintText}>يبدأ العد بعد انتهاء قراءة السؤال</Text>
         </View>
       )}
+
+      <View style={styles.rule} />
 
       {/* Series name only — the counter already sits in the status row above,
           and printing it twice just added noise. */}
@@ -379,6 +393,8 @@ export function QuizRunner({ source }: { source: QuizSource }) {
           {source.title}
         </Text>
       </View>
+
+      <View style={styles.rule} />
 
       <View style={styles.imageWrap}>
         {question.imagePath ? (
@@ -405,7 +421,15 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         )}
       </View>
 
-      <View style={styles.answerArea}>
+      <View
+        style={[
+          styles.answerArea,
+          // The app draws edge to edge, so the system navigation bar was
+          // sitting ON TOP of the number row and the checkmark column
+          // (owner report 2026-09-15).
+          { paddingBottom: Math.max(insets.bottom, space.sm) + space.sm },
+        ]}
+      >
         <AnswerSlots
           answersCount={question.answersCount}
           selected={quiz.selected}
@@ -476,8 +500,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     height: 44,
     paddingHorizontal: space.lg,
-    marginTop: space.xxl,
   },
+  topLogo: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Separates the three header bands (owner decision 2026-09-15). Full-bleed,
+  // like the picture under it, so the header reads as one block.
+  rule: { height: 1, backgroundColor: colors.divider },
   topActions: { flexDirection: "row", gap: space.sm },
   pill: {
     flexDirection: "row",
@@ -496,14 +527,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: space.md,
+    paddingVertical: space.sm,
     paddingHorizontal: space.lg,
   },
   hintRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.xs,
-    marginTop: space.sm,
+    paddingBottom: space.sm,
     paddingHorizontal: space.lg,
   },
   hintText: { ...type.label, fontSize: 12, color: colors.textDim },
@@ -512,7 +543,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    marginTop: space.md,
+    paddingVertical: space.sm,
     paddingHorizontal: space.lg,
   },
   captionCount: { fontFamily: font.bold, fontSize: 13, color: colors.textDim },
@@ -526,17 +557,20 @@ const styles = StyleSheet.create({
   // No fixed aspect ratio: a 3:4 box around a landscape photo left huge empty
   // bands. The picture now takes all the height that is going, and the framing
   // is gone so any remaining letterbox is invisible against the screen.
+  // FULL-BLEED (owner decision 2026-09-15): no side margin and no corner
+  // radius. Exam photos carry small Arabic text, so every point of width is a
+  // point the candidate does not have to pinch for, and a rounded corner on a
+  // screen-wide picture only clips it.
   imageWrap: {
-    marginTop: space.sm,
     flex: 1,
-    marginHorizontal: space.lg,
-    borderRadius: radius.md,
     overflow: "hidden",
   },
+  // Tucked right under the picture, so the eye goes photo -> numbers with no
+  // gap and the row sits well above the system bar.
   answerArea: {
-    paddingVertical: space.lg,
+    paddingTop: space.sm,
     paddingHorizontal: space.lg,
-    gap: space.md,
+    gap: space.sm,
   },
 
   /* ---------------- shared ---------------- */

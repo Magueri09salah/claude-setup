@@ -25,6 +25,10 @@ export const colors = {
   text: "#F2F3F5",
   textDim: "rgba(242,243,245,0.55)",
   border: "rgba(255,255,255,0.07)",
+  // Hard rule between header bands. BLACK, not the white hairline: the
+  // road-sign wallpaper lightens the ground, and a 7% white line vanishes
+  // into it (owner report 2026-09-15).
+  divider: "rgba(0,0,0,0.75)",
 } as const;
 
 export const radius = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;
