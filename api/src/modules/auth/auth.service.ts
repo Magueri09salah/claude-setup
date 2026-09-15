@@ -7,6 +7,7 @@ import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
 import { applyAllowlistOnRegister } from "../premium/allowlist.service";
 import { normalizePhone } from "../premium/phone";
+import { normalizeUsername } from "./username";
 
 const BCRYPT_COST = 12;
 const ACCESS_TTL = "15m";
@@ -77,7 +78,7 @@ export async function register(input: {
   const cinLast3Hash = await bcrypt.hash(input.cinLast3, BCRYPT_COST);
   // Both already normalized by the zod schema; normalize again so a direct
   // service call can't slip past it.
-  const username = input.username.trim().toLowerCase();
+  const username = normalizeUsername(input.username);
   const phone = normalizePhone(input.phone);
   try {
     const created = await prisma.user.create({
@@ -119,12 +120,16 @@ export async function register(input: {
 export async function login(input: { identifier: string; password: string }) {
   const raw = input.identifier.trim();
   const lowered = raw.toLowerCase();
+  // Usernames can hold spaces and are STORED space-collapsed, so the
+  // identifier has to be collapsed the same way — otherwise a candidate who
+  // double-taps the space bar cannot log into their own account.
+  const handle = normalizeUsername(raw);
   const phone = normalizePhone(raw);
   const user = await prisma.user.findFirst({
     where: {
       OR: [
         ...(phone ? [{ phone }] : []),
-        { username: lowered },
+        { username: handle },
         { email: lowered },
       ],
     },

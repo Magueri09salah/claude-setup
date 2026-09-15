@@ -25,12 +25,17 @@ export default function RegisterScreen() {
 
   const submit = async () => {
     setError(null);
-    if (username.trim().length < 3) {
+    // Collapse runs of spaces exactly the way the API does, so the name the
+    // account is created under is the one the candidate will type at login.
+    const name = username.trim().replace(/\s+/g, " ");
+    if (name.length < 3) {
       setError("اسم المستخدم يجب أن يكون 3 أحرف على الأقل");
       return;
     }
-    if (!/^[A-Za-z0-9._@-]+$/.test(username.trim())) {
-      setError("اسم المستخدم يقبل الحروف والأرقام و . _ - @ فقط");
+    // Spaces are allowed (owner decision 2026-09-15) — a real name, not a
+    // handle. Nothing beyond the length is required: no digit, no punctuation.
+    if (!/^[A-Za-z0-9._@ -]+$/.test(name)) {
+      setError("اسم المستخدم يقبل الحروف والأرقام والمسافة و . _ - @ فقط");
       return;
     }
     if (phone.trim().length < 9) {
@@ -47,7 +52,7 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      await register(username.trim(), phone.trim(), password, cinLast3.trim());
+      await register(name, phone.trim(), password, cinLast3.trim());
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         // The API says which of the two is taken — show that, not a guess.
@@ -91,7 +96,7 @@ export default function RegisterScreen() {
             ltr
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="prenom@nom"
+            placeholder="prenom nom"
             value={username}
             onChangeText={setUsername}
           />

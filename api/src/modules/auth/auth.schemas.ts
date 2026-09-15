@@ -1,16 +1,26 @@
 import { z } from "zod";
 import { normalizePhone } from "../premium/phone";
+import { normalizeUsername } from "./username";
 
-// A handle, not an email: the owner's example is "salah@magueri". Letters,
-// digits and . _ - @ only, so it stays typeable and unambiguous in a url.
+// A NAME, not a handle (owner decision 2026-09-15): candidates register as
+// "salah magueri", so SPACES are allowed alongside the old handle style
+// "salah@magueri". Letters, digits, space and . _ - @ — enough for a real
+// name, and nothing that needs escaping anywhere it is displayed.
+//
+// Nothing beyond three characters is REQUIRED: a name with no digit and no
+// punctuation in it is the normal case, not a mistake.
 export const usernameSchema = z
   .string()
   .trim()
   .min(3)
   .max(40)
-  .regex(/^[A-Za-z0-9._@-]+$/, "اسم المستخدم يقبل الحروف والأرقام و . _ - @ فقط")
-  // Case-insensitive identity: stored lowercase so "Salah" and "salah" are one.
-  .transform((v) => v.toLowerCase());
+  .regex(
+    /^[A-Za-z0-9._@ -]+$/,
+    "اسم المستخدم يقبل الحروف والأرقام والمسافة و . _ - @ فقط",
+  )
+  // Case- AND spacing-insensitive identity, because this doubles as a login
+  // identifier: "Salah  Magueri" and "salah magueri" are one account.
+  .transform(normalizeUsername);
 
 // People type numbers with spaces, dashes and country codes — accept all of it
 // and normalize, then validate the canonical form. A too-strict regex here once
