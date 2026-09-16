@@ -323,37 +323,48 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       <View
         style={[styles.topBar, { marginTop: Math.max(insets.top, space.md) }]}
       >
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Icon name="close" size={24} color={colors.text} />
-        </Pressable>
-        {/* Centred on the SCREEN, not inside the row: the close button and the
-            control pills have different widths, so as a flex child the badge
-            would sit visibly off-centre. */}
-        <View style={styles.topLogo} pointerEvents="none">
-          <BrandLogo size={34} />
+        {/* Three zones, the two outer ones the SAME width (flex: 1), so the
+            badge between them lands on the true screen centre. The previous
+            version stretched it absolutely across the whole row and centred it
+            there, which put it underneath the control pills — they reach past
+            the middle, so they were drawn straight through it (owner report
+            2026-09-16). */}
+        <View style={styles.topSide}>
+          <Pressable onPress={() => router.back()} hitSlop={10}>
+            <Icon name="close" size={24} color={colors.text} />
+          </Pressable>
         </View>
-        <View style={styles.topActions}>
+
+        <BrandLogo size={34} />
+
+        {/* Icon only. Carrying their Arabic labels these two pills measured
+            about 200pt together, and that — not the badge — is what left no
+            room in the middle. The icons say the same thing; the words move to
+            accessibilityLabel, so a screen reader still announces them. */}
+        <View style={[styles.topSide, styles.topActions]}>
           {quiz.timed && (
             <Pressable
-            onPress={quiz.togglePause}
-            hitSlop={10}
-            style={[styles.pill, paused && styles.pillActive]}
-            accessibilityRole="button"
-            accessibilityLabel={paused ? "استئناف" : "إيقاف مؤقت"}
-          >
-            <Icon
-              name={paused ? "play" : "pause"}
-              size={16}
-              color={paused ? colors.onAccent : colors.text}
-            />
-            <Text style={[styles.pillText, paused && styles.pillTextActive]}>
-              {paused ? "استئناف" : "إيقاف"}
-            </Text>
-          </Pressable>
+              onPress={quiz.togglePause}
+              hitSlop={10}
+              style={[styles.pill, paused && styles.pillActive]}
+              accessibilityRole="button"
+              accessibilityLabel={paused ? "استئناف" : "إيقاف مؤقت"}
+            >
+              <Icon
+                name={paused ? "play" : "pause"}
+                size={18}
+                color={paused ? colors.onAccent : colors.text}
+              />
+            </Pressable>
           )}
-          <Pressable onPress={replay} hitSlop={10} style={styles.pill}>
-            <Icon name="volume" size={16} color={colors.text} />
-            <Text style={styles.pillText}>إعادة</Text>
+          <Pressable
+            onPress={replay}
+            hitSlop={10}
+            style={styles.pill}
+            accessibilityRole="button"
+            accessibilityLabel="إعادة الاستماع"
+          >
+            <Icon name="volume" size={18} color={colors.text} />
           </Pressable>
         </View>
       </View>
@@ -497,23 +508,23 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     height: 44,
     paddingHorizontal: space.lg,
   },
-  topLogo: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  // The two shoulders of the row. Equal width is the whole point: it is what
+  // makes the badge between them sit on the screen centre rather than in the
+  // middle of whatever space the buttons happened to leave.
+  topSide: { flex: 1, flexDirection: "row", alignItems: "center" },
   // Separates the three header bands (owner decision 2026-09-15). Full-bleed,
   // like the picture under it, so the header reads as one block.
   rule: { height: 1, backgroundColor: colors.divider },
-  topActions: { flexDirection: "row", gap: space.sm },
+  // Row direction comes from topSide; this only pushes the buttons out to the
+  // far edge so the gap opens up next to the badge.
+  topActions: { justifyContent: "flex-end", gap: space.sm },
+  // Square now that the label is gone: a pill-shaped box around a lone icon is
+  // just a circle with dead space on either side of it.
   pill: {
-    flexDirection: "row",
-    gap: space.xs,
-    paddingHorizontal: space.md,
+    width: 36,
     height: 36,
     borderRadius: radius.pill,
     backgroundColor: colors.chipBg,
@@ -521,8 +532,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pillActive: { backgroundColor: colors.lessons },
-  pillText: { ...type.label, color: colors.text },
-  pillTextActive: { color: colors.onAccent },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
