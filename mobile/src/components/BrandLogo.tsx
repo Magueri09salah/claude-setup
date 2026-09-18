@@ -22,7 +22,7 @@ export function BrandLogo({ size = 120, style }: Props) {
       // Static asset: no fade-in, and it must not flicker between screens.
       transition={0}
       accessible
-      accessibilityLabel="codeboujida"
+      accessibilityLabel="code boujida"
     />
   );
 }

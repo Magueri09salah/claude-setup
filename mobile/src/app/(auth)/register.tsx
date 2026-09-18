@@ -25,16 +25,27 @@ export default function RegisterScreen() {
 
   const submit = async () => {
     setError(null);
-    // Collapse runs of spaces exactly the way the API does, so the name the
-    // account is created under is the one the candidate will type at login.
-    const name = username.trim().replace(/\s+/g, " ");
+    // Drop the invisible bidi marks that come with Arabic pasted from WhatsApp
+    // and collapse runs of spaces, exactly the way the API does — the server is
+    // the authority (api/src/modules/auth/username.ts); this only keeps the
+    // message under the field honest about what it will accept.
+    const name = username
+      .replace(/[؜​-‏‪-‮⁦-⁩﻿]/g, "")
+      .trim()
+      .replace(/\s+/g, " ");
     if (name.length < 3) {
       setError("اسم المستخدم يجب أن يكون 3 أحرف على الأقل");
       return;
     }
-    // Spaces are allowed (owner decision 2026-09-15) — a real name, not a
-    // handle. Nothing beyond the length is required: no digit, no punctuation.
-    if (!/^[A-Za-z0-9._@ -]+$/.test(name)) {
+    // Spaces are allowed (owner decision 2026-09-15) and Arabic (2026-09-18) —
+    // a real name, not a handle. Nothing beyond the length is required: no
+    // digit, no punctuation. Written as explicit ranges rather than \p{L}
+    // because Hermes is the engine here, not V8.
+    if (
+      !/^[A-Za-z0-9؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-ﻼ._@ -]+$/.test(
+        name,
+      )
+    ) {
       setError("اسم المستخدم يقبل الحروف والأرقام والمسافة و . _ - @ فقط");
       return;
     }
@@ -91,12 +102,14 @@ export default function RegisterScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
+          {/* No `ltr` here, unlike the phone and CIN fields: this one now holds
+              Arabic as well as Latin, and forcing left alignment puts an Arabic
+              name on the wrong side of its own box. */}
           <AppTextInput
             label="اسم المستخدم"
-            ltr
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="prenom nom"
+            placeholder="الاسم والنسب"
             value={username}
             onChangeText={setUsername}
           />

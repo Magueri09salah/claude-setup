@@ -1,7 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePausedOnBlur } from "@/audio/usePausedOnBlur";
 import { Icon } from "@/components/Icon";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -12,8 +12,14 @@ import { getQuestionById } from "@/db/questions";
 import { colors, font, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
+// The question being read aloud and the trainer explaining the answer are two
+// different recordings on the same screen. Only one may play at a time, so the
+// screen — not the buttons — owns which one that is.
+type AudioOwner = "question" | "correction";
+
 export default function ReviewScreen() {
   const [viewer, setViewer] = useState(false);
+  const [audio, setAudio] = useState<AudioOwner | null>(null);
   const params = useLocalSearchParams<{ attemptId: string; q: string }>();
   const attempt = params.attemptId ? getAttempt(params.attemptId) : null;
   const qIndex = Number(params.q ?? 0);
@@ -83,6 +89,23 @@ export default function ReviewScreen() {
           </View>
         )}
 
+        {/* The same recording the quiz reads out, replayable here — reviewing a
+            wrong answer usually starts with re-hearing the question. Secondary
+            styling on purpose: the correction below is the payoff and keeps the
+            one accent fill on this screen. */}
+        {question?.audioPath ? (
+          <AudioPlayButton
+            audioPath={question.audioPath}
+            owner="question"
+            active={audio}
+            onActivate={setAudio}
+            idleLabel="استمع للسؤال"
+            playingLabel="إيقاف السؤال"
+            idleIcon="volume"
+            variant="secondary"
+          />
+        ) : null}
+
         <View style={styles.grid}>
           {numbers.map((n) => (
             <View key={n} style={styles.gridItem}>
@@ -118,6 +141,8 @@ export default function ReviewScreen() {
                 ? null
                 : (question?.correctionAudioPath ?? null)
             }
+            active={audio}
+            onActivate={setAudio}
           />
         )}
 
@@ -137,30 +162,15 @@ export default function ReviewScreen() {
 function CorrectionCard({
   text,
   audioPath,
+  active,
+  onActivate,
 }: {
   text: string | null;
   audioPath: string | null;
+  active: AudioOwner | null;
+  onActivate: (owner: AudioOwner | null) => void;
 }) {
-  const player = useAudioPlayer(audioPath ? { uri: audioPath } : null);
-  const status = useAudioPlayerStatus(player);
-  usePausedOnBlur(player);
-
   if (!text && !audioPath) return null;
-
-  const toggle = () => {
-    try {
-      if (status.playing) {
-        player.pause();
-      } else {
-        if (status.didJustFinish || status.currentTime >= status.duration) {
-          player.seekTo(0);
-        }
-        player.play();
-      }
-    } catch {
-      // a missing/corrupt file must not break the review
-    }
-  };
 
   return (
     <View style={styles.correction}>
@@ -170,18 +180,93 @@ function CorrectionCard({
       </View>
       {text ? <Text style={styles.correctionText}>{text}</Text> : null}
       {audioPath ? (
-        <Pressable onPress={toggle} style={styles.audioButton}>
-          <Icon
-            name={status.playing ? "pause" : "play"}
-            size={16}
-            color={colors.onAccent}
-          />
-          <Text style={styles.audioButtonText}>
-            {status.playing ? "إيقاف الشرح" : "استمع للشرح"}
-          </Text>
-        </Pressable>
+        <AudioPlayButton
+          audioPath={audioPath}
+          owner="correction"
+          active={active}
+          onActivate={onActivate}
+          idleLabel="استمع للشرح"
+          playingLabel="إيقاف الشرح"
+          idleIcon="play"
+          variant="primary"
+        />
       ) : null}
     </View>
+  );
+}
+
+// One play/pause pill over one local clip. The screen passes `active` down so a
+// button whose turn has passed stops itself: two players on one screen would
+// otherwise both keep going, and the candidate hears the question read over the
+// trainer explaining it.
+function AudioPlayButton({
+  audioPath,
+  owner,
+  active,
+  onActivate,
+  idleLabel,
+  playingLabel,
+  idleIcon,
+  variant,
+}: {
+  audioPath: string;
+  owner: AudioOwner;
+  active: AudioOwner | null;
+  onActivate: (owner: AudioOwner | null) => void;
+  idleLabel: string;
+  playingLabel: string;
+  idleIcon: "play" | "volume";
+  variant: "primary" | "secondary";
+}) {
+  const player = useAudioPlayer({ uri: audioPath });
+  const status = useAudioPlayerStatus(player);
+  usePausedOnBlur(player);
+
+  // Someone else took the floor.
+  useEffect(() => {
+    if (active === owner || !status.playing) return;
+    try {
+      player.pause();
+    } catch {
+      // player already released
+    }
+  }, [active, owner, status.playing, player]);
+
+  const primary = variant === "primary";
+  const tint = primary ? colors.onAccent : colors.text;
+
+  const toggle = () => {
+    try {
+      if (status.playing) {
+        player.pause();
+        onActivate(null);
+        return;
+      }
+      onActivate(owner);
+      // Replay from the top once it has run to the end, otherwise a second
+      // press just resumes a finished clip and nothing is heard.
+      if (status.didJustFinish || status.currentTime >= status.duration) {
+        // seekTo is async; an unhandled rejection here would be a red screen.
+        player.seekTo(0).catch(() => undefined);
+      }
+      player.play();
+    } catch {
+      // a missing/corrupt file must not break the review
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={toggle}
+      style={[styles.audioButton, primary ? null : styles.audioButtonSecondary]}
+      accessibilityRole="button"
+      accessibilityLabel={status.playing ? playingLabel : idleLabel}
+    >
+      <Icon name={status.playing ? "pause" : idleIcon} size={16} color={tint} />
+      <Text style={[styles.audioButtonText, { color: tint }]}>
+        {status.playing ? playingLabel : idleLabel}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -260,7 +345,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.lessons,
   },
-  audioButtonText: { fontFamily: font.bold, fontSize: 15, color: colors.onAccent },
+  // The question replay sits on the screen background, not inside the yellow
+  // correction card, so it carries the card treatment instead of an accent fill
+  // — one accent per surface.
+  audioButtonSecondary: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  audioButtonText: { fontFamily: font.bold, fontSize: 15 },
   button: {
     paddingHorizontal: space.xl,
     height: 48,

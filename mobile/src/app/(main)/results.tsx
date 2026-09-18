@@ -44,7 +44,7 @@ export default function ResultsScreen() {
 
   const share = () => {
     void Share.share({
-      message: `حصلت على ${attempt.score}/${attempt.total} في تطبيق codeboujida لتعليم السياقة 🚦`,
+      message: `حصلت على ${attempt.score}/${attempt.total} في تطبيق code boujida لتعليم السياقة 🚦`,
     });
   };
 
