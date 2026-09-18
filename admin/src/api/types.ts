@@ -122,6 +122,15 @@ export interface AdminUser {
   status: UserStatus;
   method: "ONLINE" | "WAFACASH" | null;
   lastPaidAt: string | null;
+  /**
+   * The three digits the candidate uses to reset their password, for reading
+   * back to whoever phones in having forgotten them.
+   *
+   * null in two different cases, both shown the same way: the signed-in staff
+   * member is an ASSISTANT (the API withholds it), or the account predates the
+   * column and only has the old one-way hash.
+   */
+  resetDigits: string | null;
 }
 
 export type LivePlatform = "YOUTUBE" | "FACEBOOK" | "INSTAGRAM" | "TIKTOK";

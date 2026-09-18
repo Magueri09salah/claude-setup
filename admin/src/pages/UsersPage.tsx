@@ -21,6 +21,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { AdminUser, UserStatus } from "../api/types";
+import { useAuth } from "../auth";
 import { exportExcel, exportPdf, type ExportColumn } from "../export";
 import { notifyError, notifySuccess } from "../notify";
 
@@ -60,6 +61,10 @@ function fmtDate(iso: string | null): string {
 }
 
 export function UsersPage() {
+  // The API already withholds resetDigits from an assistant; this only stops
+  // the column rendering as a wall of "غير متوفر" for them. The server is what
+  // makes it secure — hiding a column in the SPA is not.
+  const isAdmin = useAuth().user?.role === "ADMIN";
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
@@ -226,6 +231,7 @@ export function UsersPage() {
               <Table.Tr>
                 <Table.Th>اسم المستخدم</Table.Th>
                 <Table.Th>الهاتف</Table.Th>
+                {isAdmin && <Table.Th>رمز الاستعادة</Table.Th>}
                 <Table.Th>الحالة</Table.Th>
                 <Table.Th>الاشتراك</Table.Th>
                 <Table.Th>الأجهزة</Table.Th>
@@ -251,6 +257,22 @@ export function UsersPage() {
                       </Text>
                     )}
                   </Table.Td>
+                  {isAdmin && (
+                    <Table.Td>
+                      {u.resetDigits ? (
+                        <Text size="sm" fw={600} style={{ direction: "ltr" }}>
+                          {u.resetDigits}
+                        </Text>
+                      ) : (
+                        // Registered before the digits were kept readable. The
+                        // stored hash cannot be reversed, so this account can
+                        // only be helped by having them register again.
+                        <Text size="xs" c="dimmed">
+                          غير متوفر
+                        </Text>
+                      )}
+                    </Table.Td>
+                  )}
                   <Table.Td>
                     <Badge color={STATUS_META[u.status].color} variant="light">
                       {STATUS_META[u.status].label}
@@ -300,7 +322,7 @@ export function UsersPage() {
               ))}
               {users.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={7}>
+                  <Table.Td colSpan={isAdmin ? 8 : 7}>
                     <Text c="dimmed" size="sm" ta="center" py="md">
                       لا يوجد مستخدمون مطابقون.
                     </Text>
