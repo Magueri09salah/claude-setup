@@ -20,6 +20,12 @@ const usersQuery = z.strictObject({
 // Users page: every registered user with an effective payment status + method.
 usersAdminRouter.get("/users", async (req, res) => {
   const q = usersQuery.parse(req.query);
+  // The reset digits go to the OWNER only. Phone + digits is a complete
+  // password reset for any candidate, and an assistant already sees the phone
+  // on this very page — sending both would hand them every account. This is
+  // the one field on the page that is role-dependent, which is why it is
+  // decided here on the server and not by hiding a column in the SPA.
+  const showResetDigits = req.auth?.role === "ADMIN";
   const where = q.search
     ? {
         OR: [
@@ -72,6 +78,10 @@ usersAdminRouter.get("/users", async (req, res) => {
       status,
       method,
       lastPaidAt: lastPaid?.paidAt ?? null,
+      // null for an assistant, and also null for every account registered
+      // before the column existed — a bcrypt hash cannot be read back, so
+      // there is nothing to show and the page says so.
+      resetDigits: showResetDigits ? u.resetDigits : null,
     };
   });
 

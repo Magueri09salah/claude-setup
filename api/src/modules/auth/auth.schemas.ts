@@ -48,12 +48,15 @@ export const phoneSchema = z
   .transform(normalizePhone)
   .refine((p) => /^\d{6,15}$/.test(p), "رقم هاتف غير صالح");
 
-// Last 3 digits of the national ID card. Exactly three digits — keeping it
-// short is the owner's choice; the reset lockout is what makes it safe.
+// Three digits the candidate CHOOSES at registration and gives back to reset
+// their password (owner decision 2026-09-18 — it used to be the last 3 of the
+// national ID card, and the screens no longer say so). The column is still
+// named cinLast3Hash. Keeping it to three digits is the owner's choice; the
+// per-phone reset lockout is what makes it safe, not the length.
 export const cinLast3Schema = z
   .string()
   .trim()
-  .regex(/^\d{3}$/, "أدخل آخر 3 أرقام من بطاقة التعريف");
+  .regex(/^\d{3}$/, "أدخل 3 أرقام لاستعادة كلمة المرور");
 
 export const registerSchema = z.strictObject({
   username: usernameSchema,

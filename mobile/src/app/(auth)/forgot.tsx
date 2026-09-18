@@ -41,7 +41,7 @@ export default function ForgotPasswordScreen() {
   const verify = async () => {
     setError(null);
     if (!/^[0-9]{3}$/.test(cin.trim())) {
-      setError("أدخل آخر 3 أرقام من بطاقة التعريف");
+      setError("أدخل الأرقام الثلاثة التي اخترتها عند التسجيل");
       return;
     }
     setLoading(true);
@@ -114,7 +114,7 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.subtitle}>
             {resetToken
               ? "اختر كلمة مرور جديدة لحسابك"
-              : "أدخل رقم هاتفك وآخر 3 أرقام من بطاقة التعريف الوطنية"}
+              : "أدخل رقم هاتفك والأرقام الثلاثة التي اخترتها عند التسجيل"}
           </Text>
 
           {error && <Text style={styles.error}>{error}</Text>}
@@ -131,7 +131,7 @@ export default function ForgotPasswordScreen() {
                 onChangeText={setPhone}
               />
               <AppTextInput
-                label="آخر 3 أرقام من بطاقة التعريف"
+                label="3 أرقام لاستعادة كلمة المرور"
                 ltr
                 keyboardType="number-pad"
                 maxLength={3}

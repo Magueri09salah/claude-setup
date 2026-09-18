@@ -73,8 +73,7 @@ export async function register(input: {
   cinLast3: string;
 }) {
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
-  // Hashed like any other secret, even though 3 digits is only 1000 options —
-  // a DB leak should not hand out reset codes in plaintext.
+  // The hash stays the ONLY thing verifyResetCode ever compares against.
   const cinLast3Hash = await bcrypt.hash(input.cinLast3, BCRYPT_COST);
   // Both already normalized by the zod schema; normalize again so a direct
   // service call can't slip past it.
@@ -82,7 +81,16 @@ export async function register(input: {
   const phone = normalizePhone(input.phone);
   try {
     const created = await prisma.user.create({
-      data: { username, phone, passwordHash, cinLast3Hash },
+      // resetDigits is the same value in the clear, kept so the owner can read
+      // it back to a candidate who forgot it (owner decision 2026-09-18). It is
+      // never compared against and never leaves the ADMIN users page.
+      data: {
+        username,
+        phone,
+        passwordHash,
+        cinLast3Hash,
+        resetDigits: input.cinLast3,
+      },
     });
 
     // Group members (a partner school's list) are premium from the first

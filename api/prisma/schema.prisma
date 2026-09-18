@@ -43,10 +43,25 @@ model User {
   // No longer collected at registration; kept for accounts that have it.
   fullName     String?
   passwordHash String
-  // Last 3 digits of the national ID card, used to authorise a password reset.
-  // HASHED like any other secret. Only 1000 combinations, so the per-phone
-  // lockout (PasswordResetAttempt) is what actually protects it.
+  // Three digits the candidate chooses at registration and gives back to
+  // authorise a password reset. Named for its origin — it used to be the last 3
+  // of the national ID card, and the screens stopped saying so on 2026-09-18.
+  // HASHED like any other secret, so it can never be read back or shown to an
+  // admin. Only 1000 combinations, so the per-phone lockout
+  // (PasswordResetAttempt) is what actually protects it.
   cinLast3Hash String?
+  // The SAME three digits in the clear, so the owner can read them back to a
+  // candidate who forgot (owner decision 2026-09-18). Display only — every
+  // check still runs against cinLast3Hash above, so the careful constant-time
+  // reset path is untouched.
+  //
+  // Two things follow from this and must stay true:
+  //  - NULL on every account created before 2026-09-18. A hash cannot be
+  //    reversed, so there is nothing to backfill. The admin page says
+  //    "غير متوفر" for those rather than pretending.
+  //  - Never sent to an ASSISTANT. Phone + these digits is a complete password
+  //    reset for any candidate, and an assistant can already see the phone.
+  resetDigits  String?
   // Single-use marker for the current reset token. Cleared when the password is
   // actually changed, so a captured token cannot be replayed.
   pwResetNonce String?

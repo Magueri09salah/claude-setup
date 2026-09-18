@@ -54,7 +54,7 @@ export default function RegisterScreen() {
       return;
     }
     if (!/^[0-9]{3}$/.test(cinLast3.trim())) {
-      setError("أدخل آخر 3 أرقام من بطاقة التعريف الوطنية");
+      setError("اختر 3 أرقام لاستعادة كلمة المرور");
       return;
     }
     if (password.length < 8) {
@@ -123,16 +123,16 @@ export default function RegisterScreen() {
             onChangeText={setPhone}
           />
           <AppTextInput
-            label="آخر 3 أرقام من بطاقة التعريف"
+            label="3 أرقام لاستعادة كلمة المرور"
             ltr
             keyboardType="number-pad"
             maxLength={3}
-            placeholder="123"
+            placeholder="471"
             value={cinLast3}
             onChangeText={setCinLast3}
           />
           <Text style={styles.hint}>
-            تُستعمل فقط لاستعادة كلمة المرور إذا نسيتها — احفظها جيداً
+            اختر 3 أرقام تتذكّرها — ستحتاجها وحدها لاستعادة كلمة المرور إذا نسيتها
           </Text>
           <AppTextInput
             label="كلمة المرور (8 أحرف فأكثر)"
