@@ -41,6 +41,11 @@
     "production": {
       "android": {
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "boujidamoad@icloud.com",
+        "ascAppId": "6814231359",
+        "appleTeamId": "KC572MYRJ3"
       }
     }
   }

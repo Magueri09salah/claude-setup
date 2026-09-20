@@ -22,7 +22,14 @@
     },
     "ios": {
       "icon": "./assets/images/app-icon.png",
-      "bundleIdentifier": "com.codeboujida.app"
+      "bundleIdentifier": "com.codeboujida.app",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.codeboujida.app",
