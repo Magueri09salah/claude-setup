@@ -1,11 +1,20 @@
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { listSeries, type LicenceCategory, type SeriesRow } from "@/db";
 import { Icon } from "@/components/Icon";
 import { LICENCE_TITLE } from "@/licence";
 import { bestScoresBySeries, type BestScore } from "@/db/attempts";
-import { countDownloaded } from "@/db/questions";
+import { downloadedCountsBySeries } from "@/db/questions";
+import { runSync } from "@/sync/engine";
+import { useSyncStatus } from "@/sync/useSyncStatus";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
@@ -21,18 +30,43 @@ export default function ExamListScreen() {
     : "B";
 
   const [series, setSeries] = useState<SeriesRow[]>([]);
+  const [ready, setReady] = useState<Map<number, number>>(new Map());
   const [best, setBest] = useState<Map<number, BestScore>>(new Map());
+  const [retryOffline, setRetryOffline] = useState(false);
+  const sync = useSyncStatus();
+
+  const readContent = useCallback(() => {
+    setSeries(listSeries(category));
+    setReady(downloadedCountsBySeries());
+  }, [category]);
 
   // Re-read on focus so a new best score shows right after finishing a quiz.
   useFocusEffect(
     useCallback(() => {
-      setSeries(listSeries(category));
+      readContent();
       setBest(bestScoresBySeries());
-    }, [category]),
+    }, [readContent]),
   );
+
+  // A sync (e.g. right after the owner grants access and publishes) unlocks
+  // series and downloads their files in the background. Re-read on every
+  // progress tick so each card fills up live, and once more when it ends.
+  useEffect(() => {
+    readContent();
+    // A new attempt is under way — an old "no connection" no longer applies.
+    if (sync.running) setRetryOffline(false);
+  }, [sync, readContent]);
 
   const open = (s: SeriesRow) => {
     router.push(s.locked === 1 ? "/unlock" : `/quiz/${s.id}`);
+  };
+
+  // An incomplete series resumes its download from its own card: the engine
+  // skips every file already on disk, so this only fetches what is missing.
+  const retry = async () => {
+    setRetryOffline(false);
+    const result = await runSync();
+    setRetryOffline(result === "offline");
   };
 
   return (
@@ -54,12 +88,20 @@ export default function ExamListScreen() {
         ) : (
           series.map((s) => {
             const locked = s.locked === 1;
-            const ready = countDownloaded(s.id);
+            const readyCount = ready.get(s.id) ?? 0;
+            // Owner rule (2026-09-21): a series opens only at 40/40. The quiz
+            // plays downloaded questions only, so a partial one would be a
+            // short, broken exam. While a sync runs the card shows a loader;
+            // if the sync ended short (lost connection), tapping resumes it.
+            const incomplete = !locked && readyCount < s.question_count;
+            const loading = incomplete && sync.running;
             const score = best.get(s.id);
             return (
               <Pressable
                 key={s.id}
-                onPress={() => open(s)}
+                onPress={() => (incomplete ? void retry() : open(s))}
+                disabled={loading}
+                accessibilityState={{ busy: loading, disabled: loading }}
                 style={({ pressed }) => [
                   styles.card,
                   locked && styles.lockedCard,
@@ -70,6 +112,17 @@ export default function ExamListScreen() {
                   <View style={styles.lockChip}>
                     <Icon name="lock" size={13} color={colors.premium} />
                     <Text style={styles.lockChipText}>مقفل</Text>
+                  </View>
+                ) : incomplete ? (
+                  <View style={styles.left}>
+                    {loading ? (
+                      <ActivityIndicator size="small" color={colors.exam} />
+                    ) : (
+                      <Icon name="refresh" size={20} color={colors.exam} />
+                    )}
+                    <Text style={styles.loadingCount}>
+                      {readyCount}/{s.question_count}
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.left}>
@@ -102,10 +155,36 @@ export default function ExamListScreen() {
                   <Text style={styles.cardMeta}>
                     {locked
                       ? `${s.question_count} سؤال`
-                      : score
-                        ? `أفضل نتيجة · ${ready} سؤال`
-                        : `${ready} سؤال جاهز`}
+                      : loading
+                        ? "جاري تحميل السلسلة…"
+                        : incomplete
+                          ? retryOffline
+                            ? "لا يوجد اتصال — اضغط لإعادة المحاولة"
+                            : "التحميل غير مكتمل — اضغط لإكماله"
+                          : score
+                            ? `أفضل نتيجة · ${readyCount} سؤال`
+                            : `${readyCount} سؤال جاهز`}
                   </Text>
+                  {incomplete && (
+                    <View style={styles.track}>
+                      {/* scaleX, not width: no layout pass per downloaded file */}
+                      <View
+                        style={[
+                          styles.fill,
+                          {
+                            transform: [
+                              {
+                                scaleX:
+                                  s.question_count > 0
+                                    ? readyCount / s.question_count
+                                    : 0,
+                              },
+                            ],
+                          },
+                        ]}
+                      />
+                    </View>
+                  )}
                 </View>
               </Pressable>
             );
@@ -162,6 +241,21 @@ const styles = StyleSheet.create({
   cardMeta: { ...type.label, color: colors.textDim, textAlign: "right" },
   left: { alignItems: "center", gap: space.xs, minWidth: 56 },
   play: { fontFamily: font.bold, fontSize: 14, color: colors.exam },
+  loadingCount: { fontFamily: font.bold, fontSize: 13, color: colors.textDim },
+  track: {
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipBg,
+    overflow: "hidden",
+    marginTop: space.xs,
+  },
+  fill: {
+    width: "100%",
+    height: "100%",
+    borderRadius: radius.pill,
+    backgroundColor: colors.exam,
+    transformOrigin: "left",
+  },
   scoreBadge: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.pill,

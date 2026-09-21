@@ -28,6 +28,36 @@ const FOREGROUND_THROTTLE_MS = 60 * 60 * 1000;
 
 let running = false;
 
+/**
+ * What the sync is doing right now, for screens that did not start it. The
+ * home screen gets progress through its own callback, but the series page has
+ * to know a download is under way to show its per-card loader, and a sync can
+ * be started from home, from settings or on foreground.
+ */
+export interface SyncStatus {
+  running: boolean;
+  progress: SyncProgress | null;
+}
+
+let status: SyncStatus = { running: false, progress: null };
+const statusListeners = new Set<() => void>();
+
+function setStatus(next: SyncStatus): void {
+  status = next;
+  for (const listener of statusListeners) listener();
+}
+
+export function getSyncStatus(): SyncStatus {
+  return status;
+}
+
+export function subscribeSyncStatus(listener: () => void): () => void {
+  statusListeners.add(listener);
+  return () => {
+    statusListeners.delete(listener);
+  };
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -128,8 +158,12 @@ export async function runSync(
 ): Promise<SyncResult> {
   if (running) return "up-to-date";
   running = true;
+  const report = (p: SyncProgress) => {
+    setStatus({ running: true, progress: p });
+    onProgress?.(p);
+  };
   try {
-    onProgress?.({ phase: "checking", done: 0, total: 0 });
+    report({ phase: "checking", done: 0, total: 0 });
 
     // 1. Manifest with If-None-Match — unless the local schema gained columns
     // the last sync never filled. A guarded ALTER leaves those rows on their
@@ -312,7 +346,7 @@ export async function runSync(
     // 3. Fetch changed questions per unlocked series (updatedAt > last_sync);
     //    fall back to a full fetch when local count drifts (covers deletions).
     const unlocked = manifest.series.filter((s) => !s.locked);
-    onProgress?.({ phase: "data", done: 0, total: unlocked.length });
+    report({ phase: "data", done: 0, total: unlocked.length });
     let fetched = 0;
     for (const s of unlocked) {
       const query = since ? `?since=${encodeURIComponent(since)}` : "";
@@ -345,7 +379,7 @@ export async function runSync(
         upsertQuestions(all.questions);
       }
       fetched += 1;
-      onProgress?.({ phase: "data", done: fetched, total: unlocked.length });
+      report({ phase: "data", done: fetched, total: unlocked.length });
     }
 
     // 3b. Fetch signs for new/changed unlocked lessons (full replace per lesson).
@@ -380,17 +414,21 @@ export async function runSync(
       "SELECT * FROM questions WHERE downloaded = 0",
     );
     // A job = one file to fetch + the UPDATE that records its local path.
-    const jobs: { key: string; sql: string; id: number }[] = [];
+    // `question` marks the two files a quiz question cannot play without.
+    const jobs: { key: string; sql: string; id: number; question?: true }[] =
+      [];
     for (const q of pending) {
       jobs.push({
         key: q.image_key,
         sql: "UPDATE questions SET image_path = ? WHERE id = ?",
         id: q.id,
+        question: true,
       });
       jobs.push({
         key: q.audio_key,
         sql: "UPDATE questions SET audio_path = ? WHERE id = ?",
         id: q.id,
+        question: true,
       });
     }
     // Correction audio is optional, so it hangs off its own query rather than
@@ -444,7 +482,7 @@ export async function runSync(
     const total = jobs.length;
     let done = 0;
     let failed = 0;
-    onProgress?.({ phase: "media", done, total });
+    report({ phase: "media", done, total });
 
     for (const batch of chunk(jobs, MEDIA_BATCH)) {
       let urls: Record<string, string>;
@@ -472,11 +510,21 @@ export async function runSync(
             );
           }
           db.runSync(job.sql, file.uri, job.id);
+          // Flag each question the moment its second file lands, not once the
+          // whole batch is over: the series page counts these to fill its
+          // per-card loader, and an interrupted sync keeps what it finished.
+          if (job.question) {
+            db.runSync(
+              `UPDATE questions SET downloaded = 1
+                WHERE id = ? AND image_path IS NOT NULL AND audio_path IS NOT NULL`,
+              job.id,
+            );
+          }
         } catch {
           failed += 1;
         }
         done += 1;
-        onProgress?.({ phase: "media", done, total });
+        report({ phase: "media", done, total });
       }
     }
     // A question counts as downloaded only when both files are on disk.
@@ -520,6 +568,7 @@ export async function runSync(
     return "offline";
   } finally {
     running = false;
+    setStatus({ running: false, progress: null });
   }
 }
 

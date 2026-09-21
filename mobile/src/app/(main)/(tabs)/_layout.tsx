@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "@/components/Icon";
 import { colors, font, space } from "@/theme/tokens";
 
@@ -31,12 +32,21 @@ function TabIcon({
 }
 
 export default function TabsLayout() {
+  // Overriding height/paddingBottom drops React Navigation's own inset, so the
+  // bar would sit under Android's 3-button navigation. Add it back the same way
+  // QuizRunner pads its answer pad.
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, space.sm);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: styles.bar,
+        tabBarStyle: [
+          styles.bar,
+          { height: BAR_CONTENT_HEIGHT + bottomPad, paddingBottom: bottomPad },
+        ],
         tabBarItemStyle: styles.barItem,
         sceneStyle: { backgroundColor: colors.bg },
       }}
@@ -77,14 +87,15 @@ export default function TabsLayout() {
   );
 }
 
+// Icon + label area, excluding the bottom inset added in TabsLayout.
+const BAR_CONTENT_HEIGHT = 60;
+
 const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    height: 68,
     paddingTop: 0,
-    paddingBottom: space.sm,
   },
   barItem: { paddingTop: 0 },
   item: { alignItems: "center", gap: 2, width: 76, paddingTop: space.xs },

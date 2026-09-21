@@ -1,10 +1,15 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { SyncProgress } from "../sync/engine";
 import { BrandLogo } from "./BrandLogo";
+import { useResponsive } from "../theme/useResponsive";
 import { colors, font, radius, space } from "../theme/tokens";
 
 // First-launch full-screen progress: "جاري تحميل المحتوى… 45/120".
 export function FirstSyncScreen({ progress }: { progress: SyncProgress | null }) {
+  // 180 in portrait; shrinks on a short landscape screen so the progress bar
+  // and counter are not pushed off the bottom.
+  const { height } = useResponsive();
+  const logoSize = Math.min(180, Math.round(height * 0.22));
   const phaseLabel =
     progress?.phase === "media"
       ? "تحميل الصور والأصوات"
@@ -16,7 +21,7 @@ export function FirstSyncScreen({ progress }: { progress: SyncProgress | null })
 
   return (
     <View style={styles.screen}>
-      <BrandLogo size={132} style={styles.logo} />
+      <BrandLogo size={logoSize} style={styles.logo} />
       <Text style={styles.title}>جاري تحميل المحتوى لأول مرة…</Text>
       <Text style={styles.phase}>{phaseLabel}</Text>
       <View style={styles.track}>

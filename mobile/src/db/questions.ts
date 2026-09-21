@@ -77,11 +77,11 @@ export function loadMockQuestions(
   return rows.map(fromRow);
 }
 
-export function countDownloaded(seriesId: number): number {
-  return (
-    db.getFirstSync<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM questions WHERE series_id = ? AND downloaded = 1",
-      seriesId,
-    )?.n ?? 0
+/** Playable (fully downloaded) questions per series, in one query. */
+export function downloadedCountsBySeries(): Map<number, number> {
+  const rows = db.getAllSync<{ series_id: number; n: number }>(
+    `SELECT series_id, COUNT(*) AS n FROM questions
+      WHERE downloaded = 1 GROUP BY series_id`,
   );
+  return new Map(rows.map((r) => [r.series_id, r.n]));
 }
