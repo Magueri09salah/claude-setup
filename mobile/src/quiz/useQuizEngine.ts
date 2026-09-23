@@ -45,14 +45,15 @@ export interface QuizState {
   attemptId: string | null;
   toggle: (n: number) => void;
   confirm: () => void;
-  skip: () => void;
+  /** ✗ — wipes the current picks and stays on the question (owner 2026-09-23). */
+  clear: () => void;
   togglePause: () => void;
 }
 
 // Pure engine (quiz-engine skill): per-question timer (10/20/30s, user
-// setting), toggle multi-select, ✓ / auto-submit on timeout, exact-set scoring,
-// immediate advance (no per-question correction — reveals happen only on the
-// results grid).
+// setting), toggle multi-select, ✗ erases the picks, ✓ (or the timeout)
+// submits, exact-set scoring, immediate advance (no per-question correction —
+// reveals happen only on the results grid).
 export function useQuizEngine(source: QuizSource): QuizState {
   const { seriesId, loadQuestions, syncable } = source;
   const questions = useMemo(() => loadQuestions(), [loadQuestions]);
@@ -190,11 +191,14 @@ export function useQuizEngine(source: QuizSource): QuizState {
     submit(selected, false);
   }, [phase, selected, submit]);
 
-  // ✗ = skip = wrong (empty selection).
-  const skip = useCallback(() => {
+  // ✗ = ERASE the picks, not an answer (owner report 2026-09-23: it was
+  // submitting an empty answer and jumping to the next question, which looked
+  // like the app validating a blank). It stays on the same question; only ✓
+  // and the timeout ever submit.
+  const clear = useCallback(() => {
     if (phase !== "playing") return;
-    submit([], false);
-  }, [phase, submit]);
+    setSelected([]);
+  }, [phase]);
 
   const togglePause = useCallback(() => {
     if (phase !== "playing") return;
@@ -222,7 +226,7 @@ export function useQuizEngine(source: QuizSource): QuizState {
     attemptId,
     toggle,
     confirm,
-    skip,
+    clear,
     togglePause,
   };
 }
