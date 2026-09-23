@@ -28,6 +28,14 @@ command -v pg_dump >/dev/null || fail "pg_dump not installed (apt install postgr
 DATABASE_URL="$(grep -E '^DATABASE_URL=' "$ENV_FILE" | head -n 1 | cut -d '=' -f 2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
 [ -n "$DATABASE_URL" ] || fail "DATABASE_URL is empty in $ENV_FILE"
 
+# Strip the query string before handing the url to pg_dump. Prisma's url
+# carries `?schema=public`, which is a PRISMA parameter: pg_dump is plain
+# libpq and dies with `invalid URI query parameter: "schema"` (hit on the
+# live server 2026-09-23 — which means every nightly dump had been failing
+# since setup). `public` is the default search path anyway, so dropping it
+# changes nothing about what ends up in the dump.
+PGURL="${DATABASE_URL%%\?*}"
+
 mkdir -p "$BACKUP_DIR"
 # Dumps contain every user record: owner-only.
 chmod 700 "$BACKUP_DIR"
@@ -37,11 +45,15 @@ OUT="$BACKUP_DIR/codeboujida_$STAMP.sql.gz"
 
 echo "[$(date -Is)] dumping to $OUT"
 
+# A failed dump exits here (set -e + pipefail) and would otherwise leave the
+# half-written .part file behind in the backup directory.
+trap 'rm -f "$OUT.part"' EXIT
+
 # --no-owner / --no-privileges: the dump restores cleanly even if the database
 # role is named differently on the machine you restore onto.
 # Writing to .part first means an interrupted run never leaves a file that looks
 # like a valid backup.
-pg_dump --no-owner --no-privileges --format=plain "$DATABASE_URL" \
+pg_dump --no-owner --no-privileges --format=plain "$PGURL" \
   | gzip -9 > "$OUT.part"
 mv "$OUT.part" "$OUT"
 chmod 600 "$OUT"
@@ -89,9 +101,10 @@ echo "[$(date -Is)] on disk: $(find "$BACKUP_DIR" -name 'codeboujida_*.sql.gz' |
 #        pm2 stop codeboujida-api
 #   2. Back up the CURRENT state before overwriting it:
 #        ./scripts/backup.sh
-#   3. Drop and recreate the schema, then load the dump:
+#   3. Drop and recreate the schema, then load the dump. Use the url WITHOUT
+#      the `?schema=public` suffix — psql is libpq too and rejects it:
 #        gunzip -c /var/backups/codeboujida/codeboujida_<STAMP>.sql.gz \
-#          | psql "<DATABASE_URL>"
+#          | psql "postgresql://user:pass@127.0.0.1:5432/codeboujida"
 #   4. pm2 start codeboujida-api
 #
 # These dumps live on the same disk as the database: they protect against a bad
