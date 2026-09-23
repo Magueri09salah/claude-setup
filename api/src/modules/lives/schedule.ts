@@ -6,8 +6,13 @@
 
 export const TZ = "Africa/Casablanca";
 
-/** Minutes before the start when the reminder push goes out. */
-export const REMIND_BEFORE_MIN = 15;
+/**
+ * How long before the start the app shows "يبدأ قريباً" — the glowing bell and
+ * the countdown ring. IN-APP ONLY. The owner dropped the T-15 reminder push on
+ * 2026-09-23: the one notification now goes out AT the time set in the panel,
+ * so this number must never be wired back into the cron.
+ */
+export const SOON_WINDOW_MIN = 15;
 // How long after the start the live is still considered on-air. Owner decision
 // (2026-08-05): one hour — a 23:00 live is over by 00:00, and from then the app
 // shows the countdown to the next night again.
@@ -108,7 +113,7 @@ export interface LiveWindow {
   nextStartAt: Date;
   /** On air: within [start, start + LIVE_WINDOW_MIN]. */
   isLive: boolean;
-  /** Imminent: within the reminder window before the start. */
+  /** Imminent: within SOON_WINDOW_MIN of the start. In-app hint only. */
   startsSoon: boolean;
 }
 
@@ -130,7 +135,7 @@ export function liveWindow(startTime: string, now: Date): LiveWindow {
     candidates[candidates.length - 1]!;
 
   const startsSoon =
-    nextStartAt.getTime() - now.getTime() <= REMIND_BEFORE_MIN * 60_000;
+    nextStartAt.getTime() - now.getTime() <= SOON_WINDOW_MIN * 60_000;
 
   return {
     todayAt: todayStartAt(startTime, now),

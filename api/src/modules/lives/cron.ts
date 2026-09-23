@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../../prisma";
 import { getLiveSettings, pushForLive, toPublicLive } from "./lives.service";
-import { REMIND_BEFORE_MIN, todayStartAt, zoneDayKey } from "./schedule";
+import { todayStartAt, zoneDayKey } from "./schedule";
 
 // How late a missed tick may still fire the "started" push. Beyond this the
 // live is well under way and a notification would only annoy.
@@ -21,26 +21,15 @@ async function runLiveNotifications(): Promise<void> {
   const day = zoneDayKey(startAt);
   const minutesToStart = (startAt.getTime() - now.getTime()) / 60_000;
 
-  if (
-    minutesToStart > 0 &&
-    minutesToStart <= REMIND_BEFORE_MIN &&
-    settings.lastReminderOn !== day
-  ) {
-    const reach = await pushForLive("reminder");
-    await prisma.liveSettings.update({
-      where: { id: 1 },
-      data: { lastReminderOn: day },
-    });
-    console.log(`[cron] live reminder sent for ${day} (reach ${reach})`);
-    return; // never send both pushes in the same tick
-  }
-
+  // ONE push, at the hour the owner set — never before it (owner decision
+  // 2026-09-23). The T-15 reminder that used to fire here is gone; the "starts
+  // soon" state survives only as the in-app bell and countdown ring.
   if (
     minutesToStart <= 0 &&
     minutesToStart >= -START_GRACE_MIN &&
     settings.lastStartOn !== day
   ) {
-    const reach = await pushForLive("started");
+    const reach = await pushForLive();
     await prisma.liveSettings.update({
       where: { id: 1 },
       data: { lastStartOn: day },
@@ -78,6 +67,6 @@ export function startCron(): void {
     }
   });
   console.log(
-    "[cron] scheduled — every minute (daily live T-15/T-0, expire payments)",
+    "[cron] scheduled — every minute (daily live at T-0, expire payments)",
   );
 }

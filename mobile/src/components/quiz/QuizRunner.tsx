@@ -307,7 +307,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               selected={quiz.selected}
               onToggle={quiz.toggle}
               onConfirm={quiz.confirm}
-              onSkip={quiz.skip}
+              onClear={quiz.clear}
               vertical
             />
           </View>
@@ -323,19 +323,16 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       <View
         style={[styles.topBar, { marginTop: Math.max(insets.top, space.md) }]}
       >
-        {/* Three zones, the two outer ones the SAME width (flex: 1), so the
-            badge between them lands on the true screen centre. The previous
-            version stretched it absolutely across the whole row and centred it
-            there, which put it underneath the control pills — they reach past
-            the middle, so they were drawn straight through it (owner report
-            2026-09-16). */}
+        {/* Two zones of equal width (flex: 1): exit on one side, the audio and
+            pause pills on the other. The logo used to sit between them at 34pt;
+            the owner wanted it BIGGER, and the only row with room for that is
+            the status band below, between the timer and the counter (owner
+            decision 2026-09-23). */}
         <View style={styles.topSide}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="close" size={24} color={colors.text} />
           </Pressable>
         </View>
-
-        <BrandLogo size={34} />
 
         {/* Icon only. Carrying their Arabic labels these two pills measured
             about 200pt together, and that — not the badge — is what left no
@@ -378,6 +375,12 @@ export function QuizRunner({ source }: { source: QuizSource }) {
           off={!quiz.timed}
           onPress={() => setTimerSheet(true)}
         />
+        {/* Centred between the two, not just laid between them: the timer pill
+            and the counter are different widths, so without its own flex:1 box
+            the logo would drift off the screen's middle. */}
+        <View style={styles.statusLogo}>
+          <BrandLogo size={48} />
+        </View>
         <View style={styles.chip}>
           <Text style={styles.chipText}>
             {index + 1} / {total}
@@ -450,7 +453,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
           selected={quiz.selected}
           onToggle={quiz.toggle}
           onConfirm={quiz.confirm}
-          onSkip={quiz.skip}
+          onClear={quiz.clear}
         />
       </View>
 
@@ -536,9 +539,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: space.sm,
     paddingVertical: space.sm,
     paddingHorizontal: space.lg,
   },
+  statusLogo: { flex: 1, alignItems: "center" },
   hintRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -45,6 +45,8 @@ livesAdminRouter.put("/live-settings", async (req, res) => {
       ...input,
       // Changing the hour re-arms today's pushes: the new time may still be
       // ahead of us even though the old one already fired.
+      // lastReminderOn is a leftover of the dropped T-15 push; it is cleared
+      // alongside so an old value can never be mistaken for a live one.
       ...(input.startTime !== undefined
         ? { lastReminderOn: null, lastStartOn: null }
         : {}),
@@ -55,6 +57,6 @@ livesAdminRouter.put("/live-settings", async (req, res) => {
 
 // Manual "we're live now" broadcast, for when the owner starts off-schedule.
 livesAdminRouter.post("/live-settings/notify-now", async (_req, res) => {
-  const reach = await pushForLive("started");
+  const reach = await pushForLive();
   res.json({ reach });
 });

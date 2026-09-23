@@ -21,6 +21,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { gridBasis, useResponsive } from "@/theme/useResponsive";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 interface Product {
   id: number;
@@ -33,6 +34,12 @@ interface Product {
 interface Support {
   whatsappNumber: string | null;
   whatsappMessage: string;
+  /**
+   * Where product orders go. The API resolves the fallback to the general
+   * number, so this is either a usable number or genuinely unset — the screen
+   * never has to pick between two fields.
+   */
+  shopWhatsappNumber: string | null;
 }
 
 function priceLabel(price: number): string {
@@ -46,6 +53,9 @@ function priceLabel(price: number): string {
  * no cart and no checkout.
  */
 export default function ShopScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { columns } = useResponsive();
@@ -72,7 +82,7 @@ export default function ShopScreen() {
   }, [load]);
 
   const order = (product: Product) => {
-    if (!support?.whatsappNumber) {
+    if (!support?.shopWhatsappNumber) {
       Alert.alert(
         "رقم التواصل غير متوفر",
         "لم يُضبط رقم واتساب بعد. حاول لاحقاً.",
@@ -86,7 +96,7 @@ export default function ShopScreen() {
     ]
       .filter(Boolean)
       .join("\n");
-    const url = `https://wa.me/${support.whatsappNumber}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${support.shopWhatsappNumber}?text=${encodeURIComponent(message)}`;
     void Linking.openURL(url).catch(() =>
       Alert.alert("تعذّر فتح واتساب", "تأكد من تثبيت تطبيق واتساب على هاتفك."),
     );
@@ -94,7 +104,7 @@ export default function ShopScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />

@@ -17,10 +17,14 @@ import { runSync } from "@/sync/engine";
 import { useSyncStatus } from "@/sync/useSyncStatus";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 const CATEGORIES: LicenceCategory[] = ["B", "A", "C", "D"];
 
 export default function ExamListScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   // ?category=A|C|D shows that licence's series; no param = car (B).
   const params = useLocalSearchParams<{ category?: string }>();
   const category: LicenceCategory = CATEGORIES.includes(
@@ -71,7 +75,7 @@ export default function ExamListScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Text style={styles.back}>‹</Text>

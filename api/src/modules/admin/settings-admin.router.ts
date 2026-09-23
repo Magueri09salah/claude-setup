@@ -9,7 +9,7 @@ export const settingsAdminRouter = Router();
 
 // Empty string clears the number; anything else must be a real Moroccan mobile,
 // otherwise the wa.me link the app builds would silently go nowhere.
-const whatsappNumber = z
+const moroccanMobile = z
   .union([z.literal(""), z.string().trim().max(24)])
   .transform((v) => (v === "" ? null : normalizePhone(v)))
   .refine((v) => v === null || isValidMoroccanMobile(v), {
@@ -18,7 +18,9 @@ const whatsappNumber = z
   .nullable();
 
 const settingsSchema = z.strictObject({
-  whatsappNumber: whatsappNumber.optional(),
+  whatsappNumber: moroccanMobile.optional(),
+  // Cleared (empty string) means shop orders fall back to whatsappNumber.
+  shopWhatsappNumber: moroccanMobile.optional(),
   whatsappMessage: z
     .string()
     .trim()

@@ -11,6 +11,7 @@ import { getAttempt } from "@/db/attempts";
 import { getQuestionById } from "@/db/questions";
 import { colors, font, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 // The question being read aloud and the trainer explaining the answer are two
 // different recordings on the same screen. Only one may play at a time, so the
@@ -18,6 +19,9 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 type AudioOwner = "question" | "correction";
 
 export default function ReviewScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const [viewer, setViewer] = useState(false);
   const [audio, setAudio] = useState<AudioOwner | null>(null);
   const params = useLocalSearchParams<{ attemptId: string; q: string }>();
@@ -47,7 +51,7 @@ export default function ReviewScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Text style={styles.back}>‹</Text>

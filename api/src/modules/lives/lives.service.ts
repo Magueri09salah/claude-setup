@@ -53,17 +53,19 @@ export function toPublicLive(s: LiveSettings, now = new Date()): PublicLive {
   };
 }
 
-export type PushKind = "reminder" | "started";
-
-/** Broadcasts the daily live push and records the reach on the singleton. */
-export async function pushForLive(kind: PushKind): Promise<number> {
+/**
+ * Broadcasts the daily live push and records the reach on the singleton.
+ *
+ * ONE push per live, sent AT the start time the owner set in the panel (owner
+ * decision 2026-09-23). There used to be a second, earlier "starts in 15
+ * minutes" push; it was dropped because two notifications a night for the same
+ * broadcast is what makes people turn them off.
+ */
+export async function pushForLive(): Promise<number> {
   const tokens = await allPushTokens();
   const reach = await sendPush(tokens, {
-    title: kind === "reminder" ? "بث مباشر قريباً" : "بدأ البث المباشر",
-    body:
-      kind === "reminder"
-        ? "البث المباشر يبدأ بعد 15 دقيقة — اختر المنصة"
-        : "البث المباشر بدأ الآن — اضغط لاختيار المنصة",
+    title: "بدأ البث المباشر",
+    body: "البث المباشر بدأ الآن — اضغط لاختيار المنصة",
     // Any live push routes to the lives screen, where the viewer picks a
     // platform — there is no single url to deep-link to.
     data: { type: "live" },

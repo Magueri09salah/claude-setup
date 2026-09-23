@@ -6,8 +6,12 @@ import { LiveSection } from "@/components/LiveSection";
 import { markLiveSeen, useLive } from "@/lives/useLive";
 import { colors, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 export default function LivesScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const { settings, currentKey } = useLive();
 
   // Opening this page clears the bell badge for the current occurrence.
@@ -19,7 +23,7 @@ export default function LivesScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />

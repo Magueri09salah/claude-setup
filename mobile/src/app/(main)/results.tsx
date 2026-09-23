@@ -1,6 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lastAdStatus } from "@/ads/interstitial";
 import { Icon } from "@/components/Icon";
 import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
@@ -8,6 +7,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { countPassedAttempts, getAttempt } from "@/db/attempts";
 import { colors, font, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const LANE_DASHES = 10;
@@ -17,8 +17,9 @@ const TILE = 56;
 export default function ResultsScreen() {
   const params = useLocalSearchParams<{ attemptId: string }>();
   const attempt = params.attemptId ? getAttempt(params.attemptId) : null;
-  // Rotated, the last button used to end up under the home indicator.
-  const insets = useSafeAreaInsets();
+  // Rotated, the last button used to end up under the home indicator — and on
+  // Android it sits under the 3-button navigation bar.
+  const paddingBottom = useBottomInset();
 
   if (!attempt) {
     return (
@@ -54,10 +55,7 @@ export default function ResultsScreen() {
   return (
     <ScreenBackground style={styles.screen}>
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: space.xl + insets.bottom },
-        ]}
+        contentContainerStyle={[styles.content, { paddingBottom }]}
       >
         <Text style={styles.heading}>
           النتيجة{" "}

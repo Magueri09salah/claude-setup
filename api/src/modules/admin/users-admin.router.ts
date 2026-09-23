@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
+import { requireAdmin } from "../../middleware/auth";
 import { ApiError } from "../../middleware/errors";
+import { deleteAccount } from "../auth/auth.service";
 import { prisma } from "../../prisma";
 import { setUserPremium } from "../payments/payments.service";
 import { extendPremium, PREMIUM_MONTHS } from "../premium/duration";
@@ -95,6 +97,61 @@ usersAdminRouter.get("/users", async (req, res) => {
     page: q.page,
     pageSize: q.pageSize,
   });
+});
+
+const deleteBody = z.strictObject({
+  ids: z.array(z.uuid()).min(1).max(200),
+});
+
+/**
+ * Bulk delete — the trash button on المستخدمون (owner request 2026-09-23).
+ *
+ * OWNER ONLY. Everything else in this router is deliberately assistant-visible,
+ * so this one route carries `requireAdmin` itself rather than moving below the
+ * line in admin.router — an assistant reads the list, they do not erase people
+ * from it.
+ *
+ * STAFF ACCOUNTS ARE REFUSED, including the caller's own: deleting the last
+ * ADMIN would lock the panel with no way back in, and that must not be one
+ * mis-click away. The whole request is rejected rather than partly applied, so
+ * a selection that caught a staff row is re-checked by a human instead of
+ * silently doing something other than what the checkboxes said.
+ *
+ * Each row is audited BEFORE it goes, with the name and phone inlined — once
+ * the user is gone, `targetId` alone identifies nobody.
+ */
+usersAdminRouter.post("/users/delete", requireAdmin, async (req, res) => {
+  const { ids } = deleteBody.parse(req.body);
+  const unique = [...new Set(ids)];
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, role: true, username: true, phone: true },
+  });
+  if (users.length !== unique.length) {
+    throw new ApiError(404, "بعض الحسابات غير موجودة");
+  }
+  const staff = users.filter((u) => u.role !== "USER");
+  if (staff.length > 0) {
+    throw new ApiError(403, "لا يمكن حذف حساب إداري");
+  }
+
+  for (const user of users) {
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.auth!.userId,
+        action: "delete_user",
+        targetType: "user",
+        targetId: user.id,
+        detail: `${user.username ?? "—"} / ${user.phone ?? "—"}`,
+      },
+    });
+    // Same cascade as the in-app "delete my account", so an admin deletion can
+    // never leave orphans the self-service path cleans up.
+    await deleteAccount(user.id);
+  }
+
+  res.json({ deleted: users.length });
 });
 
 const premiumBody = z.strictObject({ isPremium: z.boolean() });

@@ -81,10 +81,12 @@ export default function HomeScreen() {
         <Text style={styles.title}>القائمة الرئيسية</Text>
 
         <View style={styles.cards}>
+          {/* Car, not the traffic light: this is the B-licence series list, and
+              the owner wants the vehicle to say so (decision 2026-09-23). */}
           <FeatureCard
             title="سلاسل الامتحان"
             subtitle="40 سؤالاً في كل سلسلة، مثل الامتحان الرسمي"
-            icon="exam"
+            icon="car"
             accent={colors.exam}
             onPress={() => router.push("/exam")}
           />
@@ -97,11 +99,13 @@ export default function HomeScreen() {
           />
           {/* Third card opens its own page of licence cards (moto / bus /
               truck) — the tiles used to sit inline here, but the owner wants a
-              card per vehicle on a screen of its own. */}
+              card per vehicle on a screen of its own. Its badge is the three
+              licence letters rather than a car, which now belongs to the first
+              card (owner decision 2026-09-23). */}
           <FeatureCard
             title="سلاسل الدروس"
             subtitle="تدرّب حسب صنف رخصة السياقة"
-            icon="car"
+            letters={["A", "C", "D"]}
             accent={colors.series}
             onPress={() => router.push("/vehicles")}
           />

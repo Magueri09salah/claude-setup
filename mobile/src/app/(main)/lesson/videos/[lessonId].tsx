@@ -16,6 +16,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { getLesson } from "@/db/lessons";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 function sizeLabel(bytes: number | null): string | null {
   if (!bytes) return null;
@@ -27,6 +28,9 @@ function sizeLabel(bytes: number | null): string | null {
 // far too large to sit in the offline bundle, so this screen needs a connection
 // and says so plainly when there isn't one.
 export default function VideoLessonScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const params = useLocalSearchParams<{ lessonId: string }>();
   const id = Number(params.lessonId);
   const lesson = getLesson(id);
@@ -57,7 +61,7 @@ export default function VideoLessonScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />

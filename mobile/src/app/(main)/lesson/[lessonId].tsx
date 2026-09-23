@@ -12,6 +12,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { getLesson, listSigns, type SignRow } from "@/db/lessons";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 const AUDIO_TICK_MS = 100;
 
@@ -20,6 +21,9 @@ const AUDIO_TICK_MS = 100;
 // from the LOCAL path; one shared player, swapped per sign. The playing card's
 // border fills as the audio advances (owner request 2026-08-07).
 export default function LessonScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const { columns } = useResponsive();
   const basis = gridBasis(columns);
   const params = useLocalSearchParams<{ lessonId: string }>();
@@ -71,7 +75,7 @@ export default function LessonScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Text style={styles.back}>‹</Text>

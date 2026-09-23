@@ -16,6 +16,13 @@ export interface SupportInfo {
   whatsappNumber: string | null;
   /** Prefix the app puts before the candidate's own details. */
   whatsappMessage: string;
+  /**
+   * Where SHOP orders go, already resolved: the shop number when the owner set
+   * one, otherwise the general number. The app never has to know about the
+   * fallback, so an unset field can never leave the "اطلبه عبر واتساب"
+   * button pointing at nothing.
+   */
+  shopWhatsappNumber: string | null;
 }
 
 const DEFAULT_MESSAGE = "السلام عليكم، أريد فتح المحتوى الكامل في تطبيق طريق.";
@@ -33,8 +40,10 @@ export function toWaMeNumber(local: string | null): string | null {
 }
 
 export function toSupportInfo(settings: AppSettings): SupportInfo {
+  const general = toWaMeNumber(settings.whatsappNumber);
   return {
-    whatsappNumber: toWaMeNumber(settings.whatsappNumber),
+    whatsappNumber: general,
     whatsappMessage: settings.whatsappMessage?.trim() || DEFAULT_MESSAGE,
+    shopWhatsappNumber: toWaMeNumber(settings.shopWhatsappNumber) ?? general,
   };
 }

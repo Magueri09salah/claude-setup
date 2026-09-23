@@ -16,6 +16,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { gridBasis, useResponsive } from "@/theme/useResponsive";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 interface PracticalVideo {
   id: number;
@@ -36,6 +37,9 @@ function sizeLabel(bytes: number | null): string | null {
 // straight from home. Streamed like the lesson videos, so this screen needs a
 // connection and says so plainly when there isn't one.
 export default function PracticalScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const { columns, isWide } = useResponsive();
   const basis = gridBasis(columns);
   const [videos, setVideos] = useState<PracticalVideo[] | null>(null);
@@ -66,7 +70,7 @@ export default function PracticalScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />

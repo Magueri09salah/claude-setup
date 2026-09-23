@@ -8,7 +8,8 @@ interface Props {
   selected: number[];
   onToggle: (n: number) => void;
   onConfirm: () => void;
-  onSkip: () => void;
+  /** ✗ — erases the current picks. It never submits and never advances. */
+  onClear: () => void;
   /**
    * Landscape: one narrow column on the side of the picture — ✗, the numbers,
    * then ✓, each a full-width row. Matches the official exam terminal (owner
@@ -24,23 +25,29 @@ export function AnswerZone({
   selected,
   onToggle,
   onConfirm,
-  onSkip,
+  onClear,
   vertical = false,
 }: Props) {
   const numbers = Array.from({ length: answersCount }, (_, i) => i + 1);
-  const confirmDisabled = selected.length === 0;
+  // Nothing picked = nothing to erase, so ✗ dims instead of looking live.
+  // ✓ stays enabled: with the countdown switched off it is the ONLY way past
+  // a question the candidate cannot answer, and a blank submit is simply wrong
+  // — exactly what the real terminal does.
+  const clearDisabled = selected.length === 0;
 
   if (vertical) {
     return (
       <View style={styles.column}>
         <Pressable
-          onPress={onSkip}
+          disabled={clearDisabled}
+          onPress={onClear}
           accessibilityRole="button"
-          accessibilityLabel="تخطي"
+          accessibilityLabel="مسح الاختيار"
           style={({ pressed }) => [
             styles.bar,
             styles.actionBar,
-            styles.skipBar,
+            styles.clearBar,
+            clearDisabled && styles.disabled,
             pressed && { opacity: 0.7 },
           ]}
         >
@@ -70,7 +77,6 @@ export function AnswerZone({
         })}
 
         <Pressable
-          disabled={confirmDisabled}
           onPress={onConfirm}
           accessibilityRole="button"
           accessibilityLabel="تأكيد"
@@ -78,7 +84,6 @@ export function AnswerZone({
             styles.bar,
             styles.actionBar,
             styles.confirmBar,
-            confirmDisabled && styles.disabled,
             pressed && { opacity: 0.7 },
           ]}
         >
@@ -88,14 +93,18 @@ export function AnswerZone({
     );
   }
 
-  // ✗ skip column — number grid — ✓ confirm column (ui-design quiz recipe).
+  // ✗ erase column — number grid — ✓ confirm column (ui-design quiz recipe).
   return (
     <View style={styles.row}>
       <Pressable
-        onPress={onSkip}
+        disabled={clearDisabled}
+        onPress={onClear}
+        accessibilityRole="button"
+        accessibilityLabel="مسح الاختيار"
         style={({ pressed }) => [
           styles.sideColumn,
-          styles.skip,
+          styles.clear,
+          clearDisabled && styles.disabled,
           pressed && { opacity: 0.7 },
         ]}
       >
@@ -114,12 +123,12 @@ export function AnswerZone({
       </View>
 
       <Pressable
-        disabled={confirmDisabled}
         onPress={onConfirm}
+        accessibilityRole="button"
+        accessibilityLabel="تأكيد"
         style={({ pressed }) => [
           styles.sideColumn,
           styles.confirm,
-          confirmDisabled && styles.confirmDisabled,
           pressed && { opacity: 0.7 },
         ]}
       >
@@ -138,9 +147,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  skip: { backgroundColor: "rgba(229,72,77,0.16)" },
+  clear: { backgroundColor: "rgba(229,72,77,0.16)" },
   confirm: { backgroundColor: "rgba(47,191,113,0.18)" },
-  confirmDisabled: { opacity: 0.4 },
   grid: {
     flex: 1,
     flexDirection: "row",
@@ -169,7 +177,7 @@ const styles = StyleSheet.create({
   // the target stays easy to hit, and a taller floor would clamp and push the
   // column past the bottom of a rotated phone.
   actionBar: { flex: 0.6, minHeight: 28 },
-  skipBar: { backgroundColor: "rgba(229,72,77,0.16)" },
+  clearBar: { backgroundColor: "rgba(229,72,77,0.16)" },
   confirmBar: { backgroundColor: "rgba(47,191,113,0.18)" },
   disabled: { opacity: 0.4 },
   numberBar: {

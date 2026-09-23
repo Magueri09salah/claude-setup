@@ -292,6 +292,11 @@ model AppSettings {
   // Optional prefix for the prefilled message; the app appends the candidate's
   // own name and number so the admin knows exactly who to add.
   whatsappMessage String?
+  // Where SHOP orders go. Same canonical local form. Optional: null means shop
+  // orders fall back to whatsappNumber, so an empty field is never a dead
+  // button (owner request 2026-09-23 — product orders go to a different phone
+  // than access requests).
+  shopWhatsappNumber String?
   updatedAt       DateTime @updatedAt
 }
 

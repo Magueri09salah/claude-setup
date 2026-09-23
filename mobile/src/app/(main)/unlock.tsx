@@ -18,6 +18,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { runSync } from "@/sync/engine";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 interface Support {
   whatsappNumber: string | null;
@@ -55,6 +56,9 @@ function remainingDays(iso: string): number | null {
 // sale — app stores require digital purchases to go through their own billing,
 // so this screen is an ENROLMENT request, not a checkout.
 export default function UnlockScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const { user, refreshUser } = useAuth();
   const [support, setSupport] = useState<Support | null>(null);
   const [checking, setChecking] = useState(false);
@@ -141,7 +145,7 @@ export default function UnlockScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />

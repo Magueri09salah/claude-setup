@@ -17,6 +17,7 @@ import {
   Title,
 } from "@mantine/core";
 import {
+  IconBrandWhatsapp,
   IconPencil,
   IconPhoto,
   IconPlus,
@@ -40,6 +41,12 @@ export function ShopPage() {
   const [image, setImage] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  // Where product orders land. Empty = fall back to the general contact number
+  // set on المجموعة المجانية, which is what the API does too.
+  const [orderPhone, setOrderPhone] = useState("");
+  const [savedOrderPhone, setSavedOrderPhone] = useState("");
+  const [generalPhone, setGeneralPhone] = useState<string | null>(null);
+  const [savingPhone, setSavingPhone] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -50,9 +57,45 @@ export function ShopPage() {
     }
   }, []);
 
+  const loadPhone = useCallback(async () => {
+    try {
+      const r = await api<{
+        settings: {
+          whatsappNumber: string | null;
+          shopWhatsappNumber: string | null;
+        };
+      }>("/admin/app-settings");
+      setOrderPhone(r.settings.shopWhatsappNumber ?? "");
+      setSavedOrderPhone(r.settings.shopWhatsappNumber ?? "");
+      setGeneralPhone(r.settings.whatsappNumber);
+    } catch (e) {
+      notifyError(e);
+    }
+  }, []);
+
+  const saveOrderPhone = async () => {
+    setSavingPhone(true);
+    try {
+      const r = await api<{
+        settings: { shopWhatsappNumber: string | null };
+      }>("/admin/app-settings", {
+        method: "PUT",
+        json: { shopWhatsappNumber: orderPhone.trim() },
+      });
+      setOrderPhone(r.settings.shopWhatsappNumber ?? "");
+      setSavedOrderPhone(r.settings.shopWhatsappNumber ?? "");
+      notifySuccess("تم الحفظ", "تم تحديث رقم استقبال الطلبات");
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadPhone();
+  }, [load, loadPhone]);
 
   const openCreate = () => {
     setEditing(null);
@@ -142,6 +185,37 @@ export function ShopPage() {
           إضافة منتج
         </Button>
       </Group>
+
+      <Card padding="lg">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <TextInput
+              label="رقم واتساب لاستقبال الطلبات"
+              description="عند الضغط على «اطلبه عبر واتساب» تصل رسالة المترشح إلى هذا الرقم"
+              placeholder="0612345678"
+              dir="ltr"
+              styles={{ input: { textAlign: "left" } }}
+              leftSection={<IconBrandWhatsapp size={16} color="#25D366" />}
+              value={orderPhone}
+              onChange={(e) => setOrderPhone(e.currentTarget.value)}
+            />
+          </div>
+          <Button
+            loading={savingPhone}
+            disabled={orderPhone.trim() === savedOrderPhone}
+            onClick={() => void saveOrderPhone()}
+          >
+            حفظ الرقم
+          </Button>
+        </Group>
+        {!savedOrderPhone && (
+          <Text size="xs" c={generalPhone ? "dimmed" : "orange"} mt="xs">
+            {generalPhone
+              ? `اتركه فارغاً لتصل الطلبات إلى رقم التواصل العام (${generalPhone}).`
+              : "لم يُضبط أي رقم — زر الطلب لن يعمل حتى تضيف رقماً هنا أو في صفحة المجموعة المجانية."}
+          </Text>
+        )}
+      </Card>
 
       {products.length === 0 ? (
         <Card padding="xl">

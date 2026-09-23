@@ -114,7 +114,7 @@ export interface AdminUser {
   email: string | null;
   fullName: string | null;
   phone: string | null;
-  role: "USER" | "ADMIN";
+  role: "USER" | "ADMIN" | "ASSISTANT";
   isPremium: boolean;
   premiumUntil: string | null;
   createdAt: string;

@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Group,
   Modal,
   SegmentedControl,
@@ -16,6 +17,7 @@ import {
   IconFileSpreadsheet,
   IconPrinter,
   IconSearch,
+  IconTrash,
   IconUsers,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
@@ -70,6 +72,11 @@ export function UsersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | UserStatus>("all");
   const [target, setTarget] = useState<AdminUser | null>(null);
+  // Ids, not rows: the list is reloaded after every action and object identity
+  // would not survive it.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -80,6 +87,10 @@ export function UsersPage() {
       );
       setUsers(r.users);
       setTotal(r.total);
+      // A filter or search change can hide a ticked row. Dropping it here is
+      // what stops the trash button from deleting people the owner can no
+      // longer see.
+      setSelected((prev) => prev.filter((id) => r.users.some((u) => u.id === id)));
     } catch (e) {
       notifyError(e);
     }
@@ -117,6 +128,37 @@ export function UsersPage() {
       await load();
     } catch (e) {
       notifyError(e);
+    }
+  };
+
+  // Staff accounts are not deletable (the API refuses them too), so they are
+  // not selectable either — a checkbox that always fails is worse than none.
+  const deletable = users.filter((u) => u.role === "USER");
+  const allChecked =
+    deletable.length > 0 && selected.length === deletable.length;
+  const someChecked = selected.length > 0 && !allChecked;
+
+  const toggleOne = (id: string, on: boolean) =>
+    setSelected((prev) => (on ? [...prev, id] : prev.filter((x) => x !== id)));
+
+  const toggleAll = (on: boolean) =>
+    setSelected(on ? deletable.map((u) => u.id) : []);
+
+  const removeSelected = async () => {
+    setDeleting(true);
+    try {
+      const r = await api<{ deleted: number }>("/admin/users/delete", {
+        method: "POST",
+        json: { ids: selected },
+      });
+      notifySuccess("تم الحذف", `حذف ${r.deleted} حساباً نهائياً`);
+      setSelected([]);
+      setConfirmDelete(false);
+      await load();
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -213,22 +255,48 @@ export function UsersPage() {
             onChange={(e) => setSearch(e.currentTarget.value)}
             w={300}
           />
-          <SegmentedControl
-            value={status}
-            onChange={(v) => setStatus(v as typeof status)}
-            data={[
-              { value: "all", label: "الكل" },
-              { value: "paid", label: "مشترك" },
-              { value: "expired", label: "منتهي" },
-              { value: "free", label: "مجاني" },
-            ]}
-          />
+          <Group>
+            {/* Owner only — the API refuses this route for an assistant, and a
+                button that always 403s is not a button. */}
+            {isAdmin && (
+              <Button
+                color="red"
+                variant={selected.length > 0 ? "filled" : "default"}
+                leftSection={<IconTrash size={16} />}
+                disabled={selected.length === 0}
+                onClick={() => setConfirmDelete(true)}
+              >
+                {selected.length > 0 ? `حذف (${selected.length})` : "حذف"}
+              </Button>
+            )}
+            <SegmentedControl
+              value={status}
+              onChange={(v) => setStatus(v as typeof status)}
+              data={[
+                { value: "all", label: "الكل" },
+                { value: "paid", label: "مشترك" },
+                { value: "expired", label: "منتهي" },
+                { value: "free", label: "مجاني" },
+              ]}
+            />
+          </Group>
         </Group>
 
         <Table.ScrollContainer minWidth={720}>
           <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
+                {isAdmin && (
+                  <Table.Th w={40}>
+                    <Checkbox
+                      aria-label="تحديد الكل"
+                      checked={allChecked}
+                      indeterminate={someChecked}
+                      disabled={deletable.length === 0}
+                      onChange={(e) => toggleAll(e.currentTarget.checked)}
+                    />
+                  </Table.Th>
+                )}
                 <Table.Th>اسم المستخدم</Table.Th>
                 <Table.Th>الهاتف</Table.Th>
                 {isAdmin && <Table.Th>رمز الاستعادة</Table.Th>}
@@ -241,7 +309,18 @@ export function UsersPage() {
             </Table.Thead>
             <Table.Tbody>
               {users.map((u) => (
-                <Table.Tr key={u.id}>
+                <Table.Tr key={u.id} bg={selected.includes(u.id) ? "var(--mantine-color-red-light)" : undefined}>
+                  {isAdmin && (
+                    <Table.Td>
+                      {u.role === "USER" && (
+                        <Checkbox
+                          aria-label={`تحديد ${u.username ?? u.phone ?? ""}`}
+                          checked={selected.includes(u.id)}
+                          onChange={(e) => toggleOne(u.id, e.currentTarget.checked)}
+                        />
+                      )}
+                    </Table.Td>
+                  )}
                   <Table.Td>
                     <Text size="sm" fw={500} style={{ direction: "ltr" }}>
                       {u.username ?? u.fullName ?? "—"}
@@ -322,7 +401,7 @@ export function UsersPage() {
               ))}
               {users.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={isAdmin ? 8 : 7}>
+                  <Table.Td colSpan={isAdmin ? 9 : 7}>
                     <Text c="dimmed" size="sm" ta="center" py="md">
                       لا يوجد مستخدمون مطابقون.
                     </Text>
@@ -333,6 +412,40 @@ export function UsersPage() {
           </Table>
         </Table.ScrollContainer>
       </Card>
+
+      <Modal
+        opened={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="حذف الحسابات المحددة"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            سيتم حذف {selected.length} حساباً نهائياً مع كل نتائجهم وأجهزتهم
+            وطلباتهم. لا يمكن التراجع عن هذا الإجراء.
+          </Text>
+          <Text size="xs" c="dimmed">
+            {users
+              .filter((u) => selected.includes(u.id))
+              .slice(0, 8)
+              .map((u) => u.username ?? u.phone ?? u.id)
+              .join("، ")}
+            {selected.length > 8 ? " …" : ""}
+          </Text>
+          <Text size="xs" c="dimmed">
+            أرقام المجموعة المجانية لا تُحذف — يُلغى ربطها فقط، فيمكن لنفس
+            الشخص التسجيل من جديد.
+          </Text>
+        </Stack>
+        <Group justify="flex-end" mt="lg">
+          <Button variant="default" onClick={() => setConfirmDelete(false)}>
+            إلغاء
+          </Button>
+          <Button color="red" loading={deleting} onClick={() => void removeSelected()}>
+            حذف نهائي
+          </Button>
+        </Group>
+      </Modal>
 
       <Modal
         opened={target !== null}

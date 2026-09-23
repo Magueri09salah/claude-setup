@@ -7,6 +7,7 @@ import { seriesCountByCategory, type LicenceCategory } from "@/db";
 import { LICENCES } from "@/licence";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
+import { useBottomInset } from "@/theme/useScreenInsets";
 
 // Licence categories other than the car (B), which has its own entry on home
 // as سلاسل الامتحان.
@@ -23,6 +24,9 @@ const SUBTITLE: Record<LicenceCategory, string> = {
 // a licence with no series yet stays visible but inert, so the candidate can
 // see it is coming without hitting an empty screen.
 export default function VehiclesScreen() {
+  // Edge-to-edge: the last card would sit under Android's navigation
+  // bar without this (owner report 2026-09-23).
+  const paddingBottom = useBottomInset();
   const [counts, setCounts] = useState<Map<LicenceCategory, number>>(new Map());
 
   useFocusEffect(
@@ -33,7 +37,7 @@ export default function VehiclesScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />
