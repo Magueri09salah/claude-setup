@@ -41,11 +41,10 @@ export function ShopPage() {
   const [image, setImage] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
-  // Where product orders land. Empty = fall back to the general contact number
-  // set on المجموعة المجانية, which is what the API does too.
+  // Where product orders land. There is NO fallback: empty means the app's
+  // order button is disabled (owner decision 2026-09-24).
   const [orderPhone, setOrderPhone] = useState("");
   const [savedOrderPhone, setSavedOrderPhone] = useState("");
-  const [generalPhone, setGeneralPhone] = useState<string | null>(null);
   const [savingPhone, setSavingPhone] = useState(false);
 
   const load = useCallback(async () => {
@@ -60,14 +59,10 @@ export function ShopPage() {
   const loadPhone = useCallback(async () => {
     try {
       const r = await api<{
-        settings: {
-          whatsappNumber: string | null;
-          shopWhatsappNumber: string | null;
-        };
+        settings: { shopWhatsappNumber: string | null };
       }>("/admin/app-settings");
       setOrderPhone(r.settings.shopWhatsappNumber ?? "");
       setSavedOrderPhone(r.settings.shopWhatsappNumber ?? "");
-      setGeneralPhone(r.settings.whatsappNumber);
     } catch (e) {
       notifyError(e);
     }
@@ -191,7 +186,7 @@ export function ShopPage() {
           <div style={{ flex: 1, minWidth: 260 }}>
             <TextInput
               label="رقم واتساب لاستقبال الطلبات"
-              description="عند الضغط على «اطلبه عبر واتساب» تصل رسالة المترشح إلى هذا الرقم"
+              description="عند الضغط على «اطلبه عبر واتساب» تصل رسالة المترشح إلى هذا الرقم. إلزامي لتفعيل الطلبات."
               placeholder="0612345678"
               dir="ltr"
               styles={{ input: { textAlign: "left" } }}
@@ -209,10 +204,9 @@ export function ShopPage() {
           </Button>
         </Group>
         {!savedOrderPhone && (
-          <Text size="xs" c={generalPhone ? "dimmed" : "orange"} mt="xs">
-            {generalPhone
-              ? `اتركه فارغاً لتصل الطلبات إلى رقم التواصل العام (${generalPhone}).`
-              : "لم يُضبط أي رقم — زر الطلب لن يعمل حتى تضيف رقماً هنا أو في صفحة المجموعة المجانية."}
+          <Text size="xs" c="orange" mt="xs">
+            لم يُضبط رقم بعد — زر «اطلبه عبر واتساب» معطّل في التطبيق حتى
+            تضيف رقماً هنا.
           </Text>
         )}
       </Card>

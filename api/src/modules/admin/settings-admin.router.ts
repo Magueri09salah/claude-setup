@@ -19,7 +19,7 @@ const moroccanMobile = z
 
 const settingsSchema = z.strictObject({
   whatsappNumber: moroccanMobile.optional(),
-  // Cleared (empty string) means shop orders fall back to whatsappNumber.
+  // Cleared (empty string) disables the shop's order button in the app.
   shopWhatsappNumber: moroccanMobile.optional(),
   whatsappMessage: z
     .string()

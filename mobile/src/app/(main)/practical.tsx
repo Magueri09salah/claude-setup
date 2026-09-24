@@ -190,9 +190,11 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
+  // NO flex/flexGrow here. `flex: 1` sets flexBasis to 0, which beats the
+  // inline `width: basis` and stops the row ever wrapping — every video was
+  // squeezed onto one line (owner report 2026-09-24). The width alone gives
+  // the 2 cards per row that gridBasis is asking for.
   card: {
-    flexGrow: 1,
-    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,

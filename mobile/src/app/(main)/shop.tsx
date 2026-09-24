@@ -35,9 +35,9 @@ interface Support {
   whatsappNumber: string | null;
   whatsappMessage: string;
   /**
-   * Where product orders go. The API resolves the fallback to the general
-   * number, so this is either a usable number or genuinely unset — the screen
-   * never has to pick between two fields.
+   * Where product orders go. No fallback to the general contact number: null
+   * means the owner has not set one, and the order button is disabled rather
+   * than quietly sending the order to the wrong phone (owner 2026-09-24).
    */
   shopWhatsappNumber: string | null;
 }
@@ -82,13 +82,9 @@ export default function ShopScreen() {
   }, [load]);
 
   const order = (product: Product) => {
-    if (!support?.shopWhatsappNumber) {
-      Alert.alert(
-        "رقم التواصل غير متوفر",
-        "لم يُضبط رقم واتساب بعد. حاول لاحقاً.",
-      );
-      return;
-    }
+    // Guard, not a message: the button is disabled when there is no number, so
+    // reaching here at all would be a bug.
+    if (!support?.shopWhatsappNumber) return;
     const message = [
       `السلام عليكم، أريد شراء: ${product.title} (${priceLabel(product.price)}).`,
       user?.username ? `اسم المستخدم: ${user.username}` : "",
@@ -138,10 +134,13 @@ export default function ShopScreen() {
           </View>
         )}
 
+        {/* flexBasis only, no flexGrow: an odd last product keeps the same
+            width as the rest instead of stretching across the whole row
+            (owner 2026-09-24). */}
         {products && products.length > 0 && (
           <View style={styles.grid}>
             {products.map((p) => (
-              <View key={p.id} style={[styles.cardWrap, { flexBasis: gridBasis(columns) }]}>
+              <View key={p.id} style={{ flexBasis: gridBasis(columns) }}>
                 <PressableScale
                   onPress={() => setActive(p)}
                   style={styles.card}
@@ -219,7 +218,11 @@ export default function ShopScreen() {
 
             <PressableScale
               onPress={() => active && order(active)}
-              style={styles.whatsapp}
+              disabled={!support?.shopWhatsappNumber}
+              style={[
+                styles.whatsapp,
+                !support?.shopWhatsappNumber && styles.whatsappOff,
+              ]}
             >
               <BrandIcon platform="WHATSAPP" size={22} color={colors.onAccent} />
               <Text style={styles.whatsappText}>اطلبه عبر واتساب</Text>
@@ -264,7 +267,6 @@ const styles = StyleSheet.create({
   },
   retryText: { ...type.label, fontSize: 15, color: colors.text },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
-  cardWrap: { flexGrow: 1 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -331,5 +333,8 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     ...shadow.card,
   },
+  // No order number set in the admin panel — same dimming as the courses
+  // screen uses when no city is picked.
+  whatsappOff: { opacity: 0.5 },
   whatsappText: { fontFamily: font.extraBold, fontSize: 17, color: colors.onAccent },
 });

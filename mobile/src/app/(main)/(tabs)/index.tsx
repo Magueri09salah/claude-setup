@@ -103,7 +103,7 @@ export default function HomeScreen() {
               licence letters rather than a car, which now belongs to the first
               card (owner decision 2026-09-23). */}
           <FeatureCard
-            title="سلاسل الدروس"
+            title="الشاحنة، الحافلة، الدراجة"
             subtitle="تدرّب حسب صنف رخصة السياقة"
             letters={["A", "C", "D"]}
             accent={colors.series}
@@ -119,7 +119,7 @@ export default function HomeScreen() {
           {/* Lead generation: the candidate picks their city and reaches the
               school on WhatsApp; the request lands in the admin panel. */}
           <FeatureCard
-            title="التسجيل في الدروس"
+            title="حجز حصة سياقة"
             subtitle="اختر مدينتك وتواصل معنا"
             icon="school"
             accent={colors.series}

@@ -15,10 +15,11 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { colors, font, space, type } from "@/theme/tokens";
 
-// Two steps on one screen: prove ownership with the phone + the last 3 digits
-// of the ID card, then choose a new password. The password field only appears
-// after the code is accepted, so nobody types a new password to be told the
-// code was wrong. Three wrong codes lock the account for 24h (server-side).
+// Two steps on one screen: prove ownership with the phone + the 3 digits the
+// candidate chose at registration, then pick a new password. The password
+// fields only appear after the code is accepted, so nobody types a new password
+// to be told the code was wrong. Three wrong codes lock the account for 24h
+// (server-side).
 export default function ForgotPasswordScreen() {
   const [phone, setPhone] = useState("");
   const [cin, setCin] = useState("");
@@ -151,10 +152,23 @@ export default function ForgotPasswordScreen() {
             </>
           ) : (
             <>
+              {/* textContentType is NOT optional here (owner report 2026-09-24:
+                  the confirm field would not accept typing on iPhone). With two
+                  secureTextEntry boxes and no content type, iOS guesses they are
+                  a password pair, puts its own "Strong Password" AutoFill on top
+                  of them, and swallows what you type into the second one. Saying
+                  newPassword outright makes iOS handle the pair properly instead
+                  of guessing. */}
               <AppTextInput
                 label="كلمة المرور الجديدة (8 أحرف فأكثر)"
                 ltr
                 secureTextEntry
+                textContentType="newPassword"
+                autoComplete="new-password"
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                passwordRules="minlength: 8;"
                 value={password}
                 onChangeText={setPassword}
               />
@@ -162,6 +176,12 @@ export default function ForgotPasswordScreen() {
                 label="تأكيد كلمة المرور"
                 ltr
                 secureTextEntry
+                textContentType="newPassword"
+                autoComplete="new-password"
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                passwordRules="minlength: 8;"
                 value={confirm}
                 onChangeText={setConfirm}
               />

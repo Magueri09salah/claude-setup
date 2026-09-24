@@ -17,10 +17,10 @@ export interface SupportInfo {
   /** Prefix the app puts before the candidate's own details. */
   whatsappMessage: string;
   /**
-   * Where SHOP orders go, already resolved: the shop number when the owner set
-   * one, otherwise the general number. The app never has to know about the
-   * fallback, so an unset field can never leave the "اطلبه عبر واتساب"
-   * button pointing at nothing.
+   * Where SHOP orders go. NO fallback to the general number (owner decision
+   * 2026-09-24): product orders and access requests are different phones, and
+   * silently sending orders to the wrong one is worse than not sending them.
+   * null = the owner has not set it, and the app disables the order button.
    */
   shopWhatsappNumber: string | null;
 }
@@ -40,10 +40,9 @@ export function toWaMeNumber(local: string | null): string | null {
 }
 
 export function toSupportInfo(settings: AppSettings): SupportInfo {
-  const general = toWaMeNumber(settings.whatsappNumber);
   return {
-    whatsappNumber: general,
+    whatsappNumber: toWaMeNumber(settings.whatsappNumber),
     whatsappMessage: settings.whatsappMessage?.trim() || DEFAULT_MESSAGE,
-    shopWhatsappNumber: toWaMeNumber(settings.shopWhatsappNumber) ?? general,
+    shopWhatsappNumber: toWaMeNumber(settings.shopWhatsappNumber),
   };
 }
