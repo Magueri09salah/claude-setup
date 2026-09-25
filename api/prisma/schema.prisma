@@ -276,6 +276,10 @@ model PracticalVideo {
   // Optional poster shown on the card; falls back to a play icon.
   thumbKey  String?
   sizeBytes Int?
+  // Locked for free candidates, exactly like a Series (owner decision
+  // 2026-09-25). Defaults to true so a newly uploaded video is never free by
+  // accident; the owner opens individual ones from the panel.
+  isPremium Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([orderNum])

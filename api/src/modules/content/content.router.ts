@@ -144,21 +144,33 @@ contentRouter.get("/lessons/:id/videos", async (req, res) => {
 });
 
 // الشق التطبيقي — streamed like lesson videos, so signed urls are minted on
-// open rather than cached. Free for everyone: it is the practical part the
-// owner wants every candidate to see.
-contentRouter.get("/practical-videos", async (_req, res) => {
+// open rather than cached. GATED per video since 2026-09-25: each row carries
+// its own isPremium, so the owner can leave a couple open as a taster and lock
+// the rest.
+//
+// A locked row still ships its TITLE — same teaser rule as a premium series in
+// the manifest — but no urls at all. Security checklist: a signed url is minted
+// only for a key the caller is entitled to, and that covers the poster as much
+// as the video, since both live in the same bucket.
+contentRouter.get("/practical-videos", async (req, res) => {
+  const premium = await getPremiumStatus(req.auth!.userId);
   const rows = await prisma.practicalVideo.findMany({
     orderBy: { orderNum: "asc" },
   });
   const videos = await Promise.all(
-    rows.map(async (v) => ({
-      id: v.id,
-      orderNum: v.orderNum,
-      title: v.title,
-      sizeBytes: v.sizeBytes,
-      url: await storage.getSignedUrl(v.videoKey),
-      thumbUrl: v.thumbKey ? await storage.getSignedUrl(v.thumbKey) : null,
-    })),
+    rows.map(async (v) => {
+      const locked = v.isPremium && !premium;
+      return {
+        id: v.id,
+        orderNum: v.orderNum,
+        title: v.title,
+        sizeBytes: v.sizeBytes,
+        locked,
+        url: locked ? null : await storage.getSignedUrl(v.videoKey),
+        thumbUrl:
+          locked || !v.thumbKey ? null : await storage.getSignedUrl(v.thumbKey),
+      };
+    }),
   );
   res.json({ videos });
 });

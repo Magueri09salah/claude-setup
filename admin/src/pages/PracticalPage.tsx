@@ -10,6 +10,7 @@ import {
   Progress,
   Skeleton,
   Stack,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -39,6 +40,9 @@ export function PracticalPage() {
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [poster, setPoster] = useState<File | null>(null);
+  // Locked by default, same as the column default: a new video is never free
+  // unless the owner says so.
+  const [isPremium, setIsPremium] = useState(true);
   const [progress, setProgress] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PracticalVideo | null>(null);
 
@@ -73,6 +77,7 @@ export function PracticalPage() {
     setTitle("");
     setFile(null);
     setPoster(null);
+    setIsPremium(true);
     setProgress(null);
     setModal(true);
   };
@@ -84,6 +89,7 @@ export function PracticalPage() {
       const fd = new FormData();
       fd.append("title", title.trim());
       fd.append("file", file);
+      fd.append("isPremium", String(isPremium));
       if (poster) fd.append("thumb", poster);
       await uploadWithProgress("/admin/practical-videos", fd, setProgress);
       notifySuccess("تم الرفع", `أُضيف الفيديو «${title.trim()}»`);
@@ -93,6 +99,18 @@ export function PracticalPage() {
       notifyError(e);
     } finally {
       setProgress(null);
+    }
+  };
+
+  const togglePremium = async (v: PracticalVideo, value: boolean) => {
+    try {
+      await api(`/admin/practical-videos/${v.id}`, {
+        method: "PATCH",
+        json: { isPremium: value },
+      });
+      await load();
+    } catch (e) {
+      notifyError(e);
     }
   };
 
@@ -152,6 +170,9 @@ export function PracticalPage() {
         قائمة واحدة من فيديوهات السياقة التطبيقية، تظهر للمترشح كبطاقات من
         الصفحة الرئيسية في التطبيق. الترتيب هنا هو نفسه الترتيب عنده. الفيديوهات
         تُشغَّل عبر الإنترنت ولا تُحمَّل على الهاتف.
+        <br />
+        عمود «الوصول»: كل فيديو مدفوع افتراضياً ويظهر مقفلاً للمترشحين
+        المجانيين. اجعله «مجاني» إذا أردت فتحه للجميع كعيّنة.
       </Alert>
 
       {videos && (
@@ -186,6 +207,7 @@ export function PracticalPage() {
                 <Table.Th w={50}>#</Table.Th>
                 <Table.Th w={110}>الصورة</Table.Th>
                 <Table.Th>العنوان</Table.Th>
+                <Table.Th w={130}>الوصول</Table.Th>
                 <Table.Th w={110}>الحجم</Table.Th>
                 <Table.Th w={140}>إجراءات</Table.Th>
               </Table.Tr>
@@ -217,6 +239,15 @@ export function PracticalPage() {
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm">{v.title}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Switch
+                      checked={v.isPremium}
+                      label={v.isPremium ? "مدفوع" : "مجاني"}
+                      onChange={(e) =>
+                        void togglePremium(v, e.currentTarget.checked)
+                      }
+                    />
                   </Table.Td>
                   <Table.Td>
                     <Text size="xs" c="dimmed">
@@ -273,6 +304,13 @@ export function PracticalPage() {
             value={title}
             disabled={progress !== null}
             onChange={(e) => setTitle(e.currentTarget.value)}
+          />
+
+          <Switch
+            label="فيديو مدفوع (مقفل للمترشحين المجانيين)"
+            checked={isPremium}
+            disabled={progress !== null}
+            onChange={(e) => setIsPremium(e.currentTarget.checked)}
           />
 
           <div>

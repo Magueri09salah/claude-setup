@@ -32,6 +32,19 @@ const upload = multer({
 
 const titleSchema = z.string().trim().min(1).max(200);
 
+// Multipart fields arrive as strings. NOT z.coerce.boolean(): Boolean("false")
+// is true, which is exactly how the shop's hide switch was silently broken.
+const boolField = z
+  .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
+  .transform((v) => v === true || v === "true" || v === "1");
+
+// Both optional so the panel can rename a video without touching its lock, or
+// flip the lock without resending the title.
+const patchSchema = z.strictObject({
+  title: titleSchema.optional(),
+  isPremium: z.boolean().optional(),
+});
+
 practicalRouter.get("/practical-videos", async (_req, res) => {
   const videos = await prisma.practicalVideo.findMany({
     orderBy: { orderNum: "asc" },
@@ -60,6 +73,9 @@ practicalRouter.post(
     }
 
     const title = titleSchema.parse(req.body?.title);
+    // Default LOCKED when the field is absent, matching the column default:
+    // a new video is never free by accident.
+    const isPremium = boolField.optional().parse(req.body?.isPremium) ?? true;
     const max = await prisma.practicalVideo.aggregate({
       _max: { orderNum: true },
     });
@@ -82,7 +98,14 @@ practicalRouter.post(
     }
 
     const video = await prisma.practicalVideo.create({
-      data: { orderNum, title, videoKey, thumbKey, sizeBytes: file.size },
+      data: {
+        orderNum,
+        title,
+        videoKey,
+        thumbKey,
+        sizeBytes: file.size,
+        isPremium,
+      },
     });
     res.status(201).json({ video });
   },
@@ -90,12 +113,15 @@ practicalRouter.post(
 
 practicalRouter.patch("/practical-videos/:id", async (req, res) => {
   const id = idParam.parse(req.params.id);
-  const title = titleSchema.parse(req.body?.title);
+  const input = patchSchema.parse(req.body ?? {});
   const existing = await prisma.practicalVideo.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Video not found");
   const video = await prisma.practicalVideo.update({
     where: { id },
-    data: { title },
+    data: {
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.isPremium !== undefined ? { isPremium: input.isPremium } : {}),
+    },
   });
   res.json({ video });
 });

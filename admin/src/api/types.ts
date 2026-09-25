@@ -74,6 +74,8 @@ export interface PracticalVideo {
   videoKey: string;
   thumbKey: string | null;
   sizeBytes: number | null;
+  /** Locked for free candidates, like a premium series. Defaults to true. */
+  isPremium: boolean;
   createdAt: string;
 }
 

@@ -111,14 +111,21 @@ export function AnswerZone({
         <Icon name="close" size={28} color={colors.danger} />
       </Pressable>
 
+      {/* Two per row, always (owner decision 2026-09-24). The buttons used to
+          size themselves off AnswerButton's own `flex: 1` + `minWidth: 64`, so
+          a wider phone fitted all four on ONE line and a narrow one wrapped to
+          2+2 — the layout changed shape from device to device. A fixed basis
+          pins it: 48% can never fit three across, and an odd third button is
+          centred by the row rather than stretched. */}
       <View style={styles.grid}>
         {numbers.map((n) => (
-          <AnswerButton
-            key={n}
-            value={n}
-            visual={selected.includes(n) ? "selected" : "default"}
-            onPress={onToggle}
-          />
+          <View key={n} style={styles.cell}>
+            <AnswerButton
+              value={n}
+              visual={selected.includes(n) ? "selected" : "default"}
+              onPress={onToggle}
+            />
+          </View>
         ))}
       </View>
 
@@ -156,6 +163,9 @@ const styles = StyleSheet.create({
     gap: space.sm,
     justifyContent: "center",
   },
+  // 48%, not flexGrow: growing would stretch a lone third button across the
+  // whole row. AnswerButton's own flex:1 fills this cell.
+  cell: { flexBasis: "48%" },
 
   // ---- landscape: one stacked column ----
   // flex:1 on the column AND on each bar, so six buttons always divide the

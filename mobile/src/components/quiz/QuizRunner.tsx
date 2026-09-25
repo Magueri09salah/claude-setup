@@ -379,7 +379,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             and the counter are different widths, so without its own flex:1 box
             the logo would drift off the screen's middle. */}
         <View style={styles.statusLogo}>
-          <BrandLogo size={48} />
+          <BrandLogo size={64} />
         </View>
         <View style={styles.chip}>
           <Text style={styles.chipText}>

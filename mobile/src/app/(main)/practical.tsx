@@ -23,8 +23,14 @@ interface PracticalVideo {
   orderNum: number;
   title: string;
   sizeBytes: number | null;
-  url: string;
+  /**
+   * null when `locked` — the API mints a signed url only for a video the
+   * candidate is entitled to, so a locked card has nothing to play and nothing
+   * to show (owner decision 2026-09-25, gated like the exam series).
+   */
+  url: string | null;
   thumbUrl: string | null;
+  locked: boolean;
 }
 
 function sizeLabel(bytes: number | null): string | null {
@@ -46,6 +52,8 @@ export default function PracticalScreen() {
   const [failed, setFailed] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
+  // A locked video can never become active (the card routes to /unlock
+  // instead), so the player is only ever handed a url it is allowed to play.
   const active = videos?.find((v) => v.id === activeId) ?? null;
   const player = useVideoPlayer(active?.url ?? null, (p) => {
     p.play();
@@ -127,9 +135,20 @@ export default function PracticalScreen() {
             return (
               <PressableScale
                 key={v.id}
-                onPress={() => setActiveId(v.id)}
-                style={[styles.card, { width: basis }, isActive && styles.cardActive]}
-                accessibilityLabel={`${v.title} — الدرس ${i + 1}`}
+                onPress={() =>
+                  v.locked ? router.push("/unlock") : setActiveId(v.id)
+                }
+                style={[
+                  styles.card,
+                  { width: basis },
+                  v.locked && styles.cardLocked,
+                  isActive && styles.cardActive,
+                ]}
+                accessibilityLabel={
+                  v.locked
+                    ? `${v.title} — مقفل`
+                    : `${v.title} — الدرس ${i + 1}`
+                }
               >
                 <View style={styles.thumbWrap}>
                   {v.thumbUrl ? (
@@ -140,14 +159,18 @@ export default function PracticalScreen() {
                     />
                   ) : (
                     <View style={[styles.thumb, styles.thumbFallback]}>
-                      <Icon name="video" size={28} color={colors.lessons} />
+                      <Icon
+                        name={v.locked ? "lock" : "video"}
+                        size={28}
+                        color={v.locked ? colors.premium : colors.lessons}
+                      />
                     </View>
                   )}
                   <View style={styles.playBadge}>
                     <Icon
-                      name={isActive ? "pause" : "play"}
+                      name={v.locked ? "lock" : isActive ? "pause" : "play"}
                       size={16}
-                      color={colors.text}
+                      color={v.locked ? colors.premium : colors.text}
                     />
                   </View>
                 </View>
@@ -155,7 +178,11 @@ export default function PracticalScreen() {
                   {v.title}
                 </Text>
                 <Text style={styles.cardMeta}>
-                  {size ? `الدرس ${i + 1} · ${size}` : `الدرس ${i + 1}`}
+                  {v.locked
+                    ? "مقفل — اضغط للاشتراك"
+                    : size
+                      ? `الدرس ${i + 1} · ${size}`
+                      : `الدرس ${i + 1}`}
                 </Text>
               </PressableScale>
             );
@@ -190,6 +217,9 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
+  // Dimmed like a locked lesson card, so "you cannot open this" reads before
+  // the text does.
+  cardLocked: { opacity: 0.6 },
   // NO flex/flexGrow here. `flex: 1` sets flexBasis to 0, which beats the
   // inline `width: basis` and stops the row ever wrapping — every video was
   // squeezed onto one line (owner report 2026-09-24). The width alone gives
