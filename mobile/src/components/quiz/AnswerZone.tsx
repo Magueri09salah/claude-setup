@@ -115,8 +115,8 @@ export function AnswerZone({
           size themselves off AnswerButton's own `flex: 1` + `minWidth: 64`, so
           a wider phone fitted all four on ONE line and a narrow one wrapped to
           2+2 — the layout changed shape from device to device. A fixed basis
-          pins it: 48% can never fit three across, and an odd third button is
-          centred by the row rather than stretched. */}
+          pins it: the cell basis can never fit three across, and an odd third
+          button is centred by the row rather than stretched. */}
       <View style={styles.grid}>
         {numbers.map((n) => (
           <View key={n} style={styles.cell}>
@@ -163,9 +163,20 @@ const styles = StyleSheet.create({
     gap: space.sm,
     justifyContent: "center",
   },
-  // 48%, not flexGrow: growing would stretch a lone third button across the
-  // whole row. AnswerButton's own flex:1 fills this cell.
-  cell: { flexBasis: "48%" },
+  // 47%, not 48 and not flexGrow. Not flexGrow because it would stretch a lone
+  // third button across the whole row. 47 because the two cells share the line
+  // with an 8pt gap: at 48% they measure 198.08pt inside the 198pt the grid
+  // actually has on a 390pt iPhone, and that 0.08 is enough to wrap them one
+  // per row. 47% leaves ~4pt of slack on every phone width and still cannot fit
+  // three across.
+  //
+  // flexDirection ROW is load-bearing, not decoration (broke in build 10, owner
+  // report 2026-09-25: the numbers vanished). AnswerButton carries `flex: 1`,
+  // which means flexBasis 0 on the container's MAIN axis. In a default column
+  // cell that axis is vertical, so the button measured 0 tall and the whole pad
+  // collapsed. As a row, `flex: 1` sizes the WIDTH — filling the cell — and the
+  // button's own height: 64 governs, which is what we actually want.
+  cell: { flexBasis: "47%", flexDirection: "row" },
 
   // ---- landscape: one stacked column ----
   // flex:1 on the column AND on each bar, so six buttons always divide the

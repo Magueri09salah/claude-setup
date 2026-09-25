@@ -24,11 +24,11 @@ interface PracticalVideo {
   title: string;
   sizeBytes: number | null;
   /**
-   * null when `locked` — the API mints a signed url only for a video the
-   * candidate is entitled to, so a locked card has nothing to play and nothing
-   * to show (owner decision 2026-09-25, gated like the exam series).
+   * null when `locked` — the API mints a video url only for a candidate who is
+   * entitled to it (owner decision 2026-09-25, gated like the exam series).
    */
   url: string | null;
+  /** Always sent when the video has one, locked or not: it is the teaser. */
   thumbUrl: string | null;
   locked: boolean;
 }

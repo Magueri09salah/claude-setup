@@ -148,10 +148,11 @@ contentRouter.get("/lessons/:id/videos", async (req, res) => {
 // its own isPremium, so the owner can leave a couple open as a taster and lock
 // the rest.
 //
-// A locked row still ships its TITLE — same teaser rule as a premium series in
-// the manifest — but no urls at all. Security checklist: a signed url is minted
-// only for a key the caller is entitled to, and that covers the poster as much
-// as the video, since both live in the same bucket.
+// A locked row still ships its TITLE and its POSTER — the owner wants the card
+// to show what the lesson is so it reads as an invitation rather than a blank
+// padlock (decision 2026-09-25, revising the same day's stricter first cut).
+// The poster is marketing, not the paid content; the VIDEO url is what stays
+// withheld, and that is the only key the entitlement actually protects.
 contentRouter.get("/practical-videos", async (req, res) => {
   const premium = await getPremiumStatus(req.auth!.userId);
   const rows = await prisma.practicalVideo.findMany({
@@ -167,8 +168,8 @@ contentRouter.get("/practical-videos", async (req, res) => {
         sizeBytes: v.sizeBytes,
         locked,
         url: locked ? null : await storage.getSignedUrl(v.videoKey),
-        thumbUrl:
-          locked || !v.thumbKey ? null : await storage.getSignedUrl(v.thumbKey),
+        // Signed even when locked — see the note above.
+        thumbUrl: v.thumbKey ? await storage.getSignedUrl(v.thumbKey) : null,
       };
     }),
   );
