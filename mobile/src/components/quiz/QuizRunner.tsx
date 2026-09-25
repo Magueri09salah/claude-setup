@@ -33,6 +33,9 @@ export function QuizRunner({ source }: { source: QuizSource }) {
   // clipped at the bottom.
   const insets = useSafeAreaInsets();
   const [timerSheet, setTimerSheet] = useState(false);
+  // The imperative player has no status hook, so the screen tracks this itself
+  // to decide whether the sound button offers "play again" or "stop".
+  const [audioPlaying, setAudioPlaying] = useState(false);
   const [viewer, setViewer] = useState(false);
   const playerRef = useRef<AudioPlayer | null>(null);
 
@@ -80,6 +83,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
     const player = playerRef.current;
     // No audio at all: nothing to wait for, start the timer immediately.
     if (!player || !question?.audioPath) {
+      setAudioPlaying(false);
       audioFinished();
       return;
     }
@@ -87,8 +91,10 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       player.replace({ uri: question.audioPath });
       player.seekTo(0);
       player.play();
+      setAudioPlaying(true);
     } catch {
       // The quiz must not stall on a missing or corrupt file.
+      setAudioPlaying(false);
       audioFinished();
     }
   }, [question?.id, question?.audioPath, audioFinished]);
@@ -101,6 +107,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
     const id = setInterval(() => {
       const player = playerRef.current;
       if (!player) {
+        setAudioPlaying(false);
         audioFinished();
         return;
       }
@@ -108,9 +115,11 @@ export function QuizRunner({ source }: { source: QuizSource }) {
         const { currentTime, duration, playing } = player;
         // duration is 0 until the file is loaded — don't call it finished then.
         if (duration > 0 && !playing && currentTime >= duration - 0.15) {
+          setAudioPlaying(false);
           audioFinished();
         }
       } catch {
+        setAudioPlaying(false);
         audioFinished();
       }
     }, 250);
@@ -123,9 +132,31 @@ export function QuizRunner({ source }: { source: QuizSource }) {
     try {
       player.seekTo(0);
       player.play();
+      setAudioPlaying(true);
     } catch {
       // ignore
     }
+  };
+
+  /**
+   * Silence the reading (owner request 2026-09-25 — there was no way to stop it,
+   * only to start it again).
+   *
+   * Deliberately does NOT call audioFinished (owner decision 2026-09-25): the
+   * countdown starts when the question has been READ TO THE END, never when the
+   * candidate silences it. So a stopped reading leaves the clock waiting, and
+   * that question stays untimed until the audio is played through. The hint
+   * under the timer ("يبدأ العد بعد انتهاء قراءة السؤال") stays up and explains
+   * exactly that. The pause control is untouched.
+   */
+  const stopAudio = () => {
+    const player = playerRef.current;
+    try {
+      player?.pause();
+    } catch {
+      // already released
+    }
+    setAudioPlaying(false);
   };
 
   // Fetch the end-of-series ad now, while the candidate is still answering.
@@ -232,12 +263,18 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               </Pressable>
             )}
             <Pressable
-              onPress={replay}
+              onPress={audioPlaying ? stopAudio : replay}
               hitSlop={8}
               style={styles.railButton}
-              accessibilityLabel="إعادة الصوت"
+              accessibilityLabel={
+                audioPlaying ? "إيقاف الصوت" : "إعادة الصوت"
+              }
             >
-              <Icon name="volume" size={22} color={colors.text} />
+              <Icon
+                name={audioPlaying ? "volumeOff" : "volume"}
+                size={22}
+                color={colors.text}
+              />
             </Pressable>
             <Pressable
               onPress={() => setTimerSheet(true)}
@@ -354,14 +391,22 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               />
             </Pressable>
           )}
+          {/* One button, two jobs: it silences the reading while it is playing
+              and plays it again from the start once it has stopped. */}
           <Pressable
-            onPress={replay}
+            onPress={audioPlaying ? stopAudio : replay}
             hitSlop={10}
             style={styles.pill}
             accessibilityRole="button"
-            accessibilityLabel="إعادة الاستماع"
+            accessibilityLabel={
+              audioPlaying ? "إيقاف الصوت" : "إعادة الاستماع"
+            }
           >
-            <Icon name="volume" size={18} color={colors.text} />
+            <Icon
+              name={audioPlaying ? "volumeOff" : "volume"}
+              size={18}
+              color={colors.text}
+            />
           </Pressable>
         </View>
       </View>

@@ -10,7 +10,7 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { ProgressBorder } from "@/components/lessons/ProgressBorder";
 import { PressableScale } from "@/components/PressableScale";
 import { getLesson, listSigns, type SignRow } from "@/db/lessons";
-import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
+import { colors, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { useBottomInset } from "@/theme/useScreenInsets";
 
@@ -78,7 +78,7 @@ export default function LessonScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹</Text>
+            <Icon name="back" size={26} color={colors.text} />
           </Pressable>
           <Text style={[styles.title, styles.titleFlex]}>
             {lesson?.title ?? "الدرس"}
@@ -159,7 +159,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
   title: { ...type.title, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   grid: {

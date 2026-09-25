@@ -29,6 +29,9 @@ export function AnswerZone({
   vertical = false,
 }: Props) {
   const numbers = Array.from({ length: answersCount }, (_, i) => i + 1);
+  // Pairs, not a wrapping row — see the note on styles.grid.
+  const pairs: number[][] = [];
+  for (let i = 0; i < numbers.length; i += 2) pairs.push(numbers.slice(i, i + 2));
   // Nothing picked = nothing to erase, so ✗ dims instead of looking live.
   // ✓ stays enabled: with the countdown switched off it is the ONLY way past
   // a question the candidate cannot answer, and a blank submit is simply wrong
@@ -111,20 +114,20 @@ export function AnswerZone({
         <Icon name="close" size={28} color={colors.danger} />
       </Pressable>
 
-      {/* Two per row, always (owner decision 2026-09-24). The buttons used to
-          size themselves off AnswerButton's own `flex: 1` + `minWidth: 64`, so
-          a wider phone fitted all four on ONE line and a narrow one wrapped to
-          2+2 — the layout changed shape from device to device. A fixed basis
-          pins it: the cell basis can never fit three across, and an odd third
-          button is centred by the row rather than stretched. */}
       <View style={styles.grid}>
-        {numbers.map((n) => (
-          <View key={n} style={styles.cell}>
-            <AnswerButton
-              value={n}
-              visual={selected.includes(n) ? "selected" : "default"}
-              onPress={onToggle}
-            />
+        {pairs.map((pair, i) => (
+          <View key={i} style={styles.gridRow}>
+            {pair.map((n) => (
+              <View key={n} style={styles.cell}>
+                <AnswerButton
+                  value={n}
+                  visual={selected.includes(n) ? "selected" : "default"}
+                  onPress={onToggle}
+                />
+              </View>
+            ))}
+            {/* An odd last button keeps its half width instead of stretching. */}
+            {pair.length === 1 && <View style={styles.cell} />}
           </View>
         ))}
       </View>
@@ -156,27 +159,24 @@ const styles = StyleSheet.create({
   },
   clear: { backgroundColor: "rgba(229,72,77,0.16)" },
   confirm: { backgroundColor: "rgba(47,191,113,0.18)" },
-  grid: {
-    flex: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space.sm,
-    justifyContent: "center",
-  },
-  // 47%, not 48 and not flexGrow. Not flexGrow because it would stretch a lone
-  // third button across the whole row. 47 because the two cells share the line
-  // with an 8pt gap: at 48% they measure 198.08pt inside the 198pt the grid
-  // actually has on a 390pt iPhone, and that 0.08 is enough to wrap them one
-  // per row. 47% leaves ~4pt of slack on every phone width and still cannot fit
-  // three across.
+  // EXPLICIT ROWS OF TWO, not a wrapping row with a percentage basis.
   //
-  // flexDirection ROW is load-bearing, not decoration (broke in build 10, owner
-  // report 2026-09-25: the numbers vanished). AnswerButton carries `flex: 1`,
-  // which means flexBasis 0 on the container's MAIN axis. In a default column
-  // cell that axis is vertical, so the button measured 0 tall and the whole pad
-  // collapsed. As a row, `flex: 1` sizes the WIDTH — filling the cell — and the
-  // button's own height: 64 governs, which is what we actually want.
-  cell: { flexBasis: "47%", flexDirection: "row" },
+  // Two bugs came out of trying to do this with flexWrap (owner reports
+  // 2026-09-25). A percentage basis is resolved against whatever width Yoga
+  // last measured for this container, and after rotating to landscape and back
+  // the portrait pad returned one button per line with the ✓ column drawn on
+  // top of the numbers — React Native defaults flexShrink to 0, so cells that
+  // come out too wide overflow rather than shrink. Pairing the numbers up front
+  // removes the percentage entirely: each row holds two cells at flex: 1, which
+  // is always exactly half of whatever width the row actually has.
+  grid: { flex: 1, gap: space.sm },
+  gridRow: { flexDirection: "row", gap: space.sm },
+  // flexDirection ROW inside the cell is load-bearing (it is what broke build
+  // 10, where the numbers vanished): AnswerButton carries `flex: 1`, which means
+  // flexBasis 0 on the container's MAIN axis. In a default column cell that axis
+  // is vertical, so the button measured 0 tall. As a row, `flex: 1` sizes the
+  // WIDTH and the button's own height: 64 governs.
+  cell: { flex: 1, flexDirection: "row" },
 
   // ---- landscape: one stacked column ----
   // flex:1 on the column AND on each bar, so six buttons always divide the

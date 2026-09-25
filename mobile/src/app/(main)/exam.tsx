@@ -78,7 +78,7 @@ export default function ExamListScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹</Text>
+            <Icon name="back" size={26} color={colors.text} />
           </Pressable>
           <Text style={[styles.title, styles.titleFlex]}>
             {LICENCE_TITLE[category]}
@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: space.lg, paddingTop: space.xxl, gap: space.md },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
   title: { ...type.display, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   empty: { ...type.body, color: colors.textDim, marginTop: space.md },

@@ -62,6 +62,7 @@ const MAP = {
   play: "play",
   pause: "pause",
   volume: "volume-high",
+  volumeOff: "volume-off",
   document: "file-document-outline",
 } as const;
 

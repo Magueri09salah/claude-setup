@@ -3,7 +3,7 @@ import type { LocalQuestion } from "../db/questions";
 import { saveAttempt, uuidv4 } from "../db/attempts";
 import { pushAttempts } from "./pushAttempts";
 import { isExactMatch } from "./scoring";
-import { getQuestionSeconds } from "./timerPref";
+import { getQuestionSeconds, useQuestionSeconds } from "./timerPref";
 import { passMarkFor, type QuestionResult } from "./types";
 
 export interface QuizSource {
@@ -63,8 +63,6 @@ export function useQuizEngine(source: QuizSource): QuizState {
   const [phase, setPhase] = useState<QuizPhase>(total === 0 ? "empty" : "playing");
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number[]>([]);
-  // Read once per question rather than subscribed: changing the duration
-  // mid-question must not move the deadline the candidate is already racing.
   const [timeLeft, setTimeLeft] = useState<number>(getQuestionSeconds);
   const [questionSeconds, setQuestionSeconds] = useState<number>(getQuestionSeconds);
   // Pause freezes the countdown ONLY (owner decision 2026-08-11) — the audio
@@ -147,6 +145,23 @@ export function useQuizEngine(source: QuizSource): QuizState {
     },
     [index, questions, total, finish],
   );
+
+  /**
+   * A duration picked from the timer sheet lands on the question the candidate
+   * is LOOKING AT, not the next one (owner decision 2026-09-25, reversing the
+   * original rule).
+   *
+   * The new duration restarts the countdown rather than subtracting what has
+   * already elapsed. Subtracting looks tidier but can land below zero — drop
+   * from 30s to 10s after 15 seconds and the question would submit itself the
+   * instant the sheet closed, which reads as the app throwing the question away.
+   */
+  const [prefSeconds] = useQuestionSeconds();
+  useEffect(() => {
+    if (phase !== "playing") return;
+    setQuestionSeconds(prefSeconds);
+    setTimeLeft(prefSeconds);
+  }, [prefSeconds, phase]);
 
   // Countdown — one interval, only while playing, not paused, and after the
   // question has been read out.

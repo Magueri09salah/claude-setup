@@ -60,7 +60,7 @@ export function TimerSheet({ visible, onClose }: Props) {
           <View style={styles.note}>
             <Icon name="alert" size={15} color={colors.textDim} />
             <Text style={styles.noteText}>
-              تُطبَّق المدة الجديدة ابتداءً من السؤال التالي.
+              تُطبَّق المدة الجديدة فوراً على هذا السؤال، ويبدأ العد من جديد.
             </Text>
           </View>
           </ScrollView>

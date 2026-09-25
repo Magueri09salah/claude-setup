@@ -54,7 +54,7 @@ export default function ReviewScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹</Text>
+            <Icon name="back" size={26} color={colors.text} />
           </Pressable>
           <Text style={[styles.title, styles.titleFlex]}>السؤال {result.order}</Text>
         </View>
@@ -289,7 +289,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
-  back: { fontFamily: font.extraBold, fontSize: 30, color: colors.text },
   title: { ...type.title, color: colors.text },
   titleFlex: { flex: 1, textAlign: "right" },
   status: { alignItems: "flex-start" },
