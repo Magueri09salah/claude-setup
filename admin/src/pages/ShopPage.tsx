@@ -38,7 +38,9 @@ export function ShopPage() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(EMPTY);
-  const [image, setImage] = useState<File | null>(null);
+  // Files queued for upload in this dialog. Existing pictures are deleted on
+  // the spot instead, so the two never need reconciling.
+  const [newImages, setNewImages] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   // Where product orders land. There is NO fallback: empty means the app's
@@ -95,7 +97,7 @@ export function ShopPage() {
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY);
-    setImage(null);
+    setNewImages([]);
     setModal(true);
   };
 
@@ -107,7 +109,7 @@ export function ShopPage() {
       price: p.price,
       isActive: p.isActive,
     });
-    setImage(null);
+    setNewImages([]);
     setModal(true);
   };
 
@@ -123,7 +125,7 @@ export function ShopPage() {
       fd.append("description", form.description.trim());
       fd.append("price", String(form.price));
       fd.append("isActive", String(form.isActive));
-      if (image) fd.append("image", image);
+      for (const file of newImages) fd.append("images", file);
 
       if (editing) {
         await api(`/admin/products/${editing.id}`, { method: "PATCH", formData: fd });
@@ -148,6 +150,24 @@ export function ShopPage() {
       fd.append("isActive", String(!p.isActive));
       await api(`/admin/products/${p.id}`, { method: "PATCH", formData: fd });
       await load();
+    } catch (e) {
+      notifyError(e);
+    }
+  };
+
+  /**
+   * Delete one picture immediately rather than staging it. The dialog stays
+   * open and `editing` is refreshed from the reloaded list, so what you see is
+   * always what the server holds.
+   */
+  const removeImage = async (productId: number, imageId: number) => {
+    try {
+      await api(`/admin/products/${productId}/images/${imageId}`, {
+        method: "DELETE",
+      });
+      const r = await api<{ products: Product[] }>("/admin/products");
+      setProducts(r.products);
+      setEditing(r.products.find((p) => p.id === productId) ?? null);
     } catch (e) {
       notifyError(e);
     }
@@ -223,9 +243,9 @@ export function ShopPage() {
           {products.map((p) => (
             <Card key={p.id} padding="md" style={{ opacity: p.isActive ? 1 : 0.55 }}>
               <Card.Section>
-                {p.imageUrl ? (
+                {p.images[0] ? (
                   <Image
-                    src={mediaUrl(p.imageUrl)}
+                    src={mediaUrl(p.images[0].url)}
                     h={170}
                     fit="cover"
                     alt={p.title}
@@ -317,18 +337,61 @@ export function ShopPage() {
             decimalScale={2}
             thousandSeparator=" "
           />
+          {/* Existing pictures, deletable one by one. The first is the cover. */}
+          {editing && editing.images.length > 0 && (
+            <div>
+              <Text size="sm" fw={500} mb={4}>
+                الصور الحالية ({editing.images.length})
+              </Text>
+              <Text size="xs" c="dimmed" mb="xs">
+                الصورة الأولى هي التي تظهر على بطاقة المنتج في التطبيق.
+              </Text>
+              <Group gap="xs">
+                {editing.images.map((img, i) => (
+                  <div key={img.id} style={{ position: "relative" }}>
+                    <Image
+                      src={mediaUrl(img.url)}
+                      w={84}
+                      h={84}
+                      fit="cover"
+                      radius="sm"
+                    />
+                    {i === 0 && (
+                      <Badge
+                        size="xs"
+                        variant="filled"
+                        style={{ position: "absolute", bottom: 4, insetInlineStart: 4 }}
+                      >
+                        الغلاف
+                      </Badge>
+                    )}
+                    <ActionIcon
+                      size="sm"
+                      color="red"
+                      variant="filled"
+                      aria-label="حذف الصورة"
+                      style={{ position: "absolute", top: 2, insetInlineEnd: 2 }}
+                      onClick={() => void removeImage(editing.id, img.id)}
+                    >
+                      <IconTrash size={13} />
+                    </ActionIcon>
+                  </div>
+                ))}
+              </Group>
+            </div>
+          )}
+
           <FileInput
-            label={editing ? "تغيير الصورة (اختياري)" : "صورة المنتج"}
-            placeholder="webp / png / jpg — 5 ميغا كحد أقصى"
+            multiple
+            label={editing ? "إضافة صور (اختياري)" : "صور المنتج"}
+            description="يمكن اختيار عدة صور مرة واحدة — 8 صور كحد أقصى لكل منتج"
+            placeholder="webp / png / jpg — 5 ميغا لكل صورة"
             accept="image/webp,image/png,image/jpeg"
             leftSection={<IconPhoto size={16} />}
-            value={image}
-            onChange={setImage}
+            value={newImages}
+            onChange={setNewImages}
             clearable
           />
-          {editing?.imageUrl && !image && (
-            <Image src={mediaUrl(editing.imageUrl)} h={120} fit="contain" />
-          )}
           <Switch
             label="ظاهر في التطبيق"
             checked={form.isActive}

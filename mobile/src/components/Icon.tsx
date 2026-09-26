@@ -15,6 +15,7 @@ const MAP = {
   forward: "chevron-left",
   close: "close",
   logout: "logout",
+  menu: "menu",
   refresh: "refresh",
   // features
   exam: "traffic-light",

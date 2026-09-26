@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,11 +25,12 @@ import { colors, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const [hasContent, setHasContent] = useState(() => hasLocalContent());
   const [syncing, setSyncing] = useState(false);
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const firstLaunch = !hasContent;
 
   const doSync = useCallback(async () => {
@@ -52,14 +54,17 @@ export default function HomeScreen() {
   return (
     <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Owner layout (2026-09-26): bell on the RIGHT, refresh on the LEFT,
+            no greeting, and signing out moved behind the menu button so a
+            mis-tap can no longer end the session. */}
         <View style={styles.headerRow}>
-          <View style={styles.headerActions}>
-            {/* Sync lives here now that the duplicate series list (and the
-                section header that used to hold it) is gone. */}
+          <View style={styles.headerSide}>
             <Pressable
               onPress={() => void doSync()}
               disabled={syncing}
-              style={styles.syncButton}
+              style={styles.iconButton}
+              accessibilityRole="button"
+              accessibilityLabel="تحديث المحتوى"
             >
               {syncing ? (
                 <ActivityIndicator size="small" color={colors.text} />
@@ -67,14 +72,17 @@ export default function HomeScreen() {
                 <Icon name="refresh" size={18} color={colors.text} />
               )}
             </Pressable>
-            <LivesBell />
-            <Pressable onPress={() => void logout()} hitSlop={8}>
-              <Text style={styles.logout}>خروج</Text>
+            <Pressable
+              onPress={() => setMenuOpen(true)}
+              style={styles.iconButton}
+              accessibilityRole="button"
+              accessibilityLabel="القائمة"
+            >
+              <Icon name="menu" size={20} color={colors.text} />
             </Pressable>
           </View>
-          <View style={styles.headerTexts}>
-            <Text style={styles.hello}>أهلاً 👋</Text>
-            <Text style={styles.email}>{user?.username ?? user?.email}</Text>
+          <View style={[styles.headerSide, styles.headerEnd]}>
+            <LivesBell />
           </View>
         </View>
 
@@ -156,6 +164,35 @@ export default function HomeScreen() {
           <LiveSection />
         </View>
       </ScrollView>
+
+      {/* One item today, but a sheet rather than an inline button: the only
+          action in it signs the candidate out, and that deserves a deliberate
+          second tap. */}
+      <Modal
+        visible={menuOpen}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setMenuOpen(false)}
+        supportedOrientations={["portrait", "landscape"]}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.backdrop} onPress={() => setMenuOpen(false)}>
+          {/* Stops a tap INSIDE the card from closing it. */}
+          <Pressable style={styles.menuCard} onPress={() => undefined}>
+            <Pressable
+              onPress={() => {
+                setMenuOpen(false);
+                void logout();
+              }}
+              style={styles.menuItem}
+              accessibilityRole="button"
+            >
+              <Icon name="logout" size={20} color={colors.danger} />
+              <Text style={styles.menuItemText}>تسجيل الخروج</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenBackground>
   );
 }
@@ -177,11 +214,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  headerTexts: { gap: 2 },
-  hello: { ...type.label, color: colors.textDim, textAlign: "right" },
-  email: { ...type.label, color: colors.text, textAlign: "right" },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: space.md },
-  logout: { ...type.label, color: colors.danger },
+  headerSide: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  headerEnd: { justifyContent: "flex-end" },
   title: {
     ...type.display,
     color: colors.text,
@@ -190,7 +224,7 @@ const styles = StyleSheet.create({
   },
   cards: { gap: space.md },
   liveBlock: { marginTop: space.lg },
-  syncButton: {
+  iconButton: {
     width: 36,
     height: 36,
     borderRadius: radius.pill,
@@ -198,6 +232,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-start",
+    padding: space.lg,
+    paddingTop: space.xxl * 2,
+  },
+  menuCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    height: 56,
+  },
+  menuItemText: { ...type.title, fontSize: 16, color: colors.danger },
   syncProgress: { ...type.label, color: colors.textDim, textAlign: "right" },
   offline: { ...type.label, color: colors.text, textAlign: "right" },
   empty: {

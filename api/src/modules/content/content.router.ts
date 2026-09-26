@@ -183,6 +183,7 @@ contentRouter.get("/products", async (_req, res) => {
   const rows = await prisma.product.findMany({
     where: { isActive: true },
     orderBy: [{ orderNum: "asc" }, { id: "asc" }],
+    include: { images: { orderBy: { orderNum: "asc" } } },
   });
   const products = await Promise.all(
     rows.map(async (p) => ({
@@ -190,7 +191,11 @@ contentRouter.get("/products", async (_req, res) => {
       title: p.title,
       description: p.description,
       price: Number(p.price),
-      imageUrl: p.imageKey ? await storage.getSignedUrl(p.imageKey) : null,
+      // Ordered: the first is the cover the grid card shows, the rest are the
+      // extra angles the detail carousel pages through (owner 2026-09-26).
+      imageUrls: await Promise.all(
+        p.images.map((img) => storage.getSignedUrl(img.key)),
+      ),
     })),
   );
   res.json({ products });

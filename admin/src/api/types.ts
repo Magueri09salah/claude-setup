@@ -225,14 +225,21 @@ export interface CourseRequest {
   };
 }
 
-/** Shop item — a picture, a description and a price. Bought over WhatsApp. */
+/** One picture of a product. The first by order is the cover. */
+export interface ProductImage {
+  id: number;
+  key: string;
+  url: string;
+}
+
+/** Shop item — pictures, a description and a price. Bought over WhatsApp. */
 export interface Product {
   id: number;
   title: string;
   description: string | null;
   price: number;
-  imageKey: string | null;
-  imageUrl: string | null;
+  /** Ordered; `images[0]` is the cover shown on the card. Can be empty. */
+  images: ProductImage[];
   isActive: boolean;
   orderNum: number;
   createdAt: string;

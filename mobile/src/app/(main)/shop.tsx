@@ -28,7 +28,8 @@ interface Product {
   title: string;
   description: string | null;
   price: number;
-  imageUrl: string | null;
+  /** Ordered; the first is the cover on the card, the rest page in the sheet. */
+  imageUrls: string[];
 }
 
 interface Support {
@@ -63,6 +64,21 @@ export default function ShopScreen() {
   const [failed, setFailed] = useState(false);
   const [support, setSupport] = useState<Support | null>(null);
   const [active, setActive] = useState<Product | null>(null);
+  // Which picture the detail sheet is showing. Reset whenever the sheet opens
+  // on a different product, or the second product would open on page 3.
+  const [imageIndex, setImageIndex] = useState(0);
+
+  const openProduct = (product: Product) => {
+    setImageIndex(0);
+    setActive(product);
+  };
+
+  const shots = active?.imageUrls ?? [];
+  const step = (delta: number) => {
+    if (shots.length < 2) return;
+    // Wraps both ways, so the arrows never dead-end on the first or last shot.
+    setImageIndex((i) => (i + delta + shots.length) % shots.length);
+  };
 
   const load = useCallback(() => {
     setFailed(false);
@@ -142,14 +158,14 @@ export default function ShopScreen() {
             {products.map((p) => (
               <View key={p.id} style={{ flexBasis: gridBasis(columns) }}>
                 <PressableScale
-                  onPress={() => setActive(p)}
+                  onPress={() => openProduct(p)}
                   style={styles.card}
                   accessibilityLabel={`${p.title} — ${priceLabel(p.price)}`}
                 >
                   <View style={styles.thumbWrap}>
-                    {p.imageUrl ? (
+                    {p.imageUrls[0] ? (
                       <Image
-                        source={{ uri: mediaUrl(p.imageUrl) ?? undefined }}
+                        source={{ uri: mediaUrl(p.imageUrls[0]) ?? undefined }}
                         style={styles.thumb}
                         contentFit="cover"
                         transition={150}
@@ -192,13 +208,50 @@ export default function ShopScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.sheetBody}>
-              {active?.imageUrl ? (
-                <Image
-                  source={{ uri: mediaUrl(active.imageUrl) ?? undefined }}
-                  style={styles.bigImage}
-                  contentFit="contain"
-                  transition={150}
-                />
+              {shots.length > 0 ? (
+                <View>
+                  <Image
+                    source={{ uri: mediaUrl(shots[imageIndex]) ?? undefined }}
+                    style={styles.bigImage}
+                    contentFit="contain"
+                    transition={150}
+                  />
+                  {/* Arrows only earn their place when there is somewhere to
+                      go. Each chevron points OUTWARD, towards its own edge,
+                      and the direction follows the Arabic reading order the
+                      rest of the app uses: right steps back, left steps on —
+                      the same sense as the back button in every header. */}
+                  {shots.length > 1 && (
+                    <>
+                      <Pressable
+                        onPress={() => step(1)}
+                        hitSlop={8}
+                        style={[styles.arrow, styles.arrowLeft]}
+                        accessibilityRole="button"
+                        accessibilityLabel="الصورة التالية"
+                      >
+                        <Icon name="forward" size={22} color={colors.text} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => step(-1)}
+                        hitSlop={8}
+                        style={[styles.arrow, styles.arrowRight]}
+                        accessibilityRole="button"
+                        accessibilityLabel="الصورة السابقة"
+                      >
+                        <Icon name="back" size={22} color={colors.text} />
+                      </Pressable>
+                      <View style={styles.dots}>
+                        {shots.map((url, i) => (
+                          <View
+                            key={url}
+                            style={[styles.dot, i === imageIndex && styles.dotOn]}
+                          />
+                        ))}
+                      </View>
+                    </>
+                  )}
+                </View>
               ) : (
                 <View style={[styles.bigImage, styles.thumbFallback]}>
                   <Icon name="store" size={36} color={colors.lessons} />
@@ -316,6 +369,38 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surfaceAlt,
   },
+  // Centred vertically over the picture, inset from its edge.
+  arrow: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(20,21,25,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Plain left/right: this app does NOT flip its layout (no I18nManager.forceRTL
+  // anywhere) — Arabic is handled with textAlign, so the visual sides are fixed.
+  arrowLeft: { left: space.sm },
+  arrowRight: { right: space.sm },
+  dots: {
+    position: "absolute",
+    bottom: space.sm,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: space.xs,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  dotOn: { backgroundColor: colors.lessons },
   priceRow: { alignItems: "flex-end" },
   bigPrice: { fontFamily: font.extraBold, fontSize: 22, color: colors.lessons },
   description: { ...type.body, color: colors.text, textAlign: "right" },

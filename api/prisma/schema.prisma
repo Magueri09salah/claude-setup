@@ -110,14 +110,34 @@ model Product {
   description String?
   // MAD. Decimal like Payment.amount — never a float for money.
   price       Decimal  @db.Decimal(10, 2)
-  imageKey    String?
   // Hidden instead of deleted, so a sold-out item can come back.
   isActive    Boolean  @default(true)
   orderNum    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Several pictures per product (owner request 2026-09-26). Replaced the
+  // single `imageKey` column; the migration carried each existing picture over
+  // as the first image, so nothing was lost.
+  images ProductImage[]
+
   @@index([isActive, orderNum])
+}
+
+// One picture of a product. First by orderNum is the cover — the card in the
+// shop grid and the admin table both show that one; the rest appear only in
+// the detail carousel.
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  // Cascade: deleting a product must not strand its pictures as orphan rows.
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Immutable storage key, same rule as everywhere else in this codebase.
+  key       String
+  orderNum  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId, orderNum])
 }
 
 enum CourseRequestStatus {
