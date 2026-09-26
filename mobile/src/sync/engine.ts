@@ -81,6 +81,48 @@ function mediaFileFor(key: string): File {
   return new File(dir, name);
 }
 
+/**
+ * Keep the app's logo in step with the panel.
+ *
+ * Downloaded to disk rather than loaded from a url, for two reasons: the app
+ * is offline-first, and the LOGIN screen draws it before there is a session to
+ * fetch anything with. A phone therefore shows the bundled logo exactly once —
+ * on a fresh install, before its first sync.
+ *
+ * Failures are swallowed on purpose. A logo is decoration; it must never be
+ * the reason a content sync reports itself as broken.
+ */
+async function syncBrandLogo(logoKey: string | null): Promise<void> {
+  try {
+    if (!logoKey) {
+      // Cleared in the panel — fall back to the bundled picture.
+      setMeta("logo_key", "");
+      setMeta("logo_path", "");
+      return;
+    }
+    const file = mediaFileFor(logoKey);
+    // The key is versioned per upload, so an unchanged key with the file still
+    // on disk means there is nothing to do.
+    if (getMeta("logo_key") === logoKey && file.exists) return;
+
+    const r = await api<{ urls: Record<string, string> }>("/content/media-urls", {
+      method: "POST",
+      json: { keys: [logoKey] },
+    });
+    const url = r.urls[logoKey];
+    if (!url) return;
+    if (file.exists) file.delete();
+    await File.downloadFileAsync(
+      url.startsWith("/") ? `${API_URL}${url}` : url,
+      file,
+    );
+    setMeta("logo_key", logoKey);
+    setMeta("logo_path", file.uri);
+  } catch {
+    // Keep whatever logo the phone already has.
+  }
+}
+
 function upsertQuestions(rows: ApiQuestion[]): void {
   db.withTransactionSync(() => {
     for (const q of rows) {
@@ -182,6 +224,8 @@ export async function runSync(
     if (!res.ok) return "offline";
     const manifest = (await res.json()) as Manifest;
     const newEtag = res.headers.get("etag");
+
+    await syncBrandLogo(manifest.logoKey ?? null);
 
     // 2. Upsert series and prune anything absent from the manifest.
     const since = getMeta("last_sync");

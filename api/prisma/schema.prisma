@@ -321,6 +321,10 @@ model AppSettings {
   // button is DISABLED in the app, because orders reaching the access-request
   // phone by surprise is worse than a button that plainly cannot be pressed.
   shopWhatsappNumber String?
+  // The app's own logo, swappable from the panel without a new build (owner
+  // request 2026-09-26). null = the app falls back to the picture bundled in
+  // the binary, which is what a fresh install shows before its first sync.
+  logoKey         String?
   updatedAt       DateTime @updatedAt
 }
 

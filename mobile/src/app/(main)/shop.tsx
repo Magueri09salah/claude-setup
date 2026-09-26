@@ -17,6 +17,7 @@ import { api, mediaUrl } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
 import { BrandIcon } from "@/components/BrandIcon";
 import { Icon } from "@/components/Icon";
+import { ImagePager } from "@/components/ImagePager";
 import { PressableScale } from "@/components/PressableScale";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
@@ -67,9 +68,11 @@ export default function ShopScreen() {
   // Which picture the detail sheet is showing. Reset whenever the sheet opens
   // on a different product, or the second product would open on page 3.
   const [imageIndex, setImageIndex] = useState(0);
+  const [pagerOpen, setPagerOpen] = useState(false);
 
   const openProduct = (product: Product) => {
     setImageIndex(0);
+    setPagerOpen(false);
     setActive(product);
   };
 
@@ -210,12 +213,22 @@ export default function ShopScreen() {
             <ScrollView contentContainerStyle={styles.sheetBody}>
               {shots.length > 0 ? (
                 <View>
-                  <Image
-                    source={{ uri: mediaUrl(shots[imageIndex]) ?? undefined }}
-                    style={styles.bigImage}
-                    contentFit="contain"
-                    transition={150}
-                  />
+                  {/* Tap to open the same set fullscreen, on this picture. */}
+                  <Pressable
+                    onPress={() => setPagerOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="عرض الصورة بملء الشاشة"
+                  >
+                    <Image
+                      source={{ uri: mediaUrl(shots[imageIndex]) ?? undefined }}
+                      style={styles.bigImage}
+                      contentFit="contain"
+                      transition={150}
+                    />
+                    <View style={styles.zoomBadge}>
+                      <Icon name="zoom" size={16} color={colors.text} />
+                    </View>
+                  </Pressable>
                   {/* Arrows only earn their place when there is somewhere to
                       go. Each chevron points OUTWARD, towards its own edge,
                       and the direction follows the Arabic reading order the
@@ -283,6 +296,15 @@ export default function ShopScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Outside the detail sheet's Modal: nesting one Modal inside another is
+          unreliable on iOS, where the inner one can refuse to appear. */}
+      <ImagePager
+        uris={shots.map((u) => mediaUrl(u) ?? u)}
+        startIndex={imageIndex}
+        visible={pagerOpen}
+        onClose={() => setPagerOpen(false)}
+      />
     </ScreenBackground>
   );
 }
@@ -401,6 +423,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.35)",
   },
   dotOn: { backgroundColor: colors.lessons },
+  zoomBadge: {
+    position: "absolute",
+    top: space.sm,
+    left: space.sm,
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(20,21,25,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   priceRow: { alignItems: "flex-end" },
   bigPrice: { fontFamily: font.extraBold, fontSize: 22, color: colors.lessons },
   description: { ...type.body, color: colors.text, textAlign: "right" },

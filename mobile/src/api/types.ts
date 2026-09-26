@@ -54,6 +54,11 @@ export interface ApiLessonVideo {
 
 export interface Manifest {
   version: number;
+  /**
+   * The logo the owner set in the panel, or null for the one bundled in the
+   * binary. Optional so an app talking to an older API still parses.
+   */
+  logoKey?: string | null;
   series: ManifestSeries[];
   lessonCategories: ManifestCategory[];
   lessons: ManifestLesson[];

@@ -27,10 +27,17 @@ async function getPremiumStatus(userId: string): Promise<boolean> {
 // appear as locked teasers for free users — titles only, no content access.
 contentRouter.get("/manifest", async (req, res) => {
   const premium = await getPremiumStatus(req.auth!.userId);
-  const cv = await prisma.contentVersion.findUnique({ where: { id: 1 } });
+  const [cv, settings] = await Promise.all([
+    prisma.contentVersion.findUnique({ where: { id: 1 } }),
+    getAppSettings(),
+  ]);
   const version = cv?.version ?? 0;
 
-  const etag = `W/"v${version}-p${premium ? 1 : 0}"`;
+  // The logo key is IN the etag, not just in the body: swapping the logo does
+  // not touch contentVersion, so without this every phone would sit on a 304
+  // and keep the old picture until the next unrelated publish. The key is
+  // already versioned (branding/logo_v2.png), so it changes on every upload.
+  const etag = `W/"v${version}-p${premium ? 1 : 0}-l${settings.logoKey ?? "0"}"`;
   res.set("ETag", etag);
   if (req.headers["if-none-match"] === etag) {
     res.status(304).end();
@@ -55,6 +62,8 @@ contentRouter.get("/manifest", async (req, res) => {
 
   res.json({
     version,
+    // null = use the logo bundled in the app binary.
+    logoKey: settings.logoKey,
     series: series.map((s) => ({
       id: s.id,
       title: s.title,
@@ -252,7 +261,7 @@ const mediaUrlsSchema = z.strictObject({
       z
         .string()
         .max(300)
-        .regex(/^(questions|lessons)\/[A-Za-z0-9/_.-]+$/),
+        .regex(/^(questions|lessons|branding)\/[A-Za-z0-9/_.-]+$/),
     )
     .min(1)
     .max(20),
@@ -316,6 +325,8 @@ contentRouter.post("/media-urls", async (req, res) => {
   for (const key of keys) {
     // Category icons are teaser-visible to everyone (locked cards show them).
     if (key.startsWith("lessons/icons/")) continue;
+    // The app's own logo is branding, not content — never gated.
+    if (key.startsWith("branding/")) continue;
     const isPremiumKey = keyPremium.get(key);
     if (isPremiumKey === undefined) throw new ApiError(404, `Unknown key: ${key}`);
     // Security checklist: signed URLs only for keys the user is entitled to.
