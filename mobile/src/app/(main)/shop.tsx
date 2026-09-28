@@ -194,11 +194,16 @@ export default function ShopScreen() {
         visible={active !== null}
         animationType="slide"
         transparent
-        onRequestClose={() => setActive(null)}
+        onRequestClose={() =>
+          pagerOpen ? setPagerOpen(false) : setActive(null)
+        }
         // The app rotates freely; without this the sheet is portrait-only.
         supportedOrientations={["portrait", "landscape"]}
         statusBarTranslucent
       >
+        {/* Sibling of the backdrop INSIDE this Modal, so it paints over the
+            sheet. Mounted outside it, the pager rendered behind the sheet and
+            the tap looked like it did nothing (owner report 2026-09-28). */}
         <View style={styles.backdrop}>
           <View style={[styles.sheet, { paddingBottom: space.lg + insets.bottom }]}>
             <View style={styles.sheetHeader}>
@@ -295,16 +300,14 @@ export default function ShopScreen() {
             </PressableScale>
           </View>
         </View>
-      </Modal>
 
-      {/* Outside the detail sheet's Modal: nesting one Modal inside another is
-          unreliable on iOS, where the inner one can refuse to appear. */}
-      <ImagePager
-        uris={shots.map((u) => mediaUrl(u) ?? u)}
-        startIndex={imageIndex}
-        visible={pagerOpen}
-        onClose={() => setPagerOpen(false)}
-      />
+        <ImagePager
+          uris={shots.map((u) => mediaUrl(u) ?? u)}
+          startIndex={imageIndex}
+          visible={pagerOpen}
+          onClose={() => setPagerOpen(false)}
+        />
+      </Modal>
     </ScreenBackground>
   );
 }
