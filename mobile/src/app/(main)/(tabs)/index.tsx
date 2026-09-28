@@ -11,16 +11,11 @@ import {
 } from "react-native";
 import { useAuth } from "@/auth/AuthContext";
 import { FeatureCard } from "@/components/FeatureCard";
-import { FirstSyncScreen } from "@/components/FirstSyncScreen";
+import { WelcomeSplash } from "@/components/WelcomeSplash";
 import { Icon } from "@/components/Icon";
 import { LiveSection } from "@/components/LiveSection";
 import { LivesBell } from "@/components/LivesBell";
-import {
-  hasLocalContent,
-  runSync,
-  type SyncProgress,
-  type SyncResult,
-} from "@/sync/engine";
+import { hasLocalContent, runSync, type SyncResult } from "@/sync/engine";
 import { colors, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
@@ -28,28 +23,38 @@ export default function HomeScreen() {
   const { logout } = useAuth();
   const [hasContent, setHasContent] = useState(() => hasLocalContent());
   const [syncing, setSyncing] = useState(false);
-  const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const firstLaunch = !hasContent;
+  // Only ever true on a device with nothing downloaded yet — captured once, so
+  // the greeting cannot reappear when the first sync lands mid-session.
+  const [greeting, setGreeting] = useState(() => !hasLocalContent());
 
   const doSync = useCallback(async () => {
     setSyncing(true);
-    setProgress(null);
-    const result = await runSync(setProgress);
+    // No progress callback any more: the download is background work now, and
+    // the only places that report it are the cards waiting on their own files.
+    const result = await runSync();
     setHasContent(hasLocalContent());
     setLastResult(result);
     setSyncing(false);
   }, []);
 
-  // Cold-start trigger.
+  // Cold-start trigger. Deliberately NOT awaited by the greeting below: the
+  // download carries on while the candidate is already using the app.
   useEffect(() => {
     void doSync();
   }, [doSync]);
 
-  if (firstLaunch && syncing) {
-    return <FirstSyncScreen progress={progress} />;
-  }
+  // A fixed two-second welcome, not "until the download finishes" (owner
+  // decision 2026-09-28). A first sync can take minutes on a slow connection,
+  // and nobody should watch a progress bar to reach a menu.
+  useEffect(() => {
+    if (!greeting) return;
+    const t = setTimeout(() => setGreeting(false), 2000);
+    return () => clearTimeout(t);
+  }, [greeting]);
+
+  if (greeting) return <WelcomeSplash />;
 
   return (
     <ScreenBackground style={styles.screen}>
@@ -142,11 +147,8 @@ export default function HomeScreen() {
           />
         </View>
 
-        {syncing && progress?.phase === "media" && progress.total > 0 && (
-          <Text style={styles.syncProgress}>
-            تحميل الملفات… {progress.done}/{progress.total}
-          </Text>
-        )}
+        {/* No download progress here (owner decision 2026-09-28): the files
+            report themselves on the cards that need them. */}
         {!syncing && lastResult === "offline" && (
           <Text style={styles.offline}>
             لا يوجد اتصال — يتم عرض المحتوى المحفوظ
@@ -254,7 +256,6 @@ const styles = StyleSheet.create({
     height: 56,
   },
   menuItemText: { ...type.title, fontSize: 16, color: colors.danger },
-  syncProgress: { ...type.label, color: colors.textDim, textAlign: "right" },
   offline: { ...type.label, color: colors.text, textAlign: "right" },
   empty: {
     ...type.body,
