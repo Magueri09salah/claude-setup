@@ -30,8 +30,17 @@ export function AnswerZone({
 }: Props) {
   const numbers = Array.from({ length: answersCount }, (_, i) => i + 1);
   // Pairs, not a wrapping row — see the note on styles.grid.
+  //
+  // Each pair is REVERSED so the grid reads right-to-left like the rest of the
+  // exam (owner decision 2026-09-29):
+  //     2 1
+  //     4 3
+  // The app never calls I18nManager.forceRTL, so the first child of a row is
+  // drawn on the LEFT — the higher number has to come first to land there.
   const pairs: number[][] = [];
-  for (let i = 0; i < numbers.length; i += 2) pairs.push(numbers.slice(i, i + 2));
+  for (let i = 0; i < numbers.length; i += 2) {
+    pairs.push(numbers.slice(i, i + 2).reverse());
+  }
   // Nothing picked = nothing to erase, so ✗ dims instead of looking live.
   // ✓ stays enabled: with the countdown switched off it is the ONLY way past
   // a question the candidate cannot answer, and a blank submit is simply wrong

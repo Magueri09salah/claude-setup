@@ -122,6 +122,16 @@ export default function RegisterScreen() {
             value={phone}
             onChangeText={setPhone}
           />
+          {/* Some candidates are given a registration number by the school
+              instead of using their own phone (allowlist, 2026-09-29). With
+              only the 0612345678 placeholder to go on, those people assumed
+              they had typed something wrong. The "digits only" half matters
+              too: the number they are sent is written "MA.2233788760737664",
+              and the keypad on this field cannot produce letters anyway. */}
+          <Text style={styles.hint}>
+            إذا أعطتك المدرسة رقماً خاصاً للتسجيل، اكتبه هنا بدل رقم هاتفك —
+            الأرقام فقط بدون حروف
+          </Text>
           <AppTextInput
             label="3 أرقام لاستعادة كلمة المرور"
             ltr

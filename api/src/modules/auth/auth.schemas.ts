@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizePhone } from "../premium/phone";
+import { isAcceptableIdentifier, normalizePhone } from "../premium/phone";
 import { normalizeUsername } from "./username";
 
 // A NAME, not a handle (owner decision 2026-09-15): candidates register as
@@ -41,12 +41,18 @@ export const usernameSchema = z
 // People type numbers with spaces, dashes and country codes — accept all of it
 // and normalize, then validate the canonical form. A too-strict regex here once
 // silently blocked group members whose number WAS on the allowlist.
+//
+// isAcceptableIdentifier, not isValidMoroccanMobile, and it is the SAME check
+// the allowlist runs (see phone.ts): the owner puts WhatsApp account ids like
+// "MA.2233788760737664" on the list, and those candidates have to be able to
+// register with that id or the grant can never be claimed. Raw max is 32 so a
+// prefixed id still fits before normalization strips the letters.
 export const phoneSchema = z
   .string()
   .trim()
-  .max(24)
+  .max(32)
   .transform(normalizePhone)
-  .refine((p) => /^\d{6,15}$/.test(p), "رقم هاتف غير صالح");
+  .refine(isAcceptableIdentifier, "رقم هاتف غير صالح");
 
 // Three digits the candidate CHOOSES at registration and gives back to reset
 // their password (owner decision 2026-09-18 — it used to be the last 3 of the

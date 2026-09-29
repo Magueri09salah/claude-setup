@@ -8,13 +8,29 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { I18nManager, StyleSheet, Text, View } from "react-native";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "@/auth/AuthContext";
 import { migrate } from "@/db";
 import { colors } from "@/theme/tokens";
+
+// LAYOUT DIRECTION IS LOCKED TO LTR — at import time, before any view exists.
+//
+// The whole app is built that way: Arabic is handled with textAlign: "right"
+// and manual element order, so `left`/`right` mean literally that and the
+// FIRST child of a row is drawn on the LEFT. The quiz answer grid (2 1 / 4 3),
+// the shop carousel arrows, the back buttons and the home header all depend
+// on it.
+//
+// Nothing enforced it until now. Expo's Android manifest ships
+// android:supportsRtl="true" and React Native's allowRTL defaults to true, so
+// an Android phone whose SYSTEM LANGUAGE is Arabic would flip every row in the
+// app and mirror all of those screens. iOS never did, because the app declares
+// no Arabic localization — which is why the bug was invisible in testing.
+I18nManager.allowRTL(false);
+I18nManager.forceRTL(false);
 
 // Runs at import time, before React mounts. A throw here used to kill the app
 // on launch with no UI at all — impossible to diagnose without a USB cable.

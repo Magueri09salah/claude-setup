@@ -24,6 +24,29 @@ export function isValidMoroccanMobile(normalized: string): boolean {
 }
 
 /**
+ * Anything the owner may put on the free-access list (owner decision
+ * 2026-09-29). Deliberately NOT isValidMoroccanMobile.
+ *
+ * Some candidates only ever reach the school through WhatsApp, which now hides
+ * the real number behind an opaque account id — "MA.2233788760737664",
+ * "+MA.828722236986328". normalizePhone strips the letters and the dot, so what
+ * lands here is 15-16 digits instead of the Moroccan 10. The owner wants those
+ * on the list, so the only rule left is "digits, plausible length".
+ *
+ * REGISTRATION USES THIS SAME WINDOW ON PURPOSE. The allowlist only grants
+ * premium when a candidate signs up with a phone that normalizes to the stored
+ * string, so a row the register screen would refuse could never be claimed —
+ * the entry would sit there forever looking like a bug. If you ever tighten one
+ * of the two, tighten both.
+ *
+ * The SUPPORT number is not covered by this: it has to be dialable, so
+ * settings-admin keeps isValidMoroccanMobile.
+ */
+export function isAcceptableIdentifier(normalized: string): boolean {
+  return /^\d{6,24}$/.test(normalized);
+}
+
+/**
  * Spellings a phone could already be stored as, for matching rows written
  * before normalization existed. Used only for lookups, never for writes.
  */

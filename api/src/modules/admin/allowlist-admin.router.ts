@@ -5,7 +5,7 @@ import { prisma } from "../../prisma";
 import { applyAllowlistToExistingUser } from "../premium/allowlist.service";
 import { extendPremium, PREMIUM_MONTHS } from "../premium/duration";
 import {
-  isValidMoroccanMobile,
+  isAcceptableIdentifier,
   normalizePhone,
   phoneVariants,
 } from "../premium/phone";
@@ -72,7 +72,9 @@ allowlistRouter.post("/allowlist", async (req, res) => {
 
   for (const item of raw) {
     const phone = normalizePhone(item);
-    if (!isValidMoroccanMobile(phone)) {
+    // Not "is this a Moroccan mobile" — WhatsApp account ids go on the list
+    // too (owner decision 2026-09-29). See isAcceptableIdentifier.
+    if (!isAcceptableIdentifier(phone)) {
       invalid.push(item);
       continue;
     }
@@ -107,7 +109,7 @@ allowlistRouter.delete("/allowlist/:id", async (req, res) => {
 /** Does this number already have premium access? Used by the admin UI hint. */
 allowlistRouter.get("/allowlist/lookup", async (req, res) => {
   const phone = normalizePhone(String(req.query.phone ?? ""));
-  if (!isValidMoroccanMobile(phone)) {
+  if (!isAcceptableIdentifier(phone)) {
     throw new ApiError(400, "Invalid phone number");
   }
   const [entry, user] = await Promise.all([
