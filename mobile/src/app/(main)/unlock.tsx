@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,10 +33,39 @@ const BENEFITS = [
   "تحديثات مستمرة للمحتوى",
 ];
 
+// ANDROID ONLY — iOS never renders these, see IS_IOS below.
 const STEPS = [
   "اضغط على زر واتساب بالأسفل",
   "أرسل الرسالة الجاهزة كما هي — تحتوي على رقمك",
   "بعد تأكيد الإدارة يُفتح لك المحتوى كاملاً في نفس الحساب",
+];
+
+// APP STORE GUIDELINE 3.1.1 — THE iOS SCREEN OFFERS NO WAY OUT OF THE APP.
+//
+// Apple's anti-steering rule forbids any button, link or instruction inside the
+// app that points at an external way of obtaining paid digital content. The
+// Android screen does precisely that on purpose (the STEPS list, then the
+// WhatsApp button), which is the exact pattern reviewers are trained to find,
+// so on iOS both are replaced by IOS_NOTICE: a statement of fact about who
+// already has access, with nothing to press but "تحقّق من حالة حسابي".
+//
+// Nothing else changes. Students still reach the school on WhatsApp — they get
+// the number from the school, not from the app. The allowlist, the admin panel
+// and the API are untouched, and the SHOP keeps its WhatsApp button on iOS as
+// well, because physical goods are exempt under 3.1.3(e).
+//
+// Do NOT add a contact button, a phone number, a price, or a link to /courses
+// to the iOS branch — any one of them re-creates the violation. /courses may
+// keep its own WhatsApp button (enrolling in real driving lessons is a
+// real-world service) only as long as THIS screen never points at it. And if
+// in-app purchase is ever added, this notice STAYS: IAP satisfies the first
+// half of 3.1.1, not the anti-steering half.
+const IS_IOS = Platform.OS === "ios";
+
+const IOS_NOTICE = [
+  "المحتوى الكامل متاح للمترشّحين المسجّلين في مدرسة تعليم السياقة.",
+  "إذا كنت مسجّلاً، يُفتح المحتوى في حسابك تلقائياً بعد تفعيله من طرف الإدارة.",
+  "اضغط «تحقّق من حالة حسابي» لتحديث حسابك.",
 ];
 
 /** 2026-11-26 → "26/11/2026", the way the owner reads a date out loud. */
@@ -54,7 +84,8 @@ function remainingDays(iso: string): number | null {
 // candidate sends their number over WhatsApp, the admin adds it to the
 // allowlist, and the API grants access server-side. Nothing here may read as a
 // sale — app stores require digital purchases to go through their own billing,
-// so this screen is an ENROLMENT request, not a checkout.
+// so this screen is an ENROLMENT request, not a checkout. On iOS it says even
+// less than that — see the guideline 3.1.1 note above IS_IOS.
 export default function UnlockScreen() {
   // Edge-to-edge: the last card would sit under Android's navigation
   // bar without this (owner report 2026-09-23).
@@ -64,13 +95,17 @@ export default function UnlockScreen() {
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
+    // iOS never renders the WhatsApp button, so it has no use for the number.
+    if (IS_IOS) return;
     api<Support>("/content/support")
       .then(setSupport)
       .catch(() => setSupport(null));
   }, []);
 
-  // Coming back from WhatsApp is exactly when the unlock may have landed, so
-  // re-read the account instead of making the candidate hunt for a button.
+  // Coming back from WhatsApp (Android) is exactly when the unlock may have
+  // landed, so re-read the account instead of making the candidate hunt for a
+  // button. On iOS it costs one request and still catches an unlock that was
+  // granted while the app sat in the background.
   useFocusEffect(
     useCallback(() => {
       void refreshUser();
@@ -109,7 +144,11 @@ export default function UnlockScreen() {
     } else {
       Alert.alert(
         "لم يُفتح بعد",
-        "لم يُضف رقمك بعد. إذا راسلتنا للتو فانتظر قليلاً ثم أعد المحاولة.",
+        // "if you just messaged us" names an external channel, so iOS gets a
+        // plain retry line instead (guideline 3.1.1).
+        IS_IOS
+          ? "لم يُفعّل حسابك بعد. أعد المحاولة بعد قليل."
+          : "لم يُضف رقمك بعد. إذا راسلتنا للتو فانتظر قليلاً ثم أعد المحاولة.",
       );
     }
     setChecking(false);
@@ -166,33 +205,52 @@ export default function UnlockScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>كيف تحصل على الوصول</Text>
-          {STEPS.map((step, i) => (
-            <View key={step} style={styles.stepRow}>
-              <View style={styles.stepNum}>
-                <Text style={styles.stepNumText}>{i + 1}</Text>
-              </View>
-              <Text style={styles.stepText}>{step}</Text>
-            </View>
-          ))}
-        </View>
-
-        {support === null ? (
+        {IS_IOS ? (
           <View style={styles.card}>
-            <ActivityIndicator color={colors.lessons} />
+            <Text style={styles.cardTitle}>الوصول إلى المحتوى الكامل</Text>
+            {IOS_NOTICE.map((line) => (
+              <Text key={line} style={styles.cardBody}>
+                {line}
+              </Text>
+            ))}
           </View>
-        ) : support.whatsappNumber ? (
-          <PressableScale onPress={openWhatsapp} style={styles.whatsapp}>
-            <BrandIcon platform="WHATSAPP" size={22} color={colors.onAccent} />
-            <Text style={styles.whatsappText}>تواصل مع الإدارة عبر واتساب</Text>
-          </PressableScale>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardBody}>
-              لم يُضبط رقم التواصل بعد. حاول لاحقاً أو تواصل مع مدرستك.
-            </Text>
-          </View>
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>كيف تحصل على الوصول</Text>
+              {STEPS.map((step, i) => (
+                <View key={step} style={styles.stepRow}>
+                  <View style={styles.stepNum}>
+                    <Text style={styles.stepNumText}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.stepText}>{step}</Text>
+                </View>
+              ))}
+            </View>
+
+            {support === null ? (
+              <View style={styles.card}>
+                <ActivityIndicator color={colors.lessons} />
+              </View>
+            ) : support.whatsappNumber ? (
+              <PressableScale onPress={openWhatsapp} style={styles.whatsapp}>
+                <BrandIcon
+                  platform="WHATSAPP"
+                  size={22}
+                  color={colors.onAccent}
+                />
+                <Text style={styles.whatsappText}>
+                  تواصل مع الإدارة عبر واتساب
+                </Text>
+              </PressableScale>
+            ) : (
+              <View style={styles.card}>
+                <Text style={styles.cardBody}>
+                  لم يُضبط رقم التواصل بعد. حاول لاحقاً أو تواصل مع مدرستك.
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
         <PressableScale
