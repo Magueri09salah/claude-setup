@@ -11,6 +11,7 @@ import { AccountPage } from "./pages/AccountPage";
 import { AllowlistPage } from "./pages/AllowlistPage";
 import { CourseRequestsPage } from "./pages/CourseRequestsPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { GroupRequestsPage } from "./pages/GroupRequestsPage";
 import { LessonsPage } from "./pages/LessonsPage";
 import { LivesPage } from "./pages/LivesPage";
 import { LoginPage } from "./pages/Login";
@@ -78,6 +79,10 @@ export default function App() {
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/allowlist" element={<AllowlistPage />} />
+                {/* No AdminOnly: answering these is the assistant's job, the
+                    same as المجموعة المجانية above. The API agrees — see the
+                    assistant-visible block in admin.router. */}
+                <Route path="/group-requests" element={<GroupRequestsPage />} />
                 <Route path="/payments" element={<AdminOnly><PaymentsPage /></AdminOnly>} />
                 <Route path="/lives" element={<AdminOnly><LivesPage /></AdminOnly>} />
                 <Route path="/dashboard" element={<AdminOnly><DashboardPage /></AdminOnly>} />

@@ -377,6 +377,7 @@ export async function deleteAccount(userId: string): Promise<void> {
     prisma.device.deleteMany({ where: { userId } }),
     prisma.refreshToken.deleteMany({ where: { userId } }),
     prisma.courseRequest.deleteMany({ where: { userId } }),
+    prisma.groupRequest.deleteMany({ where: { userId } }),
     prisma.payment.deleteMany({ where: { userId } }),
     prisma.premiumPhone.updateMany({
       where: { claimedBy: userId },

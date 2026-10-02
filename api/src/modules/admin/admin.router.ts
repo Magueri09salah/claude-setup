@@ -12,6 +12,7 @@ import { seriesRouter } from "./series.router";
 import { accountAdminRouter } from "./account-admin.router";
 import { allowlistRouter } from "./allowlist-admin.router";
 import { courseRequestsAdminRouter } from "./course-requests-admin.router";
+import { groupRequestsAdminRouter } from "./group-requests-admin.router";
 import { practicalRouter } from "./practical.router";
 import { productsRouter } from "./products.router";
 import { settingsAdminRouter } from "./settings-admin.router";
@@ -30,6 +31,11 @@ adminRouter.use(requireAuth, requireStaff);
 // the free-access group. Nothing else.
 adminRouter.use("/", usersAdminRouter);
 adminRouter.use("/", allowlistRouter);
+// Answering «الانضمام إلى المجموعة» requests is the same job as the free-access
+// group and the renew button — both already the assistant's — so this sits
+// above the line ON PURPOSE rather than by omission. It grants no privilege
+// they did not already have: approving calls the same extendPremium as تجديد.
+adminRouter.use("/", groupRequestsAdminRouter);
 // Changing your own sign-in details is not an owner privilege — an assistant
 // must be able to rotate their own password. The routes that manage OTHER
 // accounts carry requireAdmin inside this router.

@@ -7,6 +7,7 @@ import { authRouter } from "./modules/auth/auth.router";
 import { attemptsRouter } from "./modules/content/attempts.router";
 import { contentRouter } from "./modules/content/content.router";
 import { courseRequestsRouter } from "./modules/courses/course-requests.router";
+import { groupRequestsRouter } from "./modules/groups/group-requests.router";
 import path from "node:path";
 import { startCron } from "./modules/lives/cron";
 import { devicesRouter } from "./modules/lives/devices.router";
@@ -48,6 +49,7 @@ app.use("/admin", adminRouter);
 app.use("/content", contentRouter);
 app.use("/attempts", attemptsRouter);
 app.use("/course-requests", courseRequestsRouter);
+app.use("/group-requests", groupRequestsRouter);
 // Payments are OFF by default (see env.PAYMENTS_ENABLED). The app arranges
 // access over WhatsApp, so these routes have no caller — and while they were
 // mounted, any registered user could settle their own payment for free.

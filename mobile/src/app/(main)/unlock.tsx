@@ -46,8 +46,12 @@ const STEPS = [
 // app that points at an external way of obtaining paid digital content. The
 // Android screen does precisely that on purpose (the STEPS list, then the
 // WhatsApp button), which is the exact pattern reviewers are trained to find,
-// so on iOS both are replaced by IOS_NOTICE: a statement of fact about who
-// already has access, with nothing to press but "تحقّق من حالة حسابي".
+// so on iOS both are replaced by IOS_NOTICE plus «الانضمام إلى المجموعة»,
+// which POSTs to our own API and never leaves the app. That is the whole
+// distinction the rule turns on: asking for access is fine, being sent
+// somewhere else to arrange it is not. Adding in-app purchase would NOT have
+// saved the WhatsApp button — 3.1.1 is two rules and IAP answers only the
+// first (owner asked, 2026-10-02).
 //
 // Nothing else changes. Students still reach the school on WhatsApp — they get
 // the number from the school, not from the app. The allowlist, the admin panel
@@ -62,11 +66,16 @@ const STEPS = [
 // half of 3.1.1, not the anti-steering half.
 const IS_IOS = Platform.OS === "ios";
 
+// Not one word about paying, pricing or contacting anyone: those are what
+// would re-create the violation, not the act of requesting.
 const IOS_NOTICE = [
-  "المحتوى الكامل متاح للمترشّحين المسجّلين في مدرسة تعليم السياقة.",
-  "إذا كنت مسجّلاً، يُفتح المحتوى في حسابك تلقائياً بعد تفعيله من طرف الإدارة.",
-  "اضغط «تحقّق من حالة حسابي» لتحديث حسابك.",
+  "المحتوى الكامل متاح للمترشّحين المسجّلين في المجموعة.",
+  "اضغط «الانضمام إلى المجموعة» وسيصل طلبك إلى الإدارة مباشرة.",
+  "بعد قبول الطلب يُفتح المحتوى في حسابك تلقائياً.",
 ];
+
+/** Mirrors GroupRequestStatus on the API. */
+type JoinStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 /** 2026-11-26 → "26/11/2026", the way the owner reads a date out loud. */
 function formatExpiry(iso: string): string {
@@ -93,6 +102,10 @@ export default function UnlockScreen() {
   const { user, refreshUser } = useAuth();
   const [support, setSupport] = useState<Support | null>(null);
   const [checking, setChecking] = useState(false);
+  // iOS only. null = never asked, or asked and refused — both show the button
+  // again, because a refusal the candidate cannot act on is just a dead end.
+  const [joinStatus, setJoinStatus] = useState<JoinStatus | null>(null);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     // iOS never renders the WhatsApp button, so it has no use for the number.
@@ -102,15 +115,48 @@ export default function UnlockScreen() {
       .catch(() => setSupport(null));
   }, []);
 
+  // The button is replaced by "قيد المراجعة" once a request exists, so the
+  // screen has to know which of the two to draw before it renders.
+  const loadJoinStatus = useCallback(() => {
+    if (!IS_IOS) return;
+    api<{ request: { status: JoinStatus } | null }>("/group-requests/mine")
+      .then((r) => setJoinStatus(r.request?.status ?? null))
+      .catch(() => undefined); // offline is not an error on this screen
+  }, []);
+
   // Coming back from WhatsApp (Android) is exactly when the unlock may have
   // landed, so re-read the account instead of making the candidate hunt for a
-  // button. On iOS it costs one request and still catches an unlock that was
-  // granted while the app sat in the background.
+  // button. On iOS it catches an approval granted while the app sat in the
+  // background, and refreshes the request's own state at the same time.
   useFocusEffect(
     useCallback(() => {
       void refreshUser();
-    }, [refreshUser]),
+      loadJoinStatus();
+    }, [refreshUser, loadJoinStatus]),
   );
+
+  // Records the ask and nothing else — the grant is the admin's, server-side,
+  // exactly like every other premium grant in this project.
+  const join = async () => {
+    setJoining(true);
+    try {
+      const r = await api<{ request: { status: JoinStatus } }>(
+        "/group-requests",
+        { method: "POST", json: {} },
+      );
+      setJoinStatus(r.request.status);
+      Alert.alert(
+        "تم إرسال طلبك",
+        "وصل طلبك إلى الإدارة. بعد قبوله يُفتح المحتوى في حسابك.",
+      );
+    } catch {
+      Alert.alert(
+        "تعذّر إرسال الطلب",
+        "تحقق من اتصالك بالإنترنت ثم حاول مجدداً.",
+      );
+    }
+    setJoining(false);
+  };
 
   // The admin needs to know WHICH number to add — so the message carries it.
   const message = [
@@ -206,14 +252,42 @@ export default function UnlockScreen() {
         </View>
 
         {IS_IOS ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>الوصول إلى المحتوى الكامل</Text>
-            {IOS_NOTICE.map((line) => (
-              <Text key={line} style={styles.cardBody}>
-                {line}
-              </Text>
-            ))}
-          </View>
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>الوصول إلى المحتوى الكامل</Text>
+              {IOS_NOTICE.map((line) => (
+                <Text key={line} style={styles.cardBody}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+
+            {joinStatus === "PENDING" || joinStatus === "APPROVED" ? (
+              <View style={[styles.card, styles.pending]}>
+                <Icon name="clock" size={20} color={colors.lessons} />
+                <Text style={styles.pendingText}>
+                  {joinStatus === "APPROVED"
+                    ? "تمت الموافقة على طلبك — اضغط «تحقّق من حالة حسابي»"
+                    : "طلبك قيد المراجعة لدى الإدارة"}
+                </Text>
+              </View>
+            ) : (
+              <PressableScale
+                onPress={() => void join()}
+                style={styles.join}
+                disabled={joining}
+              >
+                {joining ? (
+                  <ActivityIndicator size="small" color={colors.onAccent} />
+                ) : (
+                  <>
+                    <Icon name="unlock" size={20} color={colors.onAccent} />
+                    <Text style={styles.joinText}>الانضمام إلى المجموعة</Text>
+                  </>
+                )}
+              </PressableScale>
+            )}
+          </>
         ) : (
           <>
             <View style={styles.card}>
@@ -327,6 +401,28 @@ const styles = StyleSheet.create({
   },
   stepNumText: { fontFamily: font.bold, fontSize: 13, color: colors.lessons },
   stepText: { ...type.body, fontSize: 15, color: colors.text, flex: 1, textAlign: "right" },
+  join: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm,
+    height: 56,
+    borderRadius: radius.pill,
+    backgroundColor: colors.lessons,
+    ...shadow.card,
+  },
+  joinText: { fontFamily: font.extraBold, fontSize: 17, color: colors.onAccent },
+  // Icon first = icon on the LEFT, text right-aligned beside it: the same
+  // arrangement as benefitRow above, since the app is LTR with Arabic handled
+  // by textAlign (see _layout).
+  pending: { flexDirection: "row", alignItems: "center" },
+  pendingText: {
+    ...type.body,
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+    textAlign: "right",
+  },
   whatsapp: {
     flexDirection: "row",
     alignItems: "center",

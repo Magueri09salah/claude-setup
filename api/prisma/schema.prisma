@@ -74,6 +74,7 @@ model User {
   devices       Device[]
   refreshTokens RefreshToken[]
   courseRequests CourseRequest[]
+  groupRequest   GroupRequest?
 }
 
 // A candidate asking to take driving lessons in a given city. Created when they
@@ -145,6 +146,47 @@ enum CourseRequestStatus {
   CONTACTED // spoken to on WhatsApp
   ENROLLED // signed up for lessons
   CANCELLED // not interested / unreachable
+}
+
+// A candidate asking to be added to "المجموعة" — the group of students whose
+// account is unlocked. Created when they press «الانضمام إلى المجموعة» on the
+// mobile unlock screen.
+//
+// WHY THIS EXISTS AT ALL: App Store guideline 3.1.1 forbids a button that sends
+// the candidate out of the app to arrange access, so iOS cannot use the
+// WhatsApp flow. The request has to stay inside the app, which means it lands
+// in this table instead of in a chat. Android still uses WhatsApp (owner
+// decision 2026-10-02) and never writes here.
+//
+// Approving a row GRANTS PREMIUM — see group-requests-admin.router. That makes
+// this a third server-side grant path alongside the payment webhook and the
+// phone allowlist, and like both of those it is audited.
+model GroupRequest {
+  id String @id @default(uuid())
+  // UNIQUE, not a plain index: one live request per candidate. Pressing the
+  // button again upserts this row back to PENDING instead of filling the panel
+  // with duplicates — which is also how a renewal after the three months run
+  // out arrives.
+  userId String @unique
+  // Snapshot of the number at request time, so the admin still sees what the
+  // candidate registered with if they edit their profile later.
+  phone  String?
+  status GroupRequestStatus @default(PENDING)
+  // Free text the admin writes while handling the request.
+  note        String?
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  user        User               @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+}
+
+enum GroupRequestStatus {
+  PENDING // waiting for the school to look at it
+  APPROVED // access granted, the three-month term has started
+  REJECTED // refused — the candidate may ask again
 }
 
 // Refresh tokens stored hashed (sha256), rotated on every /auth/refresh.

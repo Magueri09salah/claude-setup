@@ -22,6 +22,7 @@ import {
   IconSteeringWheel,
   IconUsers,
   IconUsersGroup,
+  IconUserPlus,
   type IconProps,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
@@ -48,6 +49,12 @@ const NAV: {
   { to: "/shop", label: "المتجر", icon: IconShoppingBag },
   { to: "/users", label: "المستخدمون", icon: IconUsers, assistant: true },
   { to: "/allowlist", label: "المجموعة المجانية", icon: IconUsersGroup, assistant: true },
+  {
+    to: "/group-requests",
+    label: "طلبات التسجيل في المجموعة",
+    icon: IconUserPlus,
+    assistant: true,
+  },
   { to: "/payments", label: "المدفوعات", icon: IconCreditCard },
   { to: "/account", label: "الحساب", icon: IconUserCog, assistant: true },
 ];

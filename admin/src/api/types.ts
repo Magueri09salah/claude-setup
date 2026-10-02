@@ -225,6 +225,32 @@ export interface CourseRequest {
   };
 }
 
+export type GroupRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+/**
+ * A candidate asking to be added to المجموعة from inside the app. Approving
+ * one GRANTS three months of access, which is why the page has a confirmation
+ * step the course-request page does not need.
+ */
+export interface GroupRequest {
+  id: string;
+  status: GroupRequestStatus;
+  note: string | null;
+  phone: string | null;
+  createdAt: string;
+  handledAt: string | null;
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+    fullName: string | null;
+    phone: string | null;
+    /** Already computed server-side: the flag AND an unexpired term. */
+    isPremium: boolean;
+    premiumUntil: string | null;
+  };
+}
+
 /** One picture of a product. The first by order is the cover. */
 export interface ProductImage {
   id: number;
