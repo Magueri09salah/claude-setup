@@ -9,6 +9,7 @@ import { ZoomableImage } from "@/components/ZoomableImage";
 import { AnswerButton, type AnswerVisual } from "@/components/quiz/AnswerButton";
 import { getAttempt } from "@/db/attempts";
 import { getQuestionById } from "@/db/questions";
+import { useScreenCaptureGuard } from "@/security/screenCapture";
 import { colors, font, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { useBottomInset } from "@/theme/useScreenInsets";
@@ -19,6 +20,13 @@ import { useBottomInset } from "@/theme/useScreenInsets";
 type AudioOwner = "question" | "correction";
 
 export default function ReviewScreen() {
+  // Guarded too, and not as an afterthought: this screen reopens the very same
+  // question picture with the answers marked on it. Protecting only the quiz
+  // would leave the whole series capturable one tile at a time from the
+  // results grid. Called before the early return below — hooks cannot be
+  // conditional.
+  useScreenCaptureGuard("review");
+
   // Edge-to-edge: the last card would sit under Android's navigation
   // bar without this (owner report 2026-09-23).
   const paddingBottom = useBottomInset();

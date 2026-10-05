@@ -17,12 +17,17 @@ import { AnswerZone } from "@/components/quiz/AnswerZone";
 import { TimerPill } from "@/components/quiz/TimerPill";
 import { TimerSheet } from "@/components/quiz/TimerSheet";
 import { useQuizEngine, type QuizSource } from "@/quiz/useQuizEngine";
+import { useScreenCaptureGuard } from "@/security/screenCapture";
 import { useResponsive } from "@/theme/useResponsive";
 import { colors, font, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "../ScreenBackground";
 
 // Shared quiz UI for both a normal series and the random mock exam.
 export function QuizRunner({ source }: { source: QuizSource }) {
+  // Both quiz surfaces land here — a series and the random mock exam — so one
+  // guard covers every screen that puts a question picture on display.
+  useScreenCaptureGuard("quiz");
+
   const quiz = useQuizEngine(source);
   const { phase, question, index, total, attemptId, paused, audioFinished } =
     quiz;
