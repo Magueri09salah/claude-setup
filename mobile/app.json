@@ -17,7 +17,7 @@
       "admob": {
         "androidInterstitialUnitId": "ca-app-pub-7655131518793372/1398239892",
         "iosInterstitialUnitId": "ca-app-pub-7655131518793372/4478716260",
-        "forceTestAds": true
+        "forceTestAds": false
       }
     },
     "ios": {
