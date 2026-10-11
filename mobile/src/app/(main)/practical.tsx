@@ -13,6 +13,7 @@ import {
 import { api } from "@/api/client";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
+import { useScreenCaptureGuard } from "@/security/screenCapture";
 import { gridBasis, useResponsive } from "@/theme/useResponsive";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
@@ -43,6 +44,13 @@ function sizeLabel(bytes: number | null): string | null {
 // straight from home. Streamed like the lesson videos, so this screen needs a
 // connection and says so plainly when there isn't one.
 export default function PracticalScreen() {
+  // Same reasoning as the video lessons: these are gated, streamed and never
+  // written to disk, so a screen recording is the whole file. Guarded even
+  // though the LIST also shows locked rows — the posters are deliberately
+  // public teasers, and splitting the guard by row state would mean turning
+  // it off while a player is on screen.
+  useScreenCaptureGuard("practical");
+
   // Edge-to-edge: the last card would sit under Android's navigation
   // bar without this (owner report 2026-09-23).
   const paddingBottom = useBottomInset();
@@ -92,7 +100,16 @@ export default function PracticalScreen() {
               player={player}
               style={styles.player}
               contentFit="contain"
-              allowsFullscreen
+              // TextureView, not the default SurfaceView: a SurfaceView gets
+              // its own compositor layer that the window's FLAG_SECURE does
+              // NOT cover, so a screen recording would capture the video even
+              // though the rest of the screen went black.
+              surfaceType="textureView"
+              // NO allowsFullscreen: the fullscreen button opens expo-video's own
+              // FullscreenPlayerActivity, a SEPARATE Android activity that sets no
+              // FLAG_SECURE — and the flag is per-activity, with no manifest
+              // attribute and no JS API to reach it. Offering the button would mean
+              // one tap defeats the whole guard (owner decision 2026-10-11).
               nativeControls
             />
             <Text style={styles.playerTitle}>{active.title}</Text>
