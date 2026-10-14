@@ -13,7 +13,10 @@ import {
 import { api } from "@/api/client";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
-import { useScreenCaptureGuard } from "@/security/screenCapture";
+import {
+  NO_FULLSCREEN,
+  useScreenCaptureGuard,
+} from "@/security/screenCapture";
 import { gridBasis, useResponsive } from "@/theme/useResponsive";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
@@ -105,11 +108,11 @@ export default function PracticalScreen() {
               // NOT cover, so a screen recording would capture the video even
               // though the rest of the screen went black.
               surfaceType="textureView"
-              // NO allowsFullscreen: the fullscreen button opens expo-video's own
-              // FullscreenPlayerActivity, a SEPARATE Android activity that sets no
-              // FLAG_SECURE — and the flag is per-activity, with no manifest
-              // attribute and no JS API to reach it. Offering the button would mean
-              // one tap defeats the whole guard (owner decision 2026-10-11).
+              // Hides the fullscreen button, which opens a SEPARATE activity that
+              // sets no FLAG_SECURE and is therefore recordable. Omitting
+              // `allowsFullscreen` does NOT do this — the option defaults to true
+              // all the way down into Kotlin. See NO_FULLSCREEN for the full chain.
+              fullscreenOptions={NO_FULLSCREEN}
               nativeControls
             />
             <Text style={styles.playerTitle}>{active.title}</Text>
