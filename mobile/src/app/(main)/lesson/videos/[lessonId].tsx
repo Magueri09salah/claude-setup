@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { useVideoPlayer } from "expo-video";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,13 +11,15 @@ import {
 } from "react-native";
 import type { ApiLessonVideo } from "@/api/types";
 import { getLessonVideos } from "@/api/videos";
+import {
+  FullscreenVideo,
+  InlineVideo,
+  useVideoFullscreen,
+} from "@/components/GuardedVideo";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
 import { getLesson } from "@/db/lessons";
-import {
-  NO_FULLSCREEN,
-  useScreenCaptureGuard,
-} from "@/security/screenCapture";
+import { useScreenCaptureGuard } from "@/security/screenCapture";
 import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { useBottomInset } from "@/theme/useScreenInsets";
@@ -52,6 +54,7 @@ export default function VideoLessonScreen() {
   const player = useVideoPlayer(active?.url ?? null, (p) => {
     p.play();
   });
+  const fullscreen = useVideoFullscreen();
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -82,21 +85,12 @@ export default function VideoLessonScreen() {
 
         {active && (
           <View style={styles.playerCard}>
-            <VideoView
+            {/* Capture-safe player + our own fullscreen — see GuardedVideo. */}
+            <InlineVideo
               player={player}
               style={styles.player}
-              contentFit="contain"
-              // TextureView, not the default SurfaceView: a SurfaceView gets
-              // its own compositor layer that the window's FLAG_SECURE does
-              // NOT cover, so a screen recording would capture the video even
-              // though the rest of the screen went black.
-              surfaceType="textureView"
-              // Hides the fullscreen button, which opens a SEPARATE activity that
-              // sets no FLAG_SECURE and is therefore recordable. Omitting
-              // `allowsFullscreen` does NOT do this — the option defaults to true
-              // all the way down into Kotlin. See NO_FULLSCREEN for the full chain.
-              fullscreenOptions={NO_FULLSCREEN}
-              nativeControls
+              isFullscreen={fullscreen.isFullscreen}
+              onEnterFullscreen={fullscreen.enter}
             />
             <Text style={styles.playerTitle}>{active.title}</Text>
           </View>
@@ -158,6 +152,11 @@ export default function VideoLessonScreen() {
           );
         })}
       </ScrollView>
+
+      {/* Same screen, same window — that is what keeps it unrecordable. */}
+      {active && fullscreen.isFullscreen && (
+        <FullscreenVideo player={player} onExit={fullscreen.exit} />
+      )}
     </ScreenBackground>
   );
 }

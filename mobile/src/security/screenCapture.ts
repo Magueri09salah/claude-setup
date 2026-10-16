@@ -53,8 +53,11 @@ export function useScreenCaptureGuard(key: string): void {
 }
 
 /**
- * Pass as `fullscreenOptions` on EVERY `<VideoView>`. It hides the fullscreen
- * button, which is the only way the capture guard above can be defeated.
+ * Pass as `fullscreenOptions` on EVERY `<VideoView>` (today that is ONE place:
+ * `SecureVideoView` in components/GuardedVideo.tsx). It hides the NATIVE
+ * fullscreen button, which is the only way the capture guard above can be
+ * defeated. Fullscreen itself still exists — GuardedVideo draws its own,
+ * inside the guarded screen (owner request 2026-10-16).
  *
  * WHY A PROP AND NOT AN OMISSION (bug found 2026-10-14, on device): the first
  * attempt at this just DELETED `allowsFullscreen` from both players, on the
@@ -73,15 +76,12 @@ export function useScreenCaptureGuard(key: string): void {
  * `enable: false` is the only thing that takes the listener off and calls
  * `setFullscreenButtonVisibility(false)`.
  *
- * WHY FULLSCREEN CANNOT SIMPLY BE SECURED INSTEAD: it opens
+ * WHY THE NATIVE FULLSCREEN CANNOT SIMPLY BE SECURED INSTEAD: it opens
  * `FullscreenPlayerActivity`, a SEPARATE Android activity that sets no
- * FLAG_SECURE. The flag is per-activity and per-window; expo-screen-capture
- * only ever touches `currentActivity.window`. There is no manifest attribute
- * and no JS API that reaches that activity, so the button has to go (owner
- * decision 2026-10-11, re-confirmed 2026-10-14).
- *
- * Rotation is NOT fullscreen and still works: the inline player grows because
- * the layout is responsive, inside the same guarded activity.
+ * FLAG_SECURE and draws on a SurfaceView. The flag is per-activity and
+ * per-window; expo-screen-capture only ever touches `currentActivity.window`.
+ * There is no manifest attribute and no JS API that reaches that activity, so
+ * the native button stays off and GuardedVideo's overlay replaces it.
  *
  * Module-level on purpose — a fresh object literal in the render
  * body would re-run the native setter on every render.
