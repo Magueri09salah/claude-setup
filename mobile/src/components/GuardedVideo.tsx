@@ -1,11 +1,8 @@
-import * as NavigationBar from "expo-navigation-bar";
 import { useFocusEffect, useNavigation } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { StatusBar } from "expo-status-bar";
 import { VideoView, type VideoPlayer } from "expo-video";
 import { useCallback, useEffect, useState } from "react";
 import {
-  BackHandler,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,58 +11,53 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NO_FULLSCREEN } from "@/security/screenCapture";
+import {
+  ANDROID_SECURE_FULLSCREEN,
+  NO_FULLSCREEN,
+} from "@/security/screenCapture";
 import { colors, radius, space } from "@/theme/tokens";
 import { Icon } from "./Icon";
 
 /**
- * Our OWN fullscreen for the premium video screens (owner request 2026-10-16:
- * "the button to make the video large must work, and the recording block must
- * work on it too").
+ * Fullscreen for the premium video screens (owner decision 2026-10-16): ONE
+ * icon, the video fills the screen UPRIGHT and simply follows the phone if it
+ * is turned (nothing is forced sideways), and it is never recordable.
  *
- * expo-video's built-in fullscreen cannot be used: on Android it opens
- * `FullscreenPlayerActivity`, a SEPARATE activity that sets no FLAG_SECURE AND
- * inflates a plain PlayerView, i.e. a SurfaceView — two leaks at once (both
- * read in node_modules). So the native button stays OFF (NO_FULLSCREEN) and
- * this one replaces it: the video is moved into an absolute-fill overlay ON
- * THE SAME SCREEN, the phone is turned to landscape, and the status bar and
- * Android's navigation buttons are hidden.
- * Same activity, same window, same TextureView — exactly the setup the owner
- * already recorded black on device (vc 7), so fullscreen inherits it.
+ * The two platforms get there differently, because their recording block
+ * works differently:
+ * - ANDROID uses the player's own icon (bottom-right) and its own fullscreen
+ *   activity, made recording-proof by patches/expo-video+3.0.16.patch — see
+ *   ANDROID_SECURE_FULLSCREEN.
+ * - iOS cannot use Apple's: AVPlayerViewController presents its fullscreen
+ *   ABOVE the root view that expo-screen-capture blacks out. So iOS keeps it
+ *   off (NO_FULLSCREEN) and gets ours instead — a top-left icon (where the
+ *   iPhone's own sits) that moves the video into an absolute-fill overlay on
+ *   the same screen, i.e. INSIDE the root view, under the black-out.
  *
- * NEVER render the fullscreen player in a <Modal>: on Android a Modal is its
- * own dialog window, which the activity's FLAG_SECURE does not cover.
+ * NEVER render that overlay in a <Modal>: a Modal is presented above the root
+ * view too, out of the black-out's reach.
  *
  * The screen keeps calling `useScreenCaptureGuard` itself; this only decides
- * WHERE the player is drawn.
+ * how fullscreen is drawn.
  */
+const OWN_FULLSCREEN = Platform.OS === "ios";
+const FULLSCREEN_OPTIONS = OWN_FULLSCREEN
+  ? NO_FULLSCREEN
+  : ANDROID_SECURE_FULLSCREEN;
+
+/** Our fullscreen's state. On Android it simply never turns on. */
 export function useVideoFullscreen() {
   const navigation = useNavigation();
   const [isFullscreen, setFullscreen] = useState(false);
 
+  // An edge swipe while scrubbing would pop the screen out from under the video.
   useEffect(() => {
     if (!isFullscreen) return;
-    void ScreenOrientation.lockAsync(
-      ScreenOrientation.OrientationLock.LANDSCAPE,
-    ).catch(() => undefined);
-    // Android back leaves fullscreen first, like every video app — not the screen.
-    const back = BackHandler.addEventListener("hardwareBackPress", () => {
-      setFullscreen(false);
-      return true;
-    });
-    // iOS: an edge swipe while scrubbing near the left edge would pop the screen.
     navigation.setOptions({ gestureEnabled: false });
-    return () => {
-      back.remove();
-      navigation.setOptions({ gestureEnabled: true });
-      // Hand rotation back to the device, never lock portrait — same rule as
-      // ImageViewer, or the whole app stays stuck upright.
-      void ScreenOrientation.unlockAsync().catch(() => undefined);
-    };
+    return () => navigation.setOptions({ gestureEnabled: true });
   }, [isFullscreen, navigation]);
 
-  // A screen pushed on top (e.g. a tapped notification) must not inherit the
-  // landscape lock. The effect above undoes it once this flips back.
+  // A screen pushed on top would otherwise inherit the hidden status bar.
   useFocusEffect(useCallback(() => () => setFullscreen(false), []));
 
   const enter = useCallback(() => setFullscreen(true), []);
@@ -79,8 +71,7 @@ export function useVideoFullscreen() {
  * - `surfaceType="textureView"`: the default SurfaceView gets its own
  *   compositor layer that FLAG_SECURE does NOT cover — a recording captured the
  *   video while the rest of the screen went black.
- * - `fullscreenOptions={NO_FULLSCREEN}`: hides the native button that opens the
- *   unprotected activity. Omitting it is NOT enough; see NO_FULLSCREEN.
+ * - `fullscreenOptions`: per platform, see FULLSCREEN_OPTIONS above.
  */
 function SecureVideoView({ player }: { player: VideoPlayer }) {
   return (
@@ -89,7 +80,7 @@ function SecureVideoView({ player }: { player: VideoPlayer }) {
       style={StyleSheet.absoluteFill}
       contentFit="contain"
       surfaceType="textureView"
-      fullscreenOptions={NO_FULLSCREEN}
+      fullscreenOptions={FULLSCREEN_OPTIONS}
       nativeControls
     />
   );
@@ -119,18 +110,19 @@ export function InlineVideo({
       {!isFullscreen && (
         <>
           <SecureVideoView player={player} />
-          {/* Top-left: the native controls leave that corner empty on both
-              platforms (Android's bar is at the bottom, iOS's volume is
-              top-right). Rendered after the video so it sits on top. */}
-          <Pressable
-            onPress={onEnterFullscreen}
-            hitSlop={10}
-            style={[styles.button, styles.buttonInline]}
-            accessibilityRole="button"
-            accessibilityLabel="ملء الشاشة"
-          >
-            <Icon name="fullscreen" size={22} color={colors.text} />
-          </Pressable>
+          {/* iOS only — Android shows the player's own icon. Rendered after
+              the video so it sits on top. */}
+          {OWN_FULLSCREEN && (
+            <Pressable
+              onPress={onEnterFullscreen}
+              hitSlop={10}
+              style={[styles.button, styles.buttonInline]}
+              accessibilityRole="button"
+              accessibilityLabel="ملء الشاشة"
+            >
+              <Icon name="fullscreen" size={22} color={colors.text} />
+            </Pressable>
+          )}
         </>
       )}
     </View>
@@ -144,26 +136,12 @@ interface FullscreenProps {
 
 /**
  * Render as the LAST child of the screen's root (after the ScrollView), so it
- * covers the whole screen and is drawn on top of it.
+ * covers the whole screen and is drawn on top of it. No orientation lock: the
+ * app rotates freely, so the overlay follows the phone on its own.
  */
 export function FullscreenVideo({ player, onExit }: FullscreenProps) {
-  // Landscape puts the notch and home indicator BESIDE the content.
+  // Turned sideways, the notch and home indicator sit BESIDE the content.
   const insets = useSafeAreaInsets();
-
-  // Android's back/home/recents buttons, hidden for as long as this is mounted
-  // (owner request 2026-10-16). A swipe from the edge brings them back
-  // temporarily, which is the system's own fullscreen behaviour. Android only:
-  // the iOS build of this call does nothing but log a warning. setVisibilityAsync
-  // is the one call the library still supports under edge-to-edge; leave
-  // setBehaviorAsync / setBackgroundColorAsync alone, they are no-ops there.
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    void NavigationBar.setVisibilityAsync("hidden").catch(() => undefined);
-    return () => {
-      void NavigationBar.setVisibilityAsync("visible").catch(() => undefined);
-    };
-  }, []);
-
   return (
     <View style={[StyleSheet.absoluteFill, styles.fullscreen]}>
       <StatusBar hidden />

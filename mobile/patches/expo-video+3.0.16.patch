@@ -1,0 +1,33 @@
+diff --git a/node_modules/expo-video/android/src/main/java/expo/modules/video/FullscreenPlayerActivity.kt b/node_modules/expo-video/android/src/main/java/expo/modules/video/FullscreenPlayerActivity.kt
+--- a/node_modules/expo-video/android/src/main/java/expo/modules/video/FullscreenPlayerActivity.kt
++++ b/node_modules/expo-video/android/src/main/java/expo/modules/video/FullscreenPlayerActivity.kt
+@@ -11,6 +11,7 @@ import android.view.View
+ import android.view.accessibility.CaptioningManager
+ import android.view.WindowInsets
+ import android.view.WindowInsetsController
++import android.view.WindowManager
+ import android.widget.ImageButton
+ import androidx.media3.ui.PlayerView
+ import expo.modules.kotlin.exception.CodedException
+@@ -38,6 +39,10 @@ class FullscreenPlayerActivity : Activity() {
+ 
+   override fun onCreate(savedInstanceState: Bundle?) {
+     super.onCreate(savedInstanceState)
++    // codeboujida patch: this activity only ever shows premium video, so it is
++    // never recordable. FLAG_SECURE is per-window and expo-screen-capture only
++    // reaches the main activity, so it has to be set here.
++    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+ 
+     try {
+       videoViewId = intent.getStringExtra(VideoManager.INTENT_PLAYER_KEY)
+diff --git a/node_modules/expo-video/android/src/main/res/layout/fullscreen_player_activity.xml b/node_modules/expo-video/android/src/main/res/layout/fullscreen_player_activity.xml
+--- a/node_modules/expo-video/android/src/main/res/layout/fullscreen_player_activity.xml
++++ b/node_modules/expo-video/android/src/main/res/layout/fullscreen_player_activity.xml
+@@ -15,6 +15,7 @@
+     android:layout_height="match_parent"
+     android:background="@android:color/black"
+     android:keepScreenOn="true"
++    app:surface_type="texture_view"
+     app:use_controller="true" />
+ 
+ </FrameLayout>

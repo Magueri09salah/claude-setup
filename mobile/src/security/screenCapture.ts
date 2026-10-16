@@ -53,11 +53,13 @@ export function useScreenCaptureGuard(key: string): void {
 }
 
 /**
- * Pass as `fullscreenOptions` on EVERY `<VideoView>` (today that is ONE place:
- * `SecureVideoView` in components/GuardedVideo.tsx). It hides the NATIVE
- * fullscreen button, which is the only way the capture guard above can be
- * defeated. Fullscreen itself still exists — GuardedVideo draws its own,
- * inside the guarded screen (owner request 2026-10-16).
+ * iOS's `fullscreenOptions` (Android uses ANDROID_SECURE_FULLSCREEN below; the
+ * pick is made once, in `SecureVideoView` in components/GuardedVideo.tsx).
+ * It hides the NATIVE fullscreen button, which on iOS is the one way past the
+ * capture guard above: expo-screen-capture blacks a recording out by adding a
+ * view to the app's ROOT view (read in ScreenCaptureModule.swift), and
+ * AVPlayerViewController presents its fullscreen ABOVE that root view.
+ * GuardedVideo draws its own fullscreen instead, inside the root view.
  *
  * WHY A PROP AND NOT AN OMISSION (bug found 2026-10-14, on device): the first
  * attempt at this just DELETED `allowsFullscreen` from both players, on the
@@ -76,12 +78,8 @@ export function useScreenCaptureGuard(key: string): void {
  * `enable: false` is the only thing that takes the listener off and calls
  * `setFullscreenButtonVisibility(false)`.
  *
- * WHY THE NATIVE FULLSCREEN CANNOT SIMPLY BE SECURED INSTEAD: it opens
- * `FullscreenPlayerActivity`, a SEPARATE Android activity that sets no
- * FLAG_SECURE and draws on a SurfaceView. The flag is per-activity and
- * per-window; expo-screen-capture only ever touches `currentActivity.window`.
- * There is no manifest attribute and no JS API that reaches that activity, so
- * the native button stays off and GuardedVideo's overlay replaces it.
+ * (That chain was found on ANDROID, where this was used until 2026-10-16; the
+ * Android button is now ON and secured by a patch — see below.)
  *
  * Module-level on purpose — a fresh object literal in the render
  * body would re-run the native setter on every render.
@@ -92,4 +90,32 @@ export function useScreenCaptureGuard(key: string): void {
  */
 export const NO_FULLSCREEN: NonNullable<VideoViewProps["fullscreenOptions"]> = {
   enable: false,
+};
+
+/**
+ * Android's `fullscreenOptions`: the player's OWN fullscreen button (bottom
+ * right), ON — owner decision 2026-10-16, one icon, the default one.
+ *
+ * Safe ONLY because of `patches/expo-video+3.0.16.patch`, applied by the
+ * `postinstall` script on every install, EAS builds included. Stock
+ * `FullscreenPlayerActivity` is a SEPARATE activity that sets no FLAG_SECURE —
+ * expo-screen-capture only ever touches `currentActivity.window`, the main
+ * one — and draws on a SurfaceView, whose layer FLAG_SECURE does not cover.
+ * The patch sets the flag in its onCreate and makes its PlayerView a
+ * TextureView. Without it this button opens a recordable screen (that is
+ * exactly what the owner caught on vc 6).
+ *
+ * UPGRADING expo-video: the patch targets 3.0.16. `--error-on-fail` makes the
+ * install — and so the EAS build — fail if it stops applying. Re-make it for
+ * the new version; never delete it to get a build through.
+ *
+ * `orientation: "default"` = the activity follows the phone: upright stays
+ * upright, turned goes landscape (owner choice "A", 2026-10-16). Spelled out
+ * rather than left to a default, for the same reason as NO_FULLSCREEN.
+ */
+export const ANDROID_SECURE_FULLSCREEN: NonNullable<
+  VideoViewProps["fullscreenOptions"]
+> = {
+  enable: true,
+  orientation: "default",
 };
