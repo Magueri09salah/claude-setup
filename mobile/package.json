@@ -59,5 +59,12 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package --error-on-fail"
   },
+  "expo": {
+    "autolinking": {
+      "android": {
+        "buildFromSource": ["expo-video"]
+      }
+    }
+  },
   "private": true
 }

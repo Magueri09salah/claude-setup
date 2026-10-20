@@ -105,6 +105,14 @@ export const NO_FULLSCREEN: NonNullable<VideoViewProps["fullscreenOptions"]> = {
  * TextureView. Without it this button opens a recordable screen (that is
  * exactly what the owner caught on vc 6).
  *
+ * The patch ALONE DOES NOTHING (vc 9 shipped that way and fullscreen was still
+ * recordable): SDK 54 links expo-video into the Android build as a
+ * PRECOMPILED .aar (node_modules/expo-video/local-maven-repo) and never
+ * compiles the source the patch edits. `expo.autolinking.android.
+ * buildFromSource: ["expo-video"]` in package.json is what makes the build use
+ * the patched files. Remove it and the patch still "applies" on install —
+ * silently, uselessly.
+ *
  * UPGRADING expo-video: the patch targets 3.0.16. `--error-on-fail` makes the
  * install — and so the EAS build — fail if it stops applying. Re-make it for
  * the new version; never delete it to get a build through.
