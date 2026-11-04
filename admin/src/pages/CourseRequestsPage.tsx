@@ -68,6 +68,52 @@ export function CourseRequestsPage() {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CourseRequest | null>(null);
+  // Where these requests land in WhatsApp. Empty = the general number from
+  // المجموعة المجانية, which is where they went before this card existed
+  // (owner decision 2026-11-04 — unlike the shop, which disables instead).
+  const [coursesPhone, setCoursesPhone] = useState("");
+  const [savedCoursesPhone, setSavedCoursesPhone] = useState("");
+  const [generalPhone, setGeneralPhone] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  const loadPhone = useCallback(async () => {
+    try {
+      const r = await api<{
+        settings: {
+          coursesWhatsappNumber: string | null;
+          whatsappNumber: string | null;
+        };
+      }>("/admin/app-settings");
+      setCoursesPhone(r.settings.coursesWhatsappNumber ?? "");
+      setSavedCoursesPhone(r.settings.coursesWhatsappNumber ?? "");
+      setGeneralPhone(r.settings.whatsappNumber ?? "");
+    } catch (e) {
+      notifyError(e);
+    }
+  }, []);
+
+  const saveCoursesPhone = async () => {
+    setSavingPhone(true);
+    try {
+      const r = await api<{
+        settings: { coursesWhatsappNumber: string | null };
+      }>("/admin/app-settings", {
+        method: "PUT",
+        json: { coursesWhatsappNumber: coursesPhone.trim() },
+      });
+      setCoursesPhone(r.settings.coursesWhatsappNumber ?? "");
+      setSavedCoursesPhone(r.settings.coursesWhatsappNumber ?? "");
+      notifySuccess("تم الحفظ", "تم تحديث رقم استقبال طلبات التسجيل");
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPhone();
+  }, [loadPhone]);
 
   const load = useCallback(async () => {
     try {
@@ -181,6 +227,37 @@ export function CourseRequestsPage() {
           </Button>
         </Group>
       </Group>
+
+      <Card padding="lg">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <TextInput
+              label="رقم واتساب لاستقبال طلبات التسجيل"
+              description="عند الضغط على زر واتساب في «التسجيل في الدروس» تصل رسالة المترشح إلى هذا الرقم. يعمل من نسخة التطبيق 1.0.1 — النسخ الأقدم تستعمل الرقم العام."
+              placeholder="0612345678"
+              dir="ltr"
+              styles={{ input: { textAlign: "left" } }}
+              leftSection={<IconBrandWhatsapp size={16} color="#25D366" />}
+              value={coursesPhone}
+              onChange={(e) => setCoursesPhone(e.currentTarget.value)}
+            />
+          </div>
+          <Button
+            loading={savingPhone}
+            disabled={coursesPhone.trim() === savedCoursesPhone}
+            onClick={() => void saveCoursesPhone()}
+          >
+            حفظ الرقم
+          </Button>
+        </Group>
+        {!savedCoursesPhone && (
+          <Text size="xs" c="dimmed" mt="xs">
+            لم يُضبط رقم خاص — الطلبات تصل إلى الرقم العام
+            {generalPhone ? ` (${generalPhone})` : ""} المضبوط في صفحة «المجموعة
+            المجانية».
+          </Text>
+        )}
+      </Card>
 
       <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
         <Card padding="md">

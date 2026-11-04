@@ -1,10 +1,17 @@
 // The live is a DAILY, recurring, wall-clock event ("every night at 23:00 in
 // Morocco"), not a stored timestamp. So every computation here starts from a
-// local time in Africa/Casablanca and converts to a UTC instant — never the
-// other way round. Morocco shifts offset during Ramadan, so a fixed +01:00
-// would silently drift; we ask Intl for the real offset instead.
-
-export const TZ = "Africa/Casablanca";
+// Moroccan wall-clock time and converts to a UTC instant — never the other way
+// round.
+//
+// MOROCCO IS GMT ALL YEAR since 2026-09-20 (decree 2.26.530 repealed the 2018
+// UTC+1 decree, Ramadan switch included). Node's bundled tzdata (2026a) predates
+// that and still puts "Africa/Casablanca" at UTC+1, which made every live start,
+// countdown and push one hour EARLY (owner report 2026-11-03). Pinned to UTC
+// until the server's Node ships tzdata that knows the change; check with
+//   node -e "console.log(new Date().toLocaleString('en-GB',{timeZone:'Africa/Casablanca',timeZoneName:'short'}))"
+// and go back to "Africa/Casablanca" only once that prints GMT. The rest of this
+// file still asks Intl for the zone's offset, so that switch is one line.
+export const TZ = "UTC";
 
 /**
  * How long before the start the app shows "يبدأ قريباً" — the glowing bell and

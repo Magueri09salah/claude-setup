@@ -23,7 +23,7 @@ const settingsSchema = z.strictObject({
   facebookUrl: profileUrl.optional(),
   instagramUrl: profileUrl.optional(),
   tiktokUrl: profileUrl.optional(),
-  // Wall-clock time in Africa/Casablanca.
+  // Moroccan wall-clock time (GMT all year — see lives/schedule.ts).
   startTime: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "الوقت يجب أن يكون بصيغة HH:mm")

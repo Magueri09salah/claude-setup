@@ -11,10 +11,13 @@ export interface LivePlatformLink {
 // event list — just where it happens and when the next one starts.
 export interface LiveSettings {
   enabled: boolean;
-  /** "HH:mm" wall-clock in Africa/Casablanca. */
+  /** "HH:mm" Moroccan wall-clock — read on the phone's own clock (useLive). */
   startTime: string;
   platforms: LivePlatformLink[];
-  /** UTC ISO of the next occurrence, always in the future. */
+  /**
+   * UTC ISO of the next occurrence. These three come from the server, but
+   * useLive replaces them with values worked out on the phone's clock.
+   */
   nextStartAt: string;
   isLive: boolean;
   startsSoon: boolean;

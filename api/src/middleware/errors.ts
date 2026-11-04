@@ -6,6 +6,9 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    // Machine-readable reason for the clients, when the message alone is not
+    // enough to decide what to do (e.g. SESSION_REPLACED).
+    public readonly code?: string,
   ) {
     super(message);
   }
@@ -49,7 +52,9 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
   if (err instanceof ApiError) {
-    res.status(err.status).json({ error: err.message });
+    res
+      .status(err.status)
+      .json(err.code ? { error: err.message, code: err.code } : { error: err.message });
     return;
   }
   if (

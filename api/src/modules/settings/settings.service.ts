@@ -23,6 +23,13 @@ export interface SupportInfo {
    * null = the owner has not set it, and the app disables the order button.
    */
   shopWhatsappNumber: string | null;
+  /**
+   * Where COURSE requests go. Falls back to the general number (owner
+   * decision 2026-11-04) — the opposite of the shop on purpose: these went to
+   * whatsappNumber before this field existed, so leaving it empty keeps them
+   * arriving where they always did. Apps before 1.0.1 never read this field.
+   */
+  coursesWhatsappNumber: string | null;
 }
 
 const DEFAULT_MESSAGE = "السلام عليكم، أريد فتح المحتوى الكامل في تطبيق طريق.";
@@ -40,9 +47,12 @@ export function toWaMeNumber(local: string | null): string | null {
 }
 
 export function toSupportInfo(settings: AppSettings): SupportInfo {
+  const whatsappNumber = toWaMeNumber(settings.whatsappNumber);
   return {
-    whatsappNumber: toWaMeNumber(settings.whatsappNumber),
+    whatsappNumber,
     whatsappMessage: settings.whatsappMessage?.trim() || DEFAULT_MESSAGE,
     shopWhatsappNumber: toWaMeNumber(settings.shopWhatsappNumber),
+    coursesWhatsappNumber:
+      toWaMeNumber(settings.coursesWhatsappNumber) ?? whatsappNumber,
   };
 }

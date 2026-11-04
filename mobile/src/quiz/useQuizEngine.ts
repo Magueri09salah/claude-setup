@@ -48,6 +48,14 @@ export interface QuizState {
   /** ✗ — wipes the current picks and stays on the question (owner 2026-09-23). */
   clear: () => void;
   togglePause: () => void;
+  /** Back to question 1 with every answer of this try thrown away. */
+  restart: () => void;
+  /**
+   * Bumped by restart(). The screen keys question 1's audio and zoom on it, so
+   * they reset even when the candidate restarts while already ON question 1
+   * (the question id alone would not change).
+   */
+  round: number;
 }
 
 // Pure engine (quiz-engine skill): per-question timer (10/20/30s, user
@@ -220,6 +228,24 @@ export function useQuizEngine(source: QuizSource): QuizState {
     setPaused((p) => !p);
   }, [phase]);
 
+  // Start over from question 1 (owner request 2026-11-02). Nothing is saved:
+  // an unfinished try never reaches تقدّمي, exactly like leaving with ✕.
+  const [round, setRound] = useState(0);
+  const restart = useCallback(() => {
+    if (phase !== "playing") return;
+    resultsRef.current = [];
+    setResults([]);
+    setIndex(0);
+    setSelected([]);
+    const seconds = getQuestionSeconds();
+    setTimeLeft(seconds);
+    setQuestionSeconds(seconds);
+    setPaused(false);
+    setWaitingForAudio(true);
+    submittingRef.current = false;
+    setRound((r) => r + 1);
+  }, [phase]);
+
   const score = results.filter((r) => r.isCorrect).length;
 
   return {
@@ -243,5 +269,7 @@ export function useQuizEngine(source: QuizSource): QuizState {
     confirm,
     clear,
     togglePause,
+    restart,
+    round,
   };
 }

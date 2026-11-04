@@ -38,6 +38,8 @@ const settingsSchema = z.strictObject({
   whatsappNumber: moroccanMobile.optional(),
   // Cleared (empty string) disables the shop's order button in the app.
   shopWhatsappNumber: moroccanMobile.optional(),
+  // Cleared (empty string) sends course requests back to whatsappNumber.
+  coursesWhatsappNumber: moroccanMobile.optional(),
   whatsappMessage: z
     .string()
     .trim()

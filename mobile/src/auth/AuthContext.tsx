@@ -6,11 +6,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Alert } from "react-native";
 import {
   api,
   clearSession,
   getRefreshToken,
   hydrateSession,
+  onSessionEnded,
   storeSession,
   updateStoredUser,
   type SessionUser,
@@ -47,6 +49,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setUser(null))
       .finally(() => setHydrated(true));
   }, []);
+
+  // The server ended the session (the stored tokens are already cleared):
+  // back to the login screen now. A login on another phone gets a message,
+  // because only one phone can hold a candidate account.
+  useEffect(
+    () =>
+      onSessionEnded((reason) => {
+        setUser(null);
+        if (reason === "replaced") {
+          Alert.alert("تم تسجيل خروجك", "تم تسجيل الدخول إلى حسابك من هاتف آخر.", [
+            { text: "حسناً" },
+          ]);
+        }
+      }),
+    [],
+  );
 
   const login = useCallback(async (identifier: string, password: string) => {
     const res = await api<LoginResponse>("/auth/login", {

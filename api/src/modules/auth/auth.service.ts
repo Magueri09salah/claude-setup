@@ -7,6 +7,7 @@ import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
 import { applyAllowlistOnRegister } from "../premium/allowlist.service";
 import { normalizePhone } from "../premium/phone";
+import { isSessionReplaced, sessionReplacedError, tokenSessionKey } from "./session";
 import { normalizeUsername } from "./username";
 
 const BCRYPT_COST = 12;
@@ -44,26 +45,55 @@ export async function getMe(userId: string) {
   return publicUser(user);
 }
 
-function signAccessToken(user: Pick<User, "id" | "role">): string {
-  return jwt.sign({ role: user.role }, env.JWT_ACCESS_SECRET, {
+type TokenUser = Pick<User, "id" | "role" | "sessionKey">;
+
+// Both tokens carry the candidate's session key as `sk` (see session.ts).
+function signAccessToken(user: TokenUser): string {
+  const sk = tokenSessionKey(user);
+  return jwt.sign(sk ? { role: user.role, sk } : { role: user.role }, env.JWT_ACCESS_SECRET, {
     subject: user.id,
     expiresIn: ACCESS_TTL,
   });
 }
 
-async function issueRefreshToken(userId: string): Promise<string> {
-  const token = jwt.sign({ jti: crypto.randomUUID() }, env.JWT_REFRESH_SECRET, {
-    subject: userId,
+async function issueRefreshToken(user: TokenUser): Promise<string> {
+  const sk = tokenSessionKey(user);
+  const jti = crypto.randomUUID();
+  const token = jwt.sign(sk ? { jti, sk } : { jti }, env.JWT_REFRESH_SECRET, {
+    subject: user.id,
     expiresIn: `${REFRESH_DAYS}d`,
   });
   await prisma.refreshToken.create({
     data: {
-      userId,
+      userId: user.id,
       tokenHash: sha256(token),
       expiresAt: new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000),
     },
   });
   return token;
+}
+
+/**
+ * Make this login the account's ONLY session (candidates, see session.ts).
+ * The new key on its own already locks every other phone out. Revoking their
+ * refresh tokens and dropping their push registrations is what logging out on
+ * those phones would have done, so a signed-out phone also stops receiving the
+ * account's notifications. The phone logging in re-registers its push token
+ * right after this returns.
+ */
+async function startCandidateSession(userId: string): Promise<User> {
+  const [user] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { sessionKey: crypto.randomUUID() },
+    }),
+    prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+    prisma.device.deleteMany({ where: { userId } }),
+  ]);
+  return user;
 }
 
 export async function register(input: {
@@ -90,6 +120,8 @@ export async function register(input: {
         passwordHash,
         cinLast3Hash,
         resetDigits: input.cinLast3,
+        // A new account is a candidate, so it starts under the one-phone rule.
+        sessionKey: crypto.randomUUID(),
       },
     });
 
@@ -103,7 +135,7 @@ export async function register(input: {
     return {
       user: publicUser(user),
       accessToken: signAccessToken(user),
-      refreshToken: await issueRefreshToken(user.id),
+      refreshToken: await issueRefreshToken(user),
     };
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -151,21 +183,25 @@ export async function login(input: { identifier: string; password: string }) {
   if (!user || !passwordOk) {
     throw new ApiError(401, "رقم الهاتف أو كلمة المرور غير صحيحة");
   }
+  // A candidate logging in here signs out whichever phone held the account.
+  const sessionUser = user.role === "USER" ? await startCandidateSession(user.id) : user;
   return {
-    user: publicUser(user),
-    accessToken: signAccessToken(user),
-    refreshToken: await issueRefreshToken(user.id),
+    user: publicUser(sessionUser),
+    accessToken: signAccessToken(sessionUser),
+    refreshToken: await issueRefreshToken(sessionUser),
   };
 }
 
 export async function refresh(token: string) {
   let subject: string;
+  let tokenKey: unknown;
   try {
     const payload = jwt.verify(token, env.JWT_REFRESH_SECRET);
     if (typeof payload === "string" || typeof payload.sub !== "string") {
       throw new Error("malformed payload");
     }
     subject = payload.sub;
+    tokenKey = payload.sk;
   } catch {
     throw new ApiError(401, "Invalid refresh token");
   }
@@ -176,22 +212,34 @@ export async function refresh(token: string) {
   if (!row || row.userId !== subject) {
     throw new ApiError(401, "Invalid refresh token");
   }
+
+  const user = await prisma.user.findUnique({ where: { id: row.userId } });
+  if (!user) throw new ApiError(401, "Invalid refresh token");
+
+  // Signed out by a newer login on another phone. Checked BEFORE the reuse
+  // detection below: that login revoked this token, and treating it as theft
+  // would revoke the NEW phone's session too, leaving the two phones to sign
+  // each other out forever.
+  if (isSessionReplaced(user, tokenKey)) throw sessionReplacedError();
+
   if (row.revokedAt) {
-    // Reuse of a rotated token = possible theft: revoke every active session.
-    await prisma.refreshToken.updateMany({
-      where: { userId: row.userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    // Reuse of a ROTATED token = possible theft: revoke every active session.
+    // Only a rotated token has a successor. One revoked any other way (logout,
+    // password reset, a newer login) is not a theft signal, and must not take
+    // the account's live session down with it.
+    if (row.replacedBy) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: row.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
     throw new ApiError(401, "Invalid refresh token");
   }
   if (row.expiresAt <= new Date()) {
     throw new ApiError(401, "Invalid refresh token");
   }
 
-  const user = await prisma.user.findUnique({ where: { id: row.userId } });
-  if (!user) throw new ApiError(401, "Invalid refresh token");
-
-  const newToken = await issueRefreshToken(user.id);
+  const newToken = await issueRefreshToken(user);
   await prisma.refreshToken.update({
     where: { id: row.id },
     data: { revokedAt: new Date(), replacedBy: sha256(newToken) },

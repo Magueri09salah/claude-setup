@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -103,8 +102,9 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
+      {/* "padding" on Android too — see register.tsx. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         style={styles.flex}
       >
         <ScrollView

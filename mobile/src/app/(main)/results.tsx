@@ -4,7 +4,9 @@ import { lastAdStatus } from "@/ads/interstitial";
 import { Icon } from "@/components/Icon";
 import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
+import { getSeries } from "@/db";
 import { countPassedAttempts, getAttempt } from "@/db/attempts";
+import { MOCK_SERIES_ID } from "@/quiz/useQuizEngine";
 import { colors, font, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 import { useBottomInset } from "@/theme/useScreenInsets";
@@ -45,12 +47,43 @@ export default function ResultsScreen() {
 
   const share = () => {
     void Share.share({
-      message: `حصلت على ${attempt.score}/${attempt.total} في تطبيق code boujida لتعليم السياقة 🚦`,
+      message: `حصلت على ${attempt.score}/${attempt.total} في تطبيق Code Boujida لتعليم السياقة 🚦`,
     });
   };
 
   // Null unless the diagnostic flag is on — see lastAdStatus().
   const adNote = lastAdStatus();
+
+  // The two ways out (owner request 2026-11-02): this series again, or the
+  // list it came from. A mock exam has no series to repeat, so it draws a
+  // fresh set of 40 instead.
+  const isMock = attempt.seriesId === MOCK_SERIES_ID;
+  const series = isMock ? null : getSeries(attempt.seriesId);
+
+  // The quiz replaced itself with this screen, so the series list is right
+  // underneath and going back keeps its licence tab. The fallback rebuilds it
+  // for the rare case where it is not.
+  const backToList = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(series ? `/exam?category=${series.category}` : "/exam");
+  };
+
+  const restart = () => {
+    if (isMock) {
+      router.replace("/mock");
+      return;
+    }
+    // Gone after a sync, or locked because the 3-month term ran out since the
+    // last try: the same two outcomes the series list would give.
+    if (!series) {
+      backToList();
+      return;
+    }
+    router.replace(series.locked === 1 ? "/unlock" : `/quiz/${series.id}`);
+  };
 
   return (
     <ScreenBackground style={styles.screen}>
@@ -129,11 +162,22 @@ export default function ResultsScreen() {
 
         <View style={styles.actions}>
           <PressableScale
-            onPress={() => router.replace("/")}
+            onPress={restart}
             style={[styles.actionButton, { backgroundColor: colors.lessons }]}
           >
-            <Icon name="home" size={18} color={colors.onAccent} />
-            <Text style={styles.actionText}>العودة للرئيسية</Text>
+            <Icon name="restart" size={18} color={colors.onAccent} />
+            <Text style={styles.actionText}>
+              {isMock ? "امتحان تجريبي جديد" : "إعادة السلسلة"}
+            </Text>
+          </PressableScale>
+          <PressableScale
+            onPress={backToList}
+            style={[styles.actionButton, styles.actionSecondary]}
+          >
+            <Icon name="list" size={18} color={colors.text} />
+            <Text style={[styles.actionText, { color: colors.text }]}>
+              قائمة السلاسل
+            </Text>
           </PressableScale>
           <PressableScale
             onPress={share}

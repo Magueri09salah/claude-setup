@@ -5,7 +5,14 @@ import {
   type AudioPlayer,
 } from "expo-audio";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { preloadInterstitial, showInterstitial } from "@/ads/interstitial";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -16,7 +23,11 @@ import { AnswerSlots } from "@/components/quiz/AnswerSlots";
 import { AnswerZone } from "@/components/quiz/AnswerZone";
 import { TimerPill } from "@/components/quiz/TimerPill";
 import { TimerSheet } from "@/components/quiz/TimerSheet";
-import { useQuizEngine, type QuizSource } from "@/quiz/useQuizEngine";
+import {
+  MOCK_SERIES_ID,
+  useQuizEngine,
+  type QuizSource,
+} from "@/quiz/useQuizEngine";
 import { useScreenCaptureGuard } from "@/security/screenCapture";
 import { useResponsive } from "@/theme/useResponsive";
 import { colors, font, radius, space, type } from "@/theme/tokens";
@@ -102,7 +113,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       setAudioPlaying(false);
       audioFinished();
     }
-  }, [question?.id, question?.audioPath, audioFinished]);
+  }, [question?.id, question?.audioPath, quiz.round, audioFinished]);
 
   // expo-audio has no "ended" callback on the imperative player, so poll the
   // status while a question is being read. Cheap: it stops as soon as the
@@ -129,7 +140,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       }
     }, 250);
     return () => clearInterval(id);
-  }, [phase, quiz.waitingForAudio, question?.id, audioFinished]);
+  }, [phase, quiz.waitingForAudio, question?.id, quiz.round, audioFinished]);
 
   const replay = () => {
     const player = playerRef.current;
@@ -162,6 +173,31 @@ export function QuizRunner({ source }: { source: QuizSource }) {
       // already released
     }
     setAudioPlaying(false);
+  };
+
+  /**
+   * Start over from question 1 (owner request 2026-11-02). Asks first: one
+   * stray tap at question 12 would otherwise throw away eleven answers. The
+   * countdown is held while the question is up, or the current question could
+   * time out behind the dialog and be scored blank.
+   */
+  const confirmRestart = () => {
+    const holdTimer = quiz.timed && !paused;
+    if (holdTimer) quiz.togglePause();
+    const resume = () => {
+      if (holdTimer) quiz.togglePause();
+    };
+    Alert.alert(
+      source.seriesId === MOCK_SERIES_ID
+        ? "إعادة الامتحان من البداية؟"
+        : "إعادة السلسلة من البداية؟",
+      "ستُحذف إجاباتك في هذه المحاولة.",
+      [
+        { text: "إلغاء", style: "cancel", onPress: resume },
+        { text: "إعادة", style: "destructive", onPress: quiz.restart },
+      ],
+      { cancelable: true, onDismiss: resume },
+    );
   };
 
   // Fetch the end-of-series ad now, while the candidate is still answering.
@@ -289,6 +325,14 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             >
               <Icon name="timer" size={22} color={colors.text} />
             </Pressable>
+            <Pressable
+              onPress={confirmRestart}
+              hitSlop={8}
+              style={styles.railButton}
+              accessibilityLabel="إعادة من البداية"
+            >
+              <Icon name="restart" size={22} color={colors.text} />
+            </Pressable>
           </View>
 
           <View style={styles.middle}>
@@ -317,7 +361,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
                 <>
                   <ZoomableImage
                     uri={question.imagePath}
-                    resetKey={question.id}
+                    resetKey={`${quiz.round}-${question.id}`}
                     style={styles.fill}
                   />
                   <Pressable
@@ -381,6 +425,18 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             room in the middle. The icons say the same thing; the words move to
             accessibilityLabel, so a screen reader still announces them. */}
         <View style={[styles.topSide, styles.topActions]}>
+          {/* Furthest from the screen edge on purpose: it is the one button
+              here that costs something, so it is the hardest to hit by habit.
+              It still asks before it does anything. */}
+          <Pressable
+            onPress={confirmRestart}
+            hitSlop={10}
+            style={styles.pill}
+            accessibilityRole="button"
+            accessibilityLabel="إعادة من البداية"
+          >
+            <Icon name="restart" size={18} color={colors.text} />
+          </Pressable>
           {quiz.timed && (
             <Pressable
               onPress={quiz.togglePause}
@@ -465,7 +521,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
           <>
             <ZoomableImage
               uri={question.imagePath}
-              resetKey={question.id}
+              resetKey={`${quiz.round}-${question.id}`}
               style={styles.fill}
             />
             <Pressable

@@ -25,6 +25,12 @@ import { gridBasis, useResponsive } from "@/theme/useResponsive";
 interface Support {
   whatsappNumber: string | null;
   whatsappMessage: string;
+  /**
+   * The number set on the panel's طلبات التسجيل page (2026-11-04). The server
+   * already falls back to whatsappNumber when it is empty; it is optional here
+   * because a server not yet redeployed does not send it at all.
+   */
+  coursesWhatsappNumber?: string | null;
 }
 
 interface MyRequest {
@@ -95,7 +101,8 @@ export default function CoursesScreen() {
     }
     setSending(false);
 
-    if (!support?.whatsappNumber) {
+    const number = support?.coursesWhatsappNumber ?? support?.whatsappNumber;
+    if (!number) {
       Alert.alert(
         "رقم التواصل غير متوفر",
         "لم يُضبط رقم واتساب بعد. حاول لاحقاً أو تواصل مع مدرستك.",
@@ -109,7 +116,7 @@ export default function CoursesScreen() {
     ]
       .filter(Boolean)
       .join("\n");
-    const url = `https://wa.me/${support.whatsappNumber}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     void Linking.openURL(url).catch(() =>
       Alert.alert("تعذّر فتح واتساب", "تأكد من تثبيت تطبيق واتساب على هاتفك."),
     );

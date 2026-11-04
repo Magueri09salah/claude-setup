@@ -64,6 +64,54 @@ export interface Countdown {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Mirror SOON_WINDOW_MIN / LIVE_WINDOW_MIN in api/src/modules/lives/schedule.ts.
+const SOON_WINDOW_MIN = 15;
+const LIVE_WINDOW_MIN = 60;
+
+/**
+ * The live's timing read off the PHONE'S OWN CLOCK (owner decision 2026-11-03):
+ * "20:00" in the panel means 20:00 on the phone, full stop.
+ *
+ * The server used to send the next start as a UTC instant computed with its
+ * own timezone rules, and those were a year out of date: Morocco went back to
+ * GMT on 2026-09-20 while the server still added an hour, so the countdown ran
+ * out at 19:00 under a label that said 20:00. Computing it here makes the label
+ * and the countdown agree by construction, whatever the phone's clock is set
+ * to — including a phone whose own timezone data is stale and whose owner
+ * simply set the time by hand.
+ *
+ * Accepted trade-off: a phone outside Morocco counts down to 20:00 on ITS
+ * clock, not Morocco's. The audience is Moroccan candidates.
+ */
+function onPhoneClock(s: LiveSettings, now: number): LiveSettings {
+  const m = /^(\d{2}):(\d{2})$/.exec(s.startTime);
+  if (!m) return s; // malformed: keep whatever the server worked out
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  const today = new Date(now);
+  // By CALENDAR day, never ±24h, so 20:00 stays 20:00 across a clock change.
+  // Yesterday's counts: a 23:30 live is still on air after midnight.
+  const starts = [-1, 0, 1, 2].map((offset) =>
+    new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + offset,
+      hh,
+      mm,
+    ).getTime(),
+  );
+  const onAir = starts.some(
+    (t) => now >= t && now < t + LIVE_WINDOW_MIN * 60_000,
+  );
+  const next = starts.find((t) => t > now) ?? now + DAY_MS;
+  return {
+    ...s,
+    nextStartAt: new Date(next).toISOString(),
+    isLive: s.enabled && onAir,
+    startsSoon: s.enabled && next - now <= SOON_WINDOW_MIN * 60_000,
+  };
+}
+
 export function countdownTo(iso: string, now: number): Countdown {
   const ms = Math.max(0, new Date(iso).getTime() - now);
   return {
@@ -110,21 +158,17 @@ export function useLive(tick = true): UseLive {
     return () => clearInterval(t);
   }, [tick]);
 
-  // The countdown reaching zero means the live just started — only the server
-  // knows the new window, so refetch instead of guessing.
-  const passed =
-    settings !== null && new Date(settings.nextStartAt).getTime() <= now;
-  useEffect(() => {
-    if (passed) fetchNow(true);
-  }, [passed, fetchNow]);
-
-  const currentKey = settings ? occurrenceKey(settings) : null;
+  // Recomputed every tick from the phone's clock, so the next start is always
+  // in the future and the countdown rolls over to tomorrow by itself — no
+  // refetch when it reaches zero.
+  const live = settings ? onPhoneClock(settings, now) : null;
+  const currentKey = live ? occurrenceKey(live) : null;
 
   return {
-    settings,
+    settings: live,
     badge: currentKey !== null && currentKey !== seen ? 1 : 0,
     currentKey,
-    countdown: settings ? countdownTo(settings.nextStartAt, now) : null,
+    countdown: live ? countdownTo(live.nextStartAt, now) : null,
     reload: () => fetchNow(true),
   };
 }

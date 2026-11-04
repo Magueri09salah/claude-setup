@@ -1,6 +1,8 @@
 import type { RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../env";
+import { isSessionReplaced, sessionReplacedError } from "../modules/auth/session";
+import { prisma } from "../prisma";
 import { ApiError } from "./errors";
 
 export interface AuthContext {
@@ -16,12 +18,13 @@ declare global {
   }
 }
 
-export const requireAuth: RequestHandler = (req, _res, next) => {
+export const requireAuth: RequestHandler = async (req, _res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     throw new ApiError(401, "Missing access token");
   }
   const token = header.slice("Bearer ".length);
+  let tokenKey: unknown;
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
     if (
@@ -34,8 +37,19 @@ export const requireAuth: RequestHandler = (req, _res, next) => {
       throw new Error("malformed payload");
     }
     req.auth = { userId: payload.sub, role: payload.role };
+    tokenKey = payload.sk;
   } catch {
     throw new ApiError(401, "Invalid or expired access token");
+  }
+
+  // One phone per candidate (see modules/auth/session.ts). Without this a
+  // signed-out phone would keep working until its access token ran out.
+  if (req.auth.role === "USER") {
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth.userId },
+      select: { role: true, sessionKey: true },
+    });
+    if (user && isSessionReplaced(user, tokenKey)) throw sessionReplacedError();
   }
   next();
 };

@@ -65,6 +65,12 @@ model User {
   // Single-use marker for the current reset token. Cleared when the password is
   // actually changed, so a captured token cannot be replayed.
   pwResetNonce String?
+  // One phone per candidate account (owner decision 2026-11-02). Replaced on
+  // every candidate login and carried as `sk` in both tokens; a token holding
+  // an older key belongs to a phone that has been signed out. NULL = no login
+  // since the rule shipped, so those sessions keep working until the next
+  // login. Staff accounts never get one: the rule is for candidates only.
+  sessionKey   String?
   role         Role      @default(USER)
   isPremium    Boolean   @default(false)
   premiumUntil DateTime?
@@ -363,6 +369,11 @@ model AppSettings {
   // button is DISABLED in the app, because orders reaching the access-request
   // phone by surprise is worse than a button that plainly cannot be pressed.
   shopWhatsappNumber String?
+  // Where COURSE requests (التسجيل في الدروس) go. Same canonical local form.
+  // Unlike the shop, null FALLS BACK to whatsappNumber (owner decision
+  // 2026-11-04): that is where these requests went before the field existed,
+  // so an unset number changes nothing.
+  coursesWhatsappNumber String?
   // The app's own logo, swappable from the panel without a new build (owner
   // request 2026-09-26). null = the app falls back to the picture bundled in
   // the binary, which is what a fresh install shows before its first sync.

@@ -32,9 +32,27 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly code?: string,
   ) {
     super(message);
   }
+}
+
+// One phone per candidate account (API modules/auth/session.ts): a login on
+// another phone makes the server answer 401 with this code.
+export const SESSION_REPLACED = "SESSION_REPLACED";
+
+export type SessionEndReason = "replaced" | "expired";
+type SessionEndListener = (reason: SessionEndReason) => void;
+const sessionEndListeners = new Set<SessionEndListener>();
+
+// The auth context subscribes so the app returns to the login screen the
+// moment the server ends the session, not at the next cold start.
+export function onSessionEnded(listener: SessionEndListener): () => void {
+  sessionEndListeners.add(listener);
+  return () => {
+    sessionEndListeners.delete(listener);
+  };
 }
 
 // In-memory mirror of the secure store so requests don't await disk reads.
@@ -109,9 +127,19 @@ async function refreshSession(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
   });
-  if (!res.ok) {
+  // Only a 401 means the session is over. A 429 (the /auth/* limit is per IP,
+  // shared by a whole school Wi-Fi) or a 5xx during a deploy is temporary and
+  // must not sign the candidate out.
+  if (res.status === 401) {
+    const body = (await res.json().catch(() => ({}))) as { code?: string };
     await clearSession();
-    throw new ApiError(401, "Session expired");
+    const reason: SessionEndReason =
+      body.code === SESSION_REPLACED ? "replaced" : "expired";
+    for (const listener of sessionEndListeners) listener(reason);
+    throw new ApiError(401, "Session expired", body.code);
+  }
+  if (!res.ok) {
+    throw new ApiError(res.status, `Request failed (${res.status})`);
   }
   const data = (await res.json()) as {
     accessToken: string;
@@ -169,7 +197,26 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
     throw new ApiError(
       res.status,
       (data as { error?: string }).error ?? `Request failed (${res.status})`,
+      (data as { code?: string }).code,
     );
   }
   return data as T;
+}
+
+const SESSION_CHECK_MIN_GAP_MS = 60_000;
+let lastSessionCheck = 0;
+
+/**
+ * Ask the server whether this phone is still the one signed in. The app works
+ * offline and can go a long time without a request, so it asks on launch and on
+ * every return to the foreground (at most once a minute). A phone that was
+ * signed out by a login elsewhere gets a 401 here, and apiFetch's refresh path
+ * then ends the session. Offline or failing, it simply stays quiet.
+ */
+export async function checkSession(): Promise<void> {
+  if (!refreshToken) return;
+  const now = Date.now();
+  if (now - lastSessionCheck < SESSION_CHECK_MIN_GAP_MS) return;
+  lastSessionCheck = now;
+  await apiFetch("/devices/session").catch(() => undefined);
 }

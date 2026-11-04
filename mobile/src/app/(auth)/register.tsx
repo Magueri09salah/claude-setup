@@ -2,7 +2,6 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -84,8 +83,14 @@ export default function RegisterScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
+      {/* "padding" on Android too (owner report 2026-11-03: the keyboard hid
+          the password field). The app draws edge to edge, and in that mode
+          Android no longer shrinks the window for the keyboard, so leaving
+          Android to the system left the bottom of the form under the keys.
+          Where a phone still resizes, KeyboardAvoidingView measures no overlap
+          and adds nothing. Same on login and forgot. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         style={styles.flex}
       >
         <ScrollView

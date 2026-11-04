@@ -1,10 +1,34 @@
 import { useFocusEffect } from "expo-router";
 import type { VideoViewProps } from "expo-video";
 import { useCallback } from "react";
-import {
-  allowScreenCaptureAsync,
-  preventScreenCaptureAsync,
-} from "expo-screen-capture";
+
+type ScreenCaptureModule = typeof import("expo-screen-capture");
+let screenCapture: ScreenCaptureModule | null | undefined;
+
+/**
+ * Loaded on first use, inside a try, NEVER as a top-level import.
+ *
+ * vc 10 shipped stuck on the splash on every Android 14+ phone (found on a
+ * Galaxy A15, Android 16, 2026-11-02). The library's native OnCreate calls
+ * registerScreenCaptureCallback on API 34+, which needs DETECT_SCREEN_CAPTURE;
+ * that permission had been put in blockedPermissions, so creating the module
+ * threw. As a top-level import that throw happened while the route tree was
+ * loading, the app's entry never registered, and the splash never hid.
+ * The permission is unblocked again (app.json) — that is the real fix. This
+ * is what makes "fail-open" below actually true: a module that cannot be
+ * created costs the screenshot block, never the app.
+ */
+function loadScreenCapture(): ScreenCaptureModule | null {
+  if (screenCapture === undefined) {
+    try {
+      screenCapture = require("expo-screen-capture") as ScreenCaptureModule;
+    } catch (e) {
+      console.warn("[screenCapture] native module unavailable:", e);
+      screenCapture = null;
+    }
+  }
+  return screenCapture;
+}
 
 /**
  * Blocks screenshots and screen recording for as long as the calling screen is
@@ -44,9 +68,11 @@ import {
 export function useScreenCaptureGuard(key: string): void {
   useFocusEffect(
     useCallback(() => {
-      void preventScreenCaptureAsync(key).catch(() => undefined);
+      const capture = loadScreenCapture();
+      if (!capture) return;
+      void capture.preventScreenCaptureAsync(key).catch(() => undefined);
       return () => {
-        void allowScreenCaptureAsync(key).catch(() => undefined);
+        void capture.allowScreenCaptureAsync(key).catch(() => undefined);
       };
     }, [key]),
   );

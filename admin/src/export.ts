@@ -80,9 +80,8 @@ export function exportPdf<T>(
 
   const meta = doc.createElement("div");
   meta.className = "meta";
-  meta.textContent = `${rows.length} سجل · ${new Date().toLocaleString("ar-MA", {
-    timeZone: "Africa/Casablanca",
-  })}`;
+  // The PC's own clock — see casablanca.ts for why no timeZone is forced.
+  meta.textContent = `${rows.length} سجل · ${new Date().toLocaleString("ar-MA")}`;
   doc.body.appendChild(meta);
 
   const table = doc.createElement("table");

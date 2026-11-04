@@ -17,6 +17,9 @@ const MAP = {
   logout: "logout",
   menu: "menu",
   refresh: "refresh",
+  // Start a series over — distinct from `refresh`, which means "sync".
+  restart: "restart",
+  list: "format-list-numbered",
   // features
   exam: "traffic-light",
   car: "car",

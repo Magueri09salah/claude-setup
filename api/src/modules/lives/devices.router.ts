@@ -9,6 +9,15 @@ devicesRouter.use(requireAuth);
 
 const MAX_DEVICES = 2;
 
+// "Is this phone still the one signed in?" The app asks on launch and when it
+// comes back to the foreground, because it otherwise works offline and could
+// go a long time without a request that would notice. requireAuth does all
+// the work (see modules/auth/session.ts). Lives here rather than under /auth
+// so it never spends the /auth/* per-IP budget a whole school Wi-Fi shares.
+devicesRouter.get("/session", (_req, res) => {
+  res.status(204).end();
+});
+
 const pushTokenSchema = z.strictObject({
   deviceId: z.string().min(1).max(200),
   pushToken: z.string().max(300).nullable().optional(),
