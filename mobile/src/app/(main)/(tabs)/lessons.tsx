@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useOpenLocked } from "@/auth/useOpenLocked";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
 import {
@@ -26,6 +27,7 @@ import { useSyncStatus } from "@/sync/useSyncStatus";
 // FULL-WIDTH rows (التشوير الطرقي / المركبة / الوثائق). Level 2 is where the
 // 2-column picture grid starts.
 export default function LessonsHomeScreen() {
+  const openLocked = useOpenLocked();
   // This tab stays mounted, so a plain read at render would leave it showing
   // "لا توجد دروس بعد" for ever while the first download was still
   // fetching the catalogue (owner decision 2026-09-28: the app opens straight
@@ -86,7 +88,7 @@ export default function LessonsHomeScreen() {
                 disabled={loading}
                 onPress={() =>
                   locked
-                    ? router.push("/unlock")
+                    ? openLocked()
                     : incomplete
                       ? void retry()
                       : openCategory(c.id)

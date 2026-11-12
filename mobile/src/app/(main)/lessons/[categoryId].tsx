@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useOpenLocked } from "@/auth/useOpenLocked";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
 import {
@@ -32,6 +33,7 @@ import { useBottomInset } from "@/theme/useScreenInsets";
 // its lessons are a 2-COLUMN PICTURE GRID — cover image on top, name beneath
 // (علامات المنع / علامة الإجبار …). That cover is why lessons carry an image.
 export default function CategoryScreen() {
+  const openLocked = useOpenLocked();
   // Edge-to-edge: the last card would sit under Android's navigation
   // bar without this (owner report 2026-09-23).
   const paddingBottom = useBottomInset();
@@ -103,7 +105,7 @@ export default function CategoryScreen() {
                   disabled={loading}
                   onPress={() =>
                     locked
-                      ? router.push("/unlock")
+                      ? openLocked()
                       : incomplete
                         ? void retry()
                         : openCategory(c.id)
@@ -171,7 +173,7 @@ export default function CategoryScreen() {
                   disabled={loading}
                   onPress={() =>
                     locked
-                      ? router.push("/unlock")
+                      ? openLocked()
                       : incomplete
                         ? void retry()
                         : router.push(

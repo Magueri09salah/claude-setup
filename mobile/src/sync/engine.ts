@@ -27,6 +27,58 @@ const MEDIA_BATCH = 20;
 const FOREGROUND_THROTTLE_MS = 60 * 60 * 1000;
 
 let running = false;
+// Set by requestSync() when a sync was already running: that run fetched its
+// manifest BEFORE the account changed, so one more run is owed afterwards.
+let rerunQueued = false;
+
+/**
+ * Sync because the ACCOUNT changed (sign-in, sign-out, session ended) — guest
+ * mode, 2026-11-12. Unlike runSync it never drops the request: a guest's first
+ * download is usually still running when they register, and it holds the
+ * guest manifest, so without the re-run a candidate the allowlist just opened
+ * would sit on locked series until the next hourly foreground sync.
+ */
+export function requestSync(): void {
+  if (running) {
+    rerunQueued = true;
+    return;
+  }
+  void runSync();
+}
+
+/**
+ * Lock paid content on THIS phone at once, without waiting for the server —
+ * called when the account signs out or its session ends. The app now carries on
+ * as a guest instead of closing on the login screen, so without this a phone
+ * that is offline at that moment would keep the previous account's downloaded
+ * paid series open until its next successful sync.
+ *
+ * Mirrors what the guest manifest would do (server content.router): premium
+ * series and premium lesson categories lock, their lessons lock, and their
+ * downloaded rows go. The next sync then confirms it from the server.
+ */
+export function lockPremiumContent(): void {
+  db.withTransactionSync(() => {
+    db.runSync("UPDATE series SET locked = 1 WHERE is_premium = 1");
+    db.runSync(
+      "DELETE FROM questions WHERE series_id IN (SELECT id FROM series WHERE locked = 1)",
+    );
+    db.runSync("UPDATE lesson_categories SET locked = 1 WHERE is_premium = 1");
+    db.runSync(
+      `UPDATE lessons SET locked = 1
+        WHERE category_id IN (SELECT id FROM lesson_categories WHERE is_premium = 1)`,
+    );
+    db.runSync(
+      "DELETE FROM lesson_signs WHERE lesson_id IN (SELECT id FROM lessons WHERE locked = 1)",
+    );
+    // LOAD-BEARING: the stored etag still says "premium". If the same paid
+    // account signs straight back in, the server would answer 304 to it and
+    // the rows deleted just above would never come back.
+    db.runSync("DELETE FROM meta WHERE key = 'manifest_etag'");
+  });
+  // Screens re-read on a status change; nothing else would tell them.
+  setStatus({ ...status });
+}
 
 /**
  * What the sync is doing right now, for screens that did not start it. The
@@ -613,6 +665,10 @@ export async function runSync(
   } finally {
     running = false;
     setStatus({ running: false, progress: null });
+    if (rerunQueued) {
+      rerunQueued = false;
+      void runSync();
+    }
   }
 }
 

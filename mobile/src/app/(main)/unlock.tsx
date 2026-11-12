@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { api } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
+import { REGISTER_THEN_UNLOCK } from "@/auth/useOpenLocked";
 import { BrandIcon } from "@/components/BrandIcon";
 import { Icon } from "@/components/Icon";
 import { PressableScale } from "@/components/PressableScale";
@@ -118,11 +119,11 @@ export default function UnlockScreen() {
   // The button is replaced by "قيد المراجعة" once a request exists, so the
   // screen has to know which of the two to draw before it renders.
   const loadJoinStatus = useCallback(() => {
-    if (!IS_IOS) return;
+    if (!IS_IOS || !user) return;
     api<{ request: { status: JoinStatus } | null }>("/group-requests/mine")
       .then((r) => setJoinStatus(r.request?.status ?? null))
       .catch(() => undefined); // offline is not an error on this screen
-  }, []);
+  }, [user]);
 
   // Coming back from WhatsApp (Android) is exactly when the unlock may have
   // landed, so re-read the account instead of making the candidate hunt for a
@@ -200,7 +201,32 @@ export default function UnlockScreen() {
     setChecking(false);
   };
 
-  if (user?.isPremium) {
+  // Guest mode (2026-11-12): every padlock sends a guest to sign-up first (see
+  // useOpenLocked), so this only catches a stray route. There is no account to
+  // ask access for, and on iOS the group request cannot be sent without one.
+  // A button, not a <Redirect>: register.tsx `replace`s itself with this
+  // screen right after sign-up, and an automatic redirect would bounce the
+  // candidate straight back to the form if this ever rendered one frame
+  // before the new account reached the context.
+  if (!user) {
+    return (
+      <ScreenBackground style={styles.centered}>
+        <Icon name="lock" size={44} color={colors.lessons} />
+        <Text style={styles.doneTitle}>أنشئ حسابك أولاً</Text>
+        <Text style={styles.doneText}>
+          للوصول إلى هذا المحتوى تحتاج إلى حساب.
+        </Text>
+        <PressableScale
+          onPress={() => router.replace(REGISTER_THEN_UNLOCK)}
+          style={styles.doneButton}
+        >
+          <Text style={styles.doneButtonText}>إنشاء حساب</Text>
+        </PressableScale>
+      </ScreenBackground>
+    );
+  }
+
+  if (user.isPremium) {
     return (
       <ScreenBackground style={styles.centered}>
         <Icon name="unlock" size={44} color={colors.success} />

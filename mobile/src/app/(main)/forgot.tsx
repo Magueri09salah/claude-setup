@@ -93,7 +93,12 @@ export default function ForgotPasswordScreen() {
           </Text>
           <PrimaryButton
             label="تسجيل الدخول"
-            onPress={() => router.replace("/login")}
+            // Back to the login screen this was opened from, rather than a
+            // fresh one: since guest mode it sits in the main stack, carrying
+            // the `next` the padlock gave it.
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace("/login")
+            }
           />
         </ScrollView>
       </ScreenBackground>

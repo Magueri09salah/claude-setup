@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -7,14 +7,18 @@ import {
   Text,
 } from "react-native";
 import { ApiError } from "@/api/client";
+import { continueAfterSignIn } from "@/auth/afterSignIn";
 import { useAuth } from "@/auth/AuthContext";
 import { AppTextInput } from "@/components/AppTextInput";
+import { AuthBackBar } from "@/components/AuthBackBar";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { colors, font, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function RegisterScreen() {
   const { register } = useAuth();
+  // "unlock" when a guest came from a padlock (see auth/afterSignIn).
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [cinLast3, setCinLast3] = useState("");
@@ -62,7 +66,8 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      await register(name, phone.trim(), password, cinLast3.trim());
+      const account = await register(name, phone.trim(), password, cinLast3.trim());
+      continueAfterSignIn(account, next);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         // The API says which of the two is taken — show that, not a guess.
@@ -83,6 +88,7 @@ export default function RegisterScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
+      <AuthBackBar />
       {/* "padding" on Android too (owner report 2026-11-03: the keyboard hid
           the password field). The app draws edge to edge, and in that mode
           Android no longer shrinks the window for the keyboard, so leaving
@@ -98,8 +104,15 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.title}>إنشاء حساب جديد</Text>
+          {/* From a padlock the guest should know WHY the form appeared. The
+              wording is neutral on purpose — no price, no buying — because
+              iOS reaches this screen too (guideline 3.1.1, see unlock.tsx). */}
           <Text style={styles.subtitle}>
-            دقيقة واحدة وتبدأ التحضير لامتحان رخصة السياقة
+            {next === "unlock"
+              ? "للوصول إلى هذا المحتوى أنشئ حسابك أولاً — دقيقة واحدة فقط"
+              : next === "courses"
+                ? "أنشئ حسابك أولاً لنتواصل معك بخصوص دروس السياقة"
+                : "دقيقة واحدة وتبدأ التحضير لامتحان رخصة السياقة"}
           </Text>
           <Text style={styles.hint}>
             تسجيل الدخول لاحقاً يكون برقم الهاتف وكلمة المرور
@@ -166,7 +179,12 @@ export default function RegisterScreen() {
             onPress={() => void submit()}
           />
 
-          <Link href="/login" style={styles.link}>
+          {/* `replace` + `next`: see the same link on login.tsx. */}
+          <Link
+            href={{ pathname: "/login", params: next ? { next } : {} }}
+            replace
+            style={styles.link}
+          >
             لديك حساب بالفعل؟ <Text style={styles.linkStrong}>سجّل الدخول</Text>
           </Link>
         </ScrollView>

@@ -49,7 +49,7 @@ try {
 SplashScreen.preventAutoHideAsync();
 
 function Gate() {
-  const { user, hydrated } = useAuth();
+  const { hydrated } = useAuth();
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
     Tajawal_500Medium,
@@ -74,6 +74,13 @@ function Gate() {
 
   if (!hydrated || !fontsLoaded) return null;
 
+  // GUEST MODE (owner decision 2026-11-12): no Stack.Protected any more — the
+  // app opens on home whether or not anyone is signed in. login / register /
+  // forgot live INSIDE (main)'s stack, pushed on top of the screen that asked
+  // for them, so a successful sign-in can `replace` itself with /unlock (or go
+  // back) inside ONE navigator. As a separate root group they could only be
+  // left by swapping navigators, which is where duplicate (main) stacks come
+  // from.
   return (
     <Stack
       screenOptions={{
@@ -81,12 +88,7 @@ function Gate() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Stack.Protected guard={!!user}>
-        <Stack.Screen name="(main)" />
-      </Stack.Protected>
-      <Stack.Protected guard={!user}>
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
+      <Stack.Screen name="(main)" />
     </Stack>
   );
 }

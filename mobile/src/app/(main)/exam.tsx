@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useOpenLocked } from "@/auth/useOpenLocked";
 import { listSeries, type LicenceCategory, type SeriesRow } from "@/db";
 import { Icon } from "@/components/Icon";
 import { LICENCE_TITLE } from "@/licence";
@@ -22,6 +23,7 @@ import { useBottomInset } from "@/theme/useScreenInsets";
 const CATEGORIES: LicenceCategory[] = ["B", "A", "C", "D"];
 
 export default function ExamListScreen() {
+  const openLocked = useOpenLocked();
   // Edge-to-edge: the last card would sit under Android's navigation
   // bar without this (owner report 2026-09-23).
   const paddingBottom = useBottomInset();
@@ -62,7 +64,8 @@ export default function ExamListScreen() {
   }, [sync, readContent]);
 
   const open = (s: SeriesRow) => {
-    router.push(s.locked === 1 ? "/unlock" : `/quiz/${s.id}`);
+    if (s.locked === 1) openLocked();
+    else router.push(`/quiz/${s.id}`);
   };
 
   // An incomplete series resumes its download from its own card: the engine

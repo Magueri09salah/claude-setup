@@ -15,6 +15,9 @@ const MAP = {
   forward: "chevron-left",
   close: "close",
   logout: "logout",
+  // Guest mode (2026-11-12): the home menu's ways in.
+  login: "login",
+  accountAdd: "account-plus",
   menu: "menu",
   refresh: "refresh",
   // Start a series over — distinct from `refresh`, which means "sync".

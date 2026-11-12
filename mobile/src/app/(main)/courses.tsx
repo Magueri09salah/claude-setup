@@ -72,10 +72,11 @@ export default function CoursesScreen() {
   // Re-read on focus: the admin may have moved the request forward while the
   // candidate was away in WhatsApp.
   const loadMine = useCallback(() => {
+    if (!user) return; // a guest has no requests yet
     api<{ requests: MyRequest[] }>("/course-requests/mine")
       .then((r) => setMine(r.requests))
       .catch(() => undefined); // offline is not an error on this screen
-  }, []);
+  }, [user]);
   useFocusEffect(
     useCallback(() => {
       loadMine();
@@ -90,6 +91,14 @@ export default function CoursesScreen() {
 
   const send = async () => {
     if (!city) return;
+    // Guest mode (owner decision 2026-11-12): the lead is only worth something
+    // with a name and a phone on it in the panel, so a guest creates an account
+    // first. register.tsx comes straight back here — the city stays picked, one
+    // more press sends it.
+    if (!user) {
+      router.push({ pathname: "/register", params: { next: "courses" } });
+      return;
+    }
     setSending(true);
     // Record the lead first, but never let a failure here block the chat —
     // WhatsApp is the channel that actually matters to the candidate.

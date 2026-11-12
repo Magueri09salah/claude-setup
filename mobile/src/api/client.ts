@@ -108,6 +108,11 @@ export function getRefreshToken(): string | null {
   return refreshToken;
 }
 
+/** false = a guest (guest mode, 2026-11-12): nobody is signed in on this phone. */
+export function hasSession(): boolean {
+  return refreshToken !== null;
+}
+
 function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);

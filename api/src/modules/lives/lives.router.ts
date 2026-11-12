@@ -1,10 +1,13 @@
 import { Router } from "express";
-import { requireAuth } from "../../middleware/auth";
+import { optionalAuth } from "../../middleware/auth";
+import { guestRateLimit } from "../../middleware/rate-limit";
 import { getLiveSettings, toPublicLive } from "./lives.service";
 
 export const livesRouter = Router();
 
-livesRouter.use(requireAuth);
+// The live is for everyone, guests included (owner decision 2026-11-12), so a
+// token is optional here. A token that is sent is still verified.
+livesRouter.use(optionalAuth, guestRateLimit);
 
 // The live is a fixed daily appointment on fixed profiles, so the app only
 // needs the platform links plus when the next one starts. Times go out as UTC

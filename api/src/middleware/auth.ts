@@ -23,6 +23,37 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
   if (!header?.startsWith("Bearer ")) {
     throw new ApiError(401, "Missing access token");
   }
+  await authenticate(req, header);
+  next();
+};
+
+/**
+ * GUEST MODE (owner decision 2026-11-12): the app opens without an account, so
+ * the routes a visitor needs — free content, lives, the push token — accept a
+ * request with NO token and leave `req.auth` undefined (= not premium).
+ *
+ * A token that IS sent is checked exactly like requireAuth, and a bad or
+ * expired one is still a 401. Never "fall back to guest" on a broken token: the
+ * app would get the free manifest, read every paid series as locked and DELETE
+ * a paying candidate's downloaded content, instead of refreshing its token.
+ */
+export const optionalAuth: RequestHandler = async (req, _res, next) => {
+  const header = req.headers.authorization;
+  if (header === undefined) {
+    next();
+    return;
+  }
+  if (!header.startsWith("Bearer ")) {
+    throw new ApiError(401, "Malformed authorization header");
+  }
+  await authenticate(req, header);
+  next();
+};
+
+async function authenticate(
+  req: Parameters<RequestHandler>[0],
+  header: string,
+): Promise<void> {
   const token = header.slice("Bearer ".length);
   let tokenKey: unknown;
   try {
@@ -51,8 +82,7 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
     });
     if (user && isSessionReplaced(user, tokenKey)) throw sessionReplacedError();
   }
-  next();
-};
+}
 
 export const requireAdmin: RequestHandler = (req, _res, next) => {
   if (!req.auth) throw new ApiError(401, "Missing access token");

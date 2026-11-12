@@ -221,6 +221,22 @@ model Device {
   @@unique([userId, deviceId])
 }
 
+// GUEST MODE (owner decision 2026-11-12): the app opens without an account and
+// the daily live push goes to EVERYONE, so a visitor's phone registers its push
+// token here. Its own table rather than a nullable Device.userId: Device is
+// account data (deleted with the account, counted per user, capped at 2), and
+// none of that applies to an anonymous phone.
+//
+// Keyed by the TOKEN, not a device id: a guest proves nothing about itself, so
+// a key it chose could be used to overwrite another phone's row. Re-sending the
+// same token is an idempotent upsert. A phone that signs in moves to Device
+// (its token is removed from here); a dead token is DELETED by sendPush.
+model GuestDevice {
+  pushToken  String   @id
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+}
+
 // Moroccan licence categories. B (car) is the default so every series that
 // existed before this field keeps its meaning without a data migration.
 enum LicenceCategory {

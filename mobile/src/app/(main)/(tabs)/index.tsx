@@ -20,7 +20,7 @@ import { colors, radius, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function HomeScreen() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [hasContent, setHasContent] = useState(() => hasLocalContent());
   const [syncing, setSyncing] = useState(false);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
@@ -167,9 +167,9 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* One item today, but a sheet rather than an inline button: the only
-          action in it signs the candidate out, and that deserves a deliberate
-          second tap. */}
+      {/* A sheet rather than an inline button: for a candidate its one action
+          signs them out, and that deserves a deliberate second tap. A guest
+          gets the two ways in here instead (guest mode, 2026-11-12). */}
       <Modal
         visible={menuOpen}
         animationType="fade"
@@ -181,17 +181,51 @@ export default function HomeScreen() {
         <Pressable style={styles.backdrop} onPress={() => setMenuOpen(false)}>
           {/* Stops a tap INSIDE the card from closing it. */}
           <Pressable style={styles.menuCard} onPress={() => undefined}>
-            <Pressable
-              onPress={() => {
-                setMenuOpen(false);
-                void logout();
-              }}
-              style={styles.menuItem}
-              accessibilityRole="button"
-            >
-              <Icon name="logout" size={20} color={colors.danger} />
-              <Text style={styles.menuItemText}>تسجيل الخروج</Text>
-            </Pressable>
+            {user ? (
+              <Pressable
+                onPress={() => {
+                  setMenuOpen(false);
+                  void logout();
+                }}
+                style={styles.menuItem}
+                accessibilityRole="button"
+              >
+                <Icon name="logout" size={20} color={colors.danger} />
+                <Text style={styles.menuItemText}>تسجيل الخروج</Text>
+              </Pressable>
+            ) : (
+              // Guest mode (2026-11-12): nothing to sign out of — the menu
+              // offers the two ways in instead.
+              <>
+                <Pressable
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push("/register");
+                  }}
+                  style={styles.menuItem}
+                  accessibilityRole="button"
+                >
+                  <Icon name="accountAdd" size={20} color={colors.lessons} />
+                  <Text style={[styles.menuItemText, styles.menuItemTextPlain]}>
+                    إنشاء حساب
+                  </Text>
+                </Pressable>
+                <View style={styles.menuDivider} />
+                <Pressable
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push("/login");
+                  }}
+                  style={styles.menuItem}
+                  accessibilityRole="button"
+                >
+                  <Icon name="login" size={20} color={colors.text} />
+                  <Text style={[styles.menuItemText, styles.menuItemTextPlain]}>
+                    تسجيل الدخول
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -256,6 +290,8 @@ const styles = StyleSheet.create({
     height: 56,
   },
   menuItemText: { ...type.title, fontSize: 16, color: colors.danger },
+  menuItemTextPlain: { color: colors.text },
+  menuDivider: { height: 1, backgroundColor: colors.border },
   offline: { ...type.label, color: colors.text, textAlign: "right" },
   empty: {
     ...type.body,

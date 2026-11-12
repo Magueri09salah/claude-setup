@@ -1,16 +1,21 @@
 import { Router } from "express";
 import { z } from "zod";
 import { ApiError } from "../../middleware/errors";
-import { requireAuth } from "../../middleware/auth";
+import { optionalAuth } from "../../middleware/auth";
+import { guestRateLimit } from "../../middleware/rate-limit";
 import { prisma } from "../../prisma";
 import { storage } from "../../storage";
 import { getAppSettings, toSupportInfo } from "../settings/settings.service";
 
 export const contentRouter = Router();
 
-contentRouter.use(requireAuth);
+// GUEST MODE (2026-11-12): no token = a visitor, who is treated exactly like a
+// signed-in candidate without access — free content only, paid items as
+// locked teasers. Every premium check below still runs server-side.
+contentRouter.use(optionalAuth, guestRateLimit);
 
-async function getPremiumStatus(userId: string): Promise<boolean> {
+async function getPremiumStatus(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false; // guest
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { isPremium: true, premiumUntil: true },
@@ -26,7 +31,7 @@ async function getPremiumStatus(userId: string): Promise<boolean> {
 // Manifest: everything the client needs to decide what to sync. Premium items
 // appear as locked teasers for free users — titles only, no content access.
 contentRouter.get("/manifest", async (req, res) => {
-  const premium = await getPremiumStatus(req.auth!.userId);
+  const premium = await getPremiumStatus(req.auth?.userId);
   const [cv, settings] = await Promise.all([
     prisma.contentVersion.findUnique({ where: { id: 1 } }),
     getAppSettings(),
@@ -104,7 +109,7 @@ contentRouter.get("/lessons/:id/signs", async (req, res) => {
     include: { category: { select: { isPremium: true } } },
   });
   if (!lesson) throw new ApiError(404, "Lesson not found");
-  if (lesson.category.isPremium && !(await getPremiumStatus(req.auth!.userId))) {
+  if (lesson.category.isPremium && !(await getPremiumStatus(req.auth?.userId))) {
     throw new ApiError(403, "Premium content locked");
   }
   const signs = await prisma.lessonSign.findMany({
@@ -132,7 +137,7 @@ contentRouter.get("/lessons/:id/videos", async (req, res) => {
     include: { category: { select: { isPremium: true } } },
   });
   if (!lesson) throw new ApiError(404, "Lesson not found");
-  if (lesson.category.isPremium && !(await getPremiumStatus(req.auth!.userId))) {
+  if (lesson.category.isPremium && !(await getPremiumStatus(req.auth?.userId))) {
     throw new ApiError(403, "Premium content locked");
   }
   const rows = await prisma.lessonVideo.findMany({
@@ -163,7 +168,7 @@ contentRouter.get("/lessons/:id/videos", async (req, res) => {
 // The poster is marketing, not the paid content; the VIDEO url is what stays
 // withheld, and that is the only key the entitlement actually protects.
 contentRouter.get("/practical-videos", async (req, res) => {
-  const premium = await getPremiumStatus(req.auth!.userId);
+  const premium = await getPremiumStatus(req.auth?.userId);
   const rows = await prisma.practicalVideo.findMany({
     orderBy: { orderNum: "asc" },
   });
@@ -226,7 +231,7 @@ contentRouter.get("/series/:id/questions", async (req, res) => {
 
   const series = await prisma.series.findUnique({ where: { id } });
   if (!series) throw new ApiError(404, "Series not found");
-  if (series.isPremium && !(await getPremiumStatus(req.auth!.userId))) {
+  if (series.isPremium && !(await getPremiumStatus(req.auth?.userId))) {
     throw new ApiError(403, "Premium content locked");
   }
 
@@ -269,7 +274,7 @@ const mediaUrlsSchema = z.strictObject({
 
 contentRouter.post("/media-urls", async (req, res) => {
   const { keys } = mediaUrlsSchema.parse(req.body);
-  const premium = await getPremiumStatus(req.auth!.userId);
+  const premium = await getPremiumStatus(req.auth?.userId);
 
   const [questions, signs, lessonCovers] = await Promise.all([
     prisma.question.findMany({

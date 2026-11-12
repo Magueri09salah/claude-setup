@@ -2,7 +2,10 @@ import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 import { checkSession } from "@/api/client";
-import { attachNotificationHandlers } from "@/notifications/push";
+import {
+  attachNotificationHandlers,
+  registerPushToken,
+} from "@/notifications/push";
 import { pushAttempts } from "@/quiz/pushAttempts";
 import { maybeSyncOnForeground } from "@/sync/engine";
 import { colors } from "@/theme/tokens";
@@ -25,6 +28,14 @@ export default function MainLayout() {
 
   // Tapping a live notification opens the stream URL natively.
   useEffect(() => attachNotificationHandlers(), []);
+
+  // The daily live push goes to everyone, guests included (owner decision
+  // 2026-11-12), so every launch registers this phone's token — as a guest or
+  // on the account. It used to happen only at sign-in, and with no sign-in
+  // screen at launch a guest would never be asked.
+  useEffect(() => {
+    void registerPushToken();
+  }, []);
 
   return (
     <Stack

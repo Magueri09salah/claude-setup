@@ -49,21 +49,34 @@ export async function sendPush(
     }
   }
 
-  // Clear tokens Expo says are dead so we stop pushing to them.
+  // Clear tokens Expo says are dead so we stop pushing to them. A guest row is
+  // nothing BUT its token, so it is deleted outright — that is also what keeps
+  // the anonymous table from growing with uninstalled phones.
   if (deadTokens.length > 0) {
     await prisma.device.updateMany({
       where: { pushToken: { in: deadTokens } },
       data: { pushToken: null },
     });
+    await prisma.guestDevice.deleteMany({
+      where: { pushToken: { in: deadTokens } },
+    });
   }
   return reach;
 }
 
-// All registered push tokens (one per device). Live pushes go to everyone.
+// All registered push tokens. Live pushes go to everyone — signed-in phones AND
+// guests (owner decision 2026-11-12). sendPush de-duplicates, so a token found
+// in both tables still gets ONE notification.
 export async function allPushTokens(): Promise<string[]> {
-  const devices = await prisma.device.findMany({
-    where: { pushToken: { not: null } },
-    select: { pushToken: true },
-  });
-  return devices.map((d) => d.pushToken!).filter(Boolean);
+  const [devices, guests] = await Promise.all([
+    prisma.device.findMany({
+      where: { pushToken: { not: null } },
+      select: { pushToken: true },
+    }),
+    prisma.guestDevice.findMany({ select: { pushToken: true } }),
+  ]);
+  return [
+    ...devices.map((d) => d.pushToken!).filter(Boolean),
+    ...guests.map((g) => g.pushToken),
+  ];
 }

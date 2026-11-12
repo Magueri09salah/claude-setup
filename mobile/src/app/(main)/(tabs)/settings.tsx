@@ -14,7 +14,7 @@ import { colors, font, radius, shadow, space, type } from "@/theme/tokens";
 import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function SettingsScreen() {
-  const { user, logout } = useAuth();
+  const { user, forgetDeletedAccount } = useAuth();
   const [seconds, setSeconds] = useQuestionSeconds();
   const [repairing, setRepairing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -37,8 +37,12 @@ export default function SettingsScreen() {
               setDeleting(true);
               try {
                 await api("/auth/me", { method: "DELETE" });
-                // The account is gone, so the session must go with it.
-                await logout();
+                // The account is gone, so the session must go with it. The
+                // app carries on as a guest (guest mode, 2026-11-12), so say
+                // what happened instead of silently changing the screen.
+                await forgetDeletedAccount();
+                setDeleting(false);
+                Alert.alert("تم حذف حسابك", "حُذف حسابك وكل بياناتك نهائياً.");
               } catch {
                 setDeleting(false);
                 Alert.alert(
@@ -114,39 +118,64 @@ export default function SettingsScreen() {
           <Text style={[styles.title, styles.titleFlex]}>الإعدادات</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>الحساب</Text>
-          <Text style={styles.fullName}>
-            {user?.username ?? user?.fullName ?? user?.email}
-          </Text>
-          {/* The phone is the login identifier now, so show it here. */}
-          {user?.phone ? <Text style={styles.email}>{user.phone}</Text> : null}
-          <View style={styles.badgeRow}>
-            <View
-              style={[
-                styles.badge,
-                user?.isPremium ? styles.badgePremium : styles.badgeFree,
-              ]}
-            >
-              <Text
+        {user ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>الحساب</Text>
+            <Text style={styles.fullName}>
+              {user.username ?? user.fullName ?? user.email}
+            </Text>
+            {/* The phone is the login identifier now, so show it here. */}
+            {user.phone ? <Text style={styles.email}>{user.phone}</Text> : null}
+            <View style={styles.badgeRow}>
+              <View
                 style={[
-                  styles.badgeText,
-                  user?.isPremium ? styles.badgeTextPremium : styles.badgeTextFree,
+                  styles.badge,
+                  user.isPremium ? styles.badgePremium : styles.badgeFree,
                 ]}
               >
-                {user?.isPremium ? "مفعّل" : "غير مفعّل"}
-              </Text>
+                <Text
+                  style={[
+                    styles.badgeText,
+                    user.isPremium ? styles.badgeTextPremium : styles.badgeTextFree,
+                  ]}
+                >
+                  {user.isPremium ? "مفعّل" : "غير مفعّل"}
+                </Text>
+              </View>
             </View>
+            {!user.isPremium && (
+              <PressableScale
+                onPress={() => router.push("/unlock")}
+                style={styles.upsell}
+              >
+                <Text style={styles.upsellText}>افتح المحتوى الكامل ←</Text>
+              </PressableScale>
+            )}
           </View>
-          {!user?.isPremium && (
+        ) : (
+          // Guest mode (owner decision 2026-11-12): the app is used without an
+          // account, so this card is the one standing way in besides the
+          // padlocks. Wording stays neutral — iOS shows it too (3.1.1).
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>الحساب</Text>
+            <Text style={styles.cardTitle}>أنت تتصفّح كزائر</Text>
+            <Text style={styles.cardBody}>
+              أنشئ حسابك لحفظ نتائجك والاستفادة من المحتوى الكامل.
+            </Text>
+            <PrimaryButton
+              label="إنشاء حساب"
+              onPress={() => router.push("/register")}
+            />
             <PressableScale
-              onPress={() => router.push("/unlock")}
-              style={styles.upsell}
+              onPress={() => router.push("/login")}
+              style={styles.secondaryButton}
             >
-              <Text style={styles.upsellText}>افتح المحتوى الكامل ←</Text>
+              <Text style={styles.secondaryButtonText}>
+                لديك حساب؟ سجّل الدخول
+              </Text>
             </PressableScale>
-          )}
-        </View>
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>الاختبار</Text>
@@ -195,28 +224,32 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        <View style={[styles.card, styles.dangerCard]}>
-          <Text style={styles.cardLabel}>الحساب</Text>
-          <Text style={styles.cardTitle}>حذف الحساب</Text>
-          <Text style={styles.cardBody}>
-            حذف نهائي لحسابك ولكل بياناتك من الخادم. لا يمكن التراجع، وستحتاج
-            إلى التسجيل من جديد إذا أردت العودة.
-          </Text>
-          <PressableScale
-            onPress={deleteAccount}
-            disabled={deleting}
-            style={styles.dangerButton}
-          >
-            {deleting ? (
-              <ActivityIndicator size="small" color={colors.danger} />
-            ) : (
-              <>
-                <Icon name="alert" size={16} color={colors.danger} />
-                <Text style={styles.dangerButtonText}>حذف حسابي نهائياً</Text>
-              </>
-            )}
-          </PressableScale>
-        </View>
+        {/* No account, nothing to delete — a guest leaves no data server-side
+            beyond an anonymous push token. */}
+        {user && (
+          <View style={[styles.card, styles.dangerCard]}>
+            <Text style={styles.cardLabel}>الحساب</Text>
+            <Text style={styles.cardTitle}>حذف الحساب</Text>
+            <Text style={styles.cardBody}>
+              حذف نهائي لحسابك ولكل بياناتك من الخادم. لا يمكن التراجع، وستحتاج
+              إلى التسجيل من جديد إذا أردت العودة.
+            </Text>
+            <PressableScale
+              onPress={deleteAccount}
+              disabled={deleting}
+              style={styles.dangerButton}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color={colors.danger} />
+              ) : (
+                <>
+                  <Icon name="alert" size={16} color={colors.danger} />
+                  <Text style={styles.dangerButtonText}>حذف حسابي نهائياً</Text>
+                </>
+              )}
+            </PressableScale>
+          </View>
+        )}
       </ScrollView>
     </ScreenBackground>
   );
@@ -274,6 +307,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   upsellText: { fontFamily: font.bold, fontSize: 14, color: colors.onAccent },
+  // The guest card's second way in: quieter than the yellow primary above it.
+  secondaryButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.chipBg,
+  },
+  secondaryButtonText: { fontFamily: font.bold, fontSize: 15, color: colors.text },
   progressText: { ...type.label, color: colors.textDim, textAlign: "right" },
   devButton: {
     flexDirection: "row",

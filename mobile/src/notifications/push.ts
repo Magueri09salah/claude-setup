@@ -37,7 +37,9 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 // Ask permission, get the Expo push token, and register it with the API.
-// Safe to call on every login; silent-fails without a projectId (Expo Go).
+// Safe to call on every launch and every sign-in/out: without a session the
+// API files it under guests (guest mode, 2026-11-12), with one under the
+// account. Silent-fails without a projectId (Expo Go).
 export async function registerPushToken(): Promise<string | null> {
   try {
     await ensureAndroidChannel();

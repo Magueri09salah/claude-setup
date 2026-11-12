@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -7,7 +7,9 @@ import {
   Text,
 } from "react-native";
 import { ApiError } from "@/api/client";
+import { continueAfterSignIn } from "@/auth/afterSignIn";
 import { useAuth } from "@/auth/AuthContext";
+import { AuthBackBar } from "@/components/AuthBackBar";
 import { BrandLogo } from "@/components/BrandLogo";
 import { AppTextInput } from "@/components/AppTextInput";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -16,6 +18,8 @@ import { ScreenBackground } from "@/components/ScreenBackground";
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  // "unlock" when a guest came from a padlock (see auth/afterSignIn).
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +29,8 @@ export default function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      await login(phone.trim(), password);
+      const account = await login(phone.trim(), password);
+      continueAfterSignIn(account, next);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         setError("رقم الهاتف أو كلمة المرور غير صحيحة");
@@ -43,6 +48,7 @@ export default function LoginScreen() {
 
   return (
     <ScreenBackground style={styles.screen}>
+      <AuthBackBar />
       {/* "padding" on Android too — see register.tsx. */}
       <KeyboardAvoidingView
         behavior="padding"
@@ -89,7 +95,14 @@ export default function LoginScreen() {
             نسيت كلمة المرور؟
           </Link>
 
-          <Link href="/register" style={styles.link}>
+          {/* `replace`, so switching between the two forms never stacks them
+              up — and `next` travels along, so a padlock still ends on
+              /unlock whichever form the guest finishes on. */}
+          <Link
+            href={{ pathname: "/register", params: next ? { next } : {} }}
+            replace
+            style={styles.link}
+          >
             ليس لديك حساب؟ <Text style={styles.linkStrong}>سجّل الآن</Text>
           </Link>
         </ScrollView>

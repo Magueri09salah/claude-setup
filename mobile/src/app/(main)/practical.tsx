@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 import { api } from "@/api/client";
+import { useAuth } from "@/auth/AuthContext";
+import { useOpenLocked } from "@/auth/useOpenLocked";
 import {
   FullscreenVideo,
   InlineVideo,
@@ -49,6 +51,8 @@ function sizeLabel(bytes: number | null): string | null {
 // straight from home. Streamed like the lesson videos, so this screen needs a
 // connection and says so plainly when there isn't one.
 export default function PracticalScreen() {
+  const { user } = useAuth();
+  const openLocked = useOpenLocked();
   // Same reasoning as the video lessons: these are gated, streamed and never
   // written to disk, so a screen recording is the whole file. Guarded even
   // though the LIST also shows locked rows — the posters are deliberately
@@ -65,8 +69,8 @@ export default function PracticalScreen() {
   const [failed, setFailed] = useState(false);
   const [activeId, setActiveId] = useState<number | null>(null);
 
-  // A locked video can never become active (the card routes to /unlock
-  // instead), so the player is only ever handed a url it is allowed to play.
+  // A locked video can never become active (the card routes to sign-up or
+  // /unlock instead), so the player is only ever handed a url it is allowed to play.
   const active = videos?.find((v) => v.id === activeId) ?? null;
   const player = useVideoPlayer(active?.url ?? null, (p) => {
     p.play();
@@ -86,9 +90,15 @@ export default function PracticalScreen() {
     }
   }, []);
 
+  // Re-asked whenever the account changes: `locked` is decided server-side per
+  // caller, and this screen stays mounted under the register screen a guest
+  // opens from a padlocked card (guest mode, 2026-11-12). Without the reload a
+  // candidate the allowlist opened on sign-up would come back to the guest's
+  // locked list.
+  const accountKey = user ? `${user.id}:${user.isPremium ? 1 : 0}` : "guest";
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, accountKey]);
 
   return (
     <ScreenBackground style={styles.screen}>
@@ -150,7 +160,7 @@ export default function PracticalScreen() {
               <PressableScale
                 key={v.id}
                 onPress={() =>
-                  v.locked ? router.push("/unlock") : setActiveId(v.id)
+                  v.locked ? openLocked() : setActiveId(v.id)
                 }
                 style={[
                   styles.card,

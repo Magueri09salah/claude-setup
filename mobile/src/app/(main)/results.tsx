@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { useOpenLocked } from "@/auth/useOpenLocked";
 import { lastAdStatus } from "@/ads/interstitial";
 import { Icon } from "@/components/Icon";
 import Animated, { Easing, FadeIn, FadeInDown } from "react-native-reanimated";
@@ -17,6 +18,7 @@ const LANE_DASHES = 10;
 const TILE = 56;
 
 export default function ResultsScreen() {
+  const openLocked = useOpenLocked();
   const params = useLocalSearchParams<{ attemptId: string }>();
   const attempt = params.attemptId ? getAttempt(params.attemptId) : null;
   // Rotated, the last button used to end up under the home indicator — and on
@@ -82,7 +84,8 @@ export default function ResultsScreen() {
       backToList();
       return;
     }
-    router.replace(series.locked === 1 ? "/unlock" : `/quiz/${series.id}`);
+    if (series.locked === 1) openLocked({ replace: true });
+    else router.replace(`/quiz/${series.id}`);
   };
 
   return (
