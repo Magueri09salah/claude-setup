@@ -33,6 +33,7 @@
     },
     "android": {
       "package": "com.codeboujida.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#141519",
         "foregroundImage": "./assets/images/app-icon-adaptive.png"

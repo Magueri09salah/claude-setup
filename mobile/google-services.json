@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "155046434201",
+    "project_id": "codeboujida-f0014",
+    "storage_bucket": "codeboujida-f0014.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155046434201:android:db06ac6390b992b920af08",
+        "android_client_info": {
+          "package_name": "com.codeboujida.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRZXizEZGqGb_5qQbwkjrIHtZcFV-eNfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
