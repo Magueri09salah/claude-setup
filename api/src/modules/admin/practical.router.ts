@@ -126,6 +126,61 @@ practicalRouter.patch("/practical-videos/:id", async (req, res) => {
   res.json({ video });
 });
 
+// Cover only, 5MB like every other picture in the panel — NOT the 500MB video
+// multer above, which would let a "poster" be a whole film.
+const posterUpload = multer({
+  storage: multer.diskStorage({ destination: os.tmpdir() }),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+});
+
+/**
+ * Replace a video's cover (owner request 2026-11-14). Before this a wrong
+ * poster meant deleting and re-uploading the whole video. The key is NEW every
+ * time (_v2, _v3 …): keys are immutable, so nothing can keep serving the old
+ * picture under the same name. The old object stays in storage, like every
+ * other replace/delete in the panel. Phones see it the next time the screen
+ * opens — /content/practical-videos is fetched live, no «نشر» involved.
+ */
+practicalRouter.put(
+  "/practical-videos/:id/thumb",
+  posterUpload.single("thumb"),
+  async (req, res) => {
+    const id = idParam.parse(req.params.id);
+    const thumb = req.file;
+    if (!thumb) throw new ApiError(400, "Missing file field 'thumb'");
+    const ext = ALLOWED_IMAGE[thumb.mimetype];
+    if (!ext) {
+      throw new ApiError(415, "Unsupported poster type — webp/png/jpg only");
+    }
+    const existing = await prisma.practicalVideo.findUnique({ where: { id } });
+    if (!existing) throw new ApiError(404, "Video not found");
+
+    const base = `practical/${existing.orderNum}_poster`;
+    let thumbKey = `${base}.${ext}`;
+    for (let v = 2; await storage.exists(thumbKey); v++) {
+      thumbKey = `${base}_v${v}.${ext}`;
+    }
+    await storage.putFile(thumbKey, thumb.path, thumb.mimetype);
+    const video = await prisma.practicalVideo.update({
+      where: { id },
+      data: { thumbKey },
+    });
+    res.json({ video });
+  },
+);
+
+/** Remove a video's cover; the app then shows its plain placeholder. */
+practicalRouter.delete("/practical-videos/:id/thumb", async (req, res) => {
+  const id = idParam.parse(req.params.id);
+  const existing = await prisma.practicalVideo.findUnique({ where: { id } });
+  if (!existing) throw new ApiError(404, "Video not found");
+  const video = await prisma.practicalVideo.update({
+    where: { id },
+    data: { thumbKey: null },
+  });
+  res.json({ video });
+});
+
 practicalRouter.post("/practical-videos/reorder", async (req, res) => {
   const { orderedIds } = reorderIdsSchema.parse(req.body);
   if (new Set(orderedIds).size !== orderedIds.length) {

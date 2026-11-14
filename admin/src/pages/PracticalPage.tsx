@@ -18,6 +18,7 @@ import {
 } from "@mantine/core";
 import {
   IconInfoCircle,
+  IconPencil,
   IconTrash,
   IconVideo,
   IconVideoPlus,
@@ -45,6 +46,16 @@ export function PracticalPage() {
   const [isPremium, setIsPremium] = useState(true);
   const [progress, setProgress] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PracticalVideo | null>(null);
+
+  // ✏️ edit (owner request 2026-11-14): title + cover. The video file itself
+  // is never replaced here — that is delete + upload again.
+  const [editTarget, setEditTarget] = useState<PracticalVideo | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPoster, setEditPoster] = useState<File | null>(null);
+  const [editPosterPreview, setEditPosterPreview] = useState<string | null>(null);
+  // The admin pressed «إزالة» on the video's CURRENT cover.
+  const [posterRemoved, setPosterRemoved] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -101,6 +112,67 @@ export function PracticalPage() {
       setProgress(null);
     }
   };
+
+  const pickEditPoster = (f: File | null) => {
+    setEditPoster(f);
+    setEditPosterPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return f ? URL.createObjectURL(f) : null;
+    });
+  };
+
+  const openEdit = (v: PracticalVideo) => {
+    setEditTarget(v);
+    setEditTitle(v.title);
+    pickEditPoster(null);
+    setPosterRemoved(false);
+  };
+
+  const closeEdit = () => {
+    setEditTarget(null);
+    pickEditPoster(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editTarget || !editTitle.trim()) return;
+    setSavingEdit(true);
+    try {
+      await api(`/admin/practical-videos/${editTarget.id}`, {
+        method: "PATCH",
+        json: { title: editTitle.trim() },
+      });
+      if (editPoster) {
+        const fd = new FormData();
+        fd.append("thumb", editPoster);
+        await api(`/admin/practical-videos/${editTarget.id}/thumb`, {
+          method: "PUT",
+          formData: fd,
+        });
+      } else if (posterRemoved && editTarget.thumbKey) {
+        await api(`/admin/practical-videos/${editTarget.id}/thumb`, {
+          method: "DELETE",
+        });
+      }
+      notifySuccess("تم الحفظ", `عُدّل الفيديو «${editTitle.trim()}»`);
+      closeEdit();
+      await load();
+    } catch (e) {
+      notifyError(e);
+      // The title may have saved before the cover failed — show what is real.
+      await load();
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // The cover the edit modal shows: a freshly picked file first, else the
+  // current one unless the admin removed it.
+  const editCoverShown =
+    editPosterPreview ??
+    (editTarget?.thumbKey && !posterRemoved
+      ? mediaUrl(thumbs[editTarget.thumbKey])
+      : undefined) ??
+    null;
 
   const togglePremium = async (v: PracticalVideo, value: boolean) => {
     try {
@@ -274,6 +346,14 @@ export function PracticalPage() {
                       </ActionIcon>
                       <ActionIcon
                         variant="subtle"
+                        color="gray"
+                        aria-label="تعديل"
+                        onClick={() => openEdit(v)}
+                      >
+                        <IconPencil size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        variant="subtle"
                         color="red"
                         aria-label="حذف"
                         onClick={() => setDeleteTarget(v)}
@@ -398,6 +478,99 @@ export function PracticalPage() {
               onClick={() => void add()}
             >
               رفع الفيديو
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={editTarget !== null}
+        onClose={() => !savingEdit && closeEdit()}
+        title={editTarget ? `تعديل «${editTarget.title}»` : "تعديل الفيديو"}
+        centered
+      >
+        <Stack>
+          <TextInput
+            label="عنوان الفيديو"
+            data-autofocus
+            value={editTitle}
+            disabled={savingEdit}
+            onChange={(e) => setEditTitle(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && editTitle.trim()) void saveEdit();
+            }}
+          />
+
+          <div>
+            <Text size="sm" fw={500} mb={4}>
+              صورة الغلاف
+            </Text>
+            {editCoverShown ? (
+              <Image
+                src={editCoverShown}
+                h={140}
+                fit="contain"
+                radius="sm"
+                bg="var(--zinc-100)"
+                mb="xs"
+              />
+            ) : (
+              <Text size="xs" c="dimmed" mb="xs">
+                لا توجد صورة — يظهر الفيديو بصورة افتراضية في التطبيق.
+              </Text>
+            )}
+            <Group gap="xs">
+              <Button
+                component="label"
+                variant="light"
+                size="compact-sm"
+                disabled={savingEdit}
+              >
+                {editCoverShown ? "تغيير الصورة" : "اختيار صورة"}
+                <input
+                  type="file"
+                  accept="image/webp,image/png,image/jpeg"
+                  hidden
+                  onChange={(e) => {
+                    pickEditPoster(e.currentTarget.files?.[0] ?? null);
+                    // Lets the same file be picked again after «إزالة».
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </Button>
+              {editCoverShown && (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="compact-sm"
+                  disabled={savingEdit}
+                  // A freshly picked file goes first (back to the current
+                  // cover); a second press removes the current cover itself.
+                  onClick={() =>
+                    editPoster ? pickEditPoster(null) : setPosterRemoved(true)
+                  }
+                >
+                  إزالة
+                </Button>
+              )}
+            </Group>
+          </div>
+
+          <Text size="xs" c="dimmed">
+            ملف الفيديو نفسه لا يتغيّر. لاستبداله احذفه ثم ارفعه من جديد.
+            التعديل يظهر في التطبيق مباشرة، دون «نشر».
+          </Text>
+
+          <Group justify="flex-end">
+            <Button variant="default" disabled={savingEdit} onClick={closeEdit}>
+              إلغاء
+            </Button>
+            <Button
+              loading={savingEdit}
+              disabled={!editTitle.trim()}
+              onClick={() => void saveEdit()}
+            >
+              حفظ
             </Button>
           </Group>
         </Stack>
