@@ -24,6 +24,7 @@ import {
   IconChevronLeft,
   IconFolder,
   IconFolderPlus,
+  IconPencil,
   IconPhoto,
   IconTrash,
   IconVideo,
@@ -103,6 +104,19 @@ export function LessonsPage() {
   const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
   const [bulkDelete, setBulkDelete] = useState<"cats" | "lessons" | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // EDIT MODE (owner request 2026-11-14, typos at every level): the create
+  // modals double as edit modals. null = the modal creates; a row = it edits
+  // that row through the PATCH routes the API already had.
+  const [editCat, setEditCat] = useState<Category | null>(null);
+  const [editLesson, setEditLesson] = useState<Lesson | null>(null);
+  // Editing only: the admin pressed «إزالة» on the lesson's EXISTING cover.
+  const [coverRemoved, setCoverRemoved] = useState(false);
+  const [editSign, setEditSign] = useState<Sign | null>(null);
+  // Signed url of the sign picture shown in the modal (current or just uploaded).
+  const [signPreview, setSignPreview] = useState<string | null>(null);
+  const [editVideo, setEditVideo] = useState<LessonVideo | null>(null);
+  const [editVideoTitle, setEditVideoTitle] = useState("");
 
   const currentCat = path.length > 0 ? path[path.length - 1]! : null;
 
@@ -197,14 +211,41 @@ export function LessonsPage() {
     setName("");
     setImageKey(null);
     setAudioKey(null);
+    setSignPreview(null);
   };
 
   // ---- create -------------------------------------------------------------
 
   const openCatModal = () => {
+    setEditCat(null);
     setCatTitle("");
     setCatPremium(false);
     setCatModal(true);
+  };
+
+  const openEditCat = (c: Category) => {
+    setEditCat(c);
+    setCatTitle(c.title);
+    setCatPremium(c.isPremium);
+    setCatModal(true);
+  };
+
+  const saveCategory = async () => {
+    if (!editCat || !catTitle.trim()) return;
+    setSaving(true);
+    try {
+      await api(`/admin/categories/${editCat.id}`, {
+        method: "PATCH",
+        json: { title: catTitle.trim(), isPremium: catPremium },
+      });
+      notifySuccess("تم الحفظ", "عُدّلت الفئة — اضغط «نشر» لتحديث التطبيقات");
+      setCatModal(false);
+      await loadCategories();
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const createCategory = async () => {
@@ -240,10 +281,60 @@ export function LessonsPage() {
   };
 
   const openLessonModal = () => {
+    setEditLesson(null);
+    setCoverRemoved(false);
     setLessonTitle("");
     setLessonKind("SIGNS");
     pickLessonCover(null);
     setLessonModal(true);
+  };
+
+  const openEditLesson = (l: Lesson) => {
+    setEditLesson(l);
+    setCoverRemoved(false);
+    setLessonTitle(l.title);
+    setLessonKind(l.kind);
+    pickLessonCover(null);
+    setLessonModal(true);
+  };
+
+  const saveLesson = async () => {
+    if (!editLesson || !lessonTitle.trim()) return;
+    setSaving(true);
+    try {
+      // undefined = leave the cover alone; null = remove it; a key = replace it.
+      // Unlike create, a failed upload fails the save: the admin asked for a
+      // new picture and must not be told «تم الحفظ» without it.
+      let imageKey: string | null | undefined;
+      if (lessonCover) {
+        const fd = new FormData();
+        fd.append("lessonId", String(editLesson.id));
+        fd.append("purpose", "cover");
+        fd.append("file", lessonCover);
+        const up = await api<{ key: string }>("/admin/upload", {
+          method: "POST",
+          formData: fd,
+        });
+        imageKey = up.key;
+      } else if (coverRemoved && editLesson.imageKey) {
+        imageKey = null;
+      }
+      await api(`/admin/lessons/${editLesson.id}`, {
+        method: "PATCH",
+        json: {
+          title: lessonTitle.trim(),
+          ...(imageKey !== undefined ? { imageKey } : {}),
+        },
+      });
+      notifySuccess("تم الحفظ", "عُدّل الدرس — اضغط «نشر» لتحديث التطبيقات");
+      setLessonModal(false);
+      pickLessonCover(null);
+      if (currentCat) await loadLessons(currentCat.id);
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const createLesson = async () => {
@@ -291,8 +382,59 @@ export function LessonsPage() {
   };
 
   const openSignModal = () => {
+    setEditSign(null);
     resetSignForm();
     setSignModal(true);
+  };
+
+  const openEditSign = (s: Sign) => {
+    setEditSign(s);
+    setName(s.name);
+    setImageKey(s.imageKey);
+    setAudioKey(s.audioKey ?? null);
+    setSignPreview(thumbs[s.imageKey] ?? null);
+    setSignModal(true);
+  };
+
+  const saveSign = async () => {
+    if (!editSign || !selectedLesson || !name.trim() || !imageKey) return;
+    setSaving(true);
+    try {
+      await api(`/admin/signs/${editSign.id}`, {
+        method: "PATCH",
+        json: { name: name.trim(), imageKey, audioKey: audioKey ?? null },
+      });
+      notifySuccess("تم الحفظ", `عُدّلت العلامة «${name.trim()}»`);
+      setSignModal(false);
+      await loadSigns(selectedLesson);
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEditVideo = (v: LessonVideo) => {
+    setEditVideo(v);
+    setEditVideoTitle(v.title);
+  };
+
+  const saveVideo = async () => {
+    if (!editVideo || !selectedLesson || !editVideoTitle.trim()) return;
+    setSaving(true);
+    try {
+      await api(`/admin/videos/${editVideo.id}`, {
+        method: "PATCH",
+        json: { title: editVideoTitle.trim() },
+      });
+      notifySuccess("تم الحفظ", "عُدّل عنوان الفيديو");
+      setEditVideo(null);
+      await loadVideos(selectedLesson.id);
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openVideoModal = () => {
@@ -368,14 +510,18 @@ export function LessonsPage() {
     try {
       const fd = new FormData();
       fd.append("lessonId", String(selectedLesson.id));
-      fd.append("slot", String(signs.length + 1));
+      // Editing re-uses the sign's own slot; the server still never overwrites
+      // (it hands out _v2, _v3 …), so phones cannot keep a stale cached file.
+      fd.append("slot", String(editSign ? editSign.orderNum : signs.length + 1));
       fd.append("file", file);
-      const r = await api<{ key: string }>("/admin/upload", {
+      const r = await api<{ key: string; url: string }>("/admin/upload", {
         method: "POST",
         formData: fd,
       });
-      if (kind === "image") setImageKey(r.key);
-      else setAudioKey(r.key);
+      if (kind === "image") {
+        setImageKey(r.key);
+        setSignPreview(r.url);
+      } else setAudioKey(r.key);
     } catch (e) {
       notifyError(e);
     } finally {
@@ -514,6 +660,15 @@ export function LessonsPage() {
       setDeleting(false);
     }
   };
+
+  // The lesson modal's picture: a freshly picked file first, else (editing) the
+  // lesson's current cover unless the admin pressed «إزالة» on it.
+  const lessonCoverShown =
+    lessonCoverPreview ??
+    (editLesson && !coverRemoved && editLesson.imageKey
+      ? mediaUrl(lessonThumbs[editLesson.imageKey])
+      : undefined) ??
+    null;
 
   // ---- breadcrumb ---------------------------------------------------------
 
@@ -692,6 +847,14 @@ export function LessonsPage() {
                         </ActionIcon>
                         <ActionIcon
                           variant="subtle"
+                          color="gray"
+                          aria-label="تعديل"
+                          onClick={() => openEditVideo(v)}
+                        >
+                          <IconPencil size={15} />
+                        </ActionIcon>
+                        <ActionIcon
+                          variant="subtle"
                           color="red"
                           aria-label="حذف"
                           onClick={() => setDeleteVideo(v)}
@@ -758,6 +921,15 @@ export function LessonsPage() {
                   <ActionIcon
                     variant="subtle"
                     size="sm"
+                    color="gray"
+                    aria-label="تعديل"
+                    onClick={() => openEditSign(s)}
+                  >
+                    <IconPencil size={14} />
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="subtle"
+                    size="sm"
                     color="red"
                     aria-label="حذف"
                     onClick={() => setDeleteTarget(s)}
@@ -814,6 +986,18 @@ export function LessonsPage() {
                           مدفوع
                         </Badge>
                       )}
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        color="gray"
+                        aria-label={`تعديل «${c.title}»`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditCat(c);
+                        }}
+                      >
+                        <IconPencil size={15} />
+                      </ActionIcon>
                       <SelectBox
                         label={`تحديد «${c.title}»`}
                         checked={selectedCats.includes(c.id)}
@@ -888,15 +1072,28 @@ export function LessonsPage() {
                     {/* LAST child on purpose: Mantine only bleeds a Card.Section
                         to the top edge while it is the FIRST child. Absolute,
                         so it still sits over the cover's top-left corner. */}
-                    <div
+                    <Group
+                      gap={6}
+                      wrap="nowrap"
                       style={{ position: "absolute", top: 8, left: 8, zIndex: 1 }}
                     >
+                      <ActionIcon
+                        variant="default"
+                        size="sm"
+                        aria-label={`تعديل «${l.title}»`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditLesson(l);
+                        }}
+                      >
+                        <IconPencil size={14} />
+                      </ActionIcon>
                       <SelectBox
                         label={`تحديد «${l.title}»`}
                         checked={selectedLessons.includes(l.id)}
                         onChange={(on) => toggleLesson(l.id, on)}
                       />
-                    </div>
+                    </Group>
                   </Card>
                 ))}
               </SimpleGrid>
@@ -1019,9 +1216,43 @@ export function LessonsPage() {
       </Modal>
 
       <Modal
+        opened={editVideo !== null}
+        onClose={() => setEditVideo(null)}
+        title="تعديل عنوان الفيديو"
+        centered
+      >
+        <Stack>
+          <TextInput
+            label="عنوان الفيديو"
+            data-autofocus
+            value={editVideoTitle}
+            onChange={(e) => setEditVideoTitle(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && editVideoTitle.trim()) void saveVideo();
+            }}
+          />
+          <Text size="xs" c="dimmed">
+            الفيديو نفسه لا يتغيّر. لاستبداله احذفه ثم ارفع فيديو جديداً.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setEditVideo(null)}>
+              إلغاء
+            </Button>
+            <Button
+              loading={saving}
+              disabled={!editVideoTitle.trim()}
+              onClick={() => void saveVideo()}
+            >
+              حفظ
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
         opened={catModal}
         onClose={() => setCatModal(false)}
-        title="فئة جديدة"
+        title={editCat ? `تعديل الفئة «${editCat.title}»` : "فئة جديدة"}
         centered
       >
         <Stack>
@@ -1033,7 +1264,9 @@ export function LessonsPage() {
             value={catTitle}
             onChange={(e) => setCatTitle(e.currentTarget.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && catTitle.trim()) void createCategory();
+              if (e.key === "Enter" && catTitle.trim()) {
+                void (editCat ? saveCategory() : createCategory());
+              }
             }}
           />
           <Checkbox
@@ -1048,9 +1281,9 @@ export function LessonsPage() {
             <Button
               loading={saving}
               disabled={!catTitle.trim()}
-              onClick={() => void createCategory()}
+              onClick={() => void (editCat ? saveCategory() : createCategory())}
             >
-              إنشاء
+              {editCat ? "حفظ" : "إنشاء"}
             </Button>
           </Group>
         </Stack>
@@ -1059,7 +1292,13 @@ export function LessonsPage() {
       <Modal
         opened={lessonModal}
         onClose={() => setLessonModal(false)}
-        title={currentCat ? `درس جديد في «${currentCat.title}»` : "درس جديد"}
+        title={
+          editLesson
+            ? `تعديل الدرس «${editLesson.title}»`
+            : currentCat
+              ? `درس جديد في «${currentCat.title}»`
+              : "درس جديد"
+        }
         centered
       >
         <Stack>
@@ -1071,7 +1310,9 @@ export function LessonsPage() {
             value={lessonTitle}
             onChange={(e) => setLessonTitle(e.currentTarget.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && lessonTitle.trim()) void createLesson();
+              if (e.key === "Enter" && lessonTitle.trim()) {
+                void (editLesson ? saveLesson() : createLesson());
+              }
             }}
           />
 
@@ -1085,6 +1326,9 @@ export function LessonsPage() {
             value={lessonKind}
             onChange={(v) => v && setLessonKind(v as LessonKind)}
             allowDeselect={false}
+            // Signs and videos are different children; the API has no way to
+            // change the kind, so the field is shown but frozen when editing.
+            disabled={editLesson !== null}
           />
 
           <div>
@@ -1094,9 +1338,9 @@ export function LessonsPage() {
             <Text size="xs" c="dimmed" mb="xs">
              تظهر على بطاقة الدرس في التطبيق.
             </Text>
-            {lessonCoverPreview ? (
+            {lessonCoverShown ? (
               <Image
-                src={lessonCoverPreview}
+                src={lessonCoverShown}
                 h={140}
                 fit="contain"
                 radius="sm"
@@ -1111,16 +1355,20 @@ export function LessonsPage() {
               >
                 {(props) => (
                   <Button {...props} variant="light" size="compact-sm">
-                    {lessonCover ? "تغيير الصورة" : "رفع صورة"}
+                    {lessonCoverShown ? "تغيير الصورة" : "رفع صورة"}
                   </Button>
                 )}
               </FileButton>
-              {lessonCover && (
+              {lessonCoverShown && (
                 <Button
                   variant="subtle"
                   color="red"
                   size="compact-sm"
-                  onClick={() => pickLessonCover(null)}
+                  // A freshly picked file goes first (back to the current
+                  // cover); a second press removes the current cover itself.
+                  onClick={() =>
+                    lessonCover ? pickLessonCover(null) : setCoverRemoved(true)
+                  }
                 >
                   إزالة
                 </Button>
@@ -1135,9 +1383,9 @@ export function LessonsPage() {
             <Button
               loading={saving}
               disabled={!lessonTitle.trim()}
-              onClick={() => void createLesson()}
+              onClick={() => void (editLesson ? saveLesson() : createLesson())}
             >
-              إنشاء
+              {editLesson ? "حفظ" : "إنشاء"}
             </Button>
           </Group>
         </Stack>
@@ -1147,9 +1395,11 @@ export function LessonsPage() {
         opened={signModal}
         onClose={() => setSignModal(false)}
         title={
-          selectedLesson
-            ? `علامة جديدة في «${selectedLesson.title}»`
-            : "علامة جديدة"
+          editSign
+            ? `تعديل العلامة «${editSign.name}»`
+            : selectedLesson
+              ? `علامة جديدة في «${selectedLesson.title}»`
+              : "علامة جديدة"
         }
         centered
       >
@@ -1162,6 +1412,15 @@ export function LessonsPage() {
             value={name}
             onChange={(e) => setName(e.currentTarget.value)}
           />
+          {signPreview && (
+            <Image
+              src={mediaUrl(signPreview)}
+              h={120}
+              fit="contain"
+              radius="sm"
+              bg="var(--zinc-100)"
+            />
+          )}
           <Group grow align="flex-end">
             <FileButton
               onChange={(f) => void upload(f, "image")}
@@ -1169,7 +1428,7 @@ export function LessonsPage() {
             >
               {(props) => (
                 <Button {...props} variant="light" loading={uploadingImage}>
-                  {imageKey ? "✓ الصورة" : "رفع صورة *"}
+                  {imageKey ? (editSign ? "تغيير الصورة" : "✓ الصورة") : "رفع صورة *"}
                 </Button>
               )}
             </FileButton>
@@ -1179,11 +1438,26 @@ export function LessonsPage() {
             >
               {(props) => (
                 <Button {...props} variant="light" loading={uploadingAudio}>
-                  {audioKey ? "✓ الصوت" : "رفع صوت (اختياري)"}
+                  {audioKey
+                    ? editSign
+                      ? "تغيير الصوت"
+                      : "✓ الصوت"
+                    : "رفع صوت (اختياري)"}
                 </Button>
               )}
             </FileButton>
           </Group>
+          {audioKey && (
+            <Button
+              variant="subtle"
+              color="red"
+              size="compact-sm"
+              style={{ alignSelf: "flex-start" }}
+              onClick={() => setAudioKey(null)}
+            >
+              إزالة الصوت
+            </Button>
+          )}
           <Text size="xs" c="dimmed">
             الصورة إجبارية، والصوت اختياري ويُشغَّل عند الضغط على العلامة في
             التطبيق.
@@ -1194,10 +1468,12 @@ export function LessonsPage() {
             </Button>
             <Button
               loading={saving}
-              disabled={!name.trim() || !imageKey}
-              onClick={() => void addSign()}
+              disabled={
+                !name.trim() || !imageKey || uploadingImage || uploadingAudio
+              }
+              onClick={() => void (editSign ? saveSign() : addSign())}
             >
-              إضافة العلامة
+              {editSign ? "حفظ" : "إضافة العلامة"}
             </Button>
           </Group>
         </Stack>
