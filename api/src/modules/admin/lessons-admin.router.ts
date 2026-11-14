@@ -3,6 +3,7 @@ import { Router } from "express";
 import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
 import {
+  bulkIdsSchema,
   createCategorySchema,
   createLessonSchema,
   createSignSchema,
@@ -74,6 +75,54 @@ lessonsAdminRouter.patch("/categories/:id", async (req, res) => {
   }
 });
 
+/**
+ * Bulk delete of folders — checkboxes on the الفئات page (owner request
+ * 2026-11-14). A folder goes WITH EVERYTHING INSIDE IT (owner decision): its
+ * lessons, their signs and videos, and any legacy sub-folder from before the
+ * three-level model. All or nothing: one unknown id rejects the whole request,
+ * and the deletes share one transaction.
+ *
+ * Order matters: Lesson → LessonCategory is ON DELETE RESTRICT, so lessons
+ * first. LessonSign / LessonVideo cascade from Lesson in the database itself.
+ * Storage files are left in place, like every other delete in the panel.
+ * Phones drop the rows at their next sync AFTER «نشر», which prunes absentees.
+ */
+lessonsAdminRouter.post("/categories/delete", async (req, res) => {
+  const { ids } = bulkIdsSchema.parse(req.body);
+  const unique = [...new Set(ids)];
+
+  const found = await prisma.lessonCategory.count({
+    where: { id: { in: unique } },
+  });
+  if (found !== unique.length) {
+    throw new ApiError(404, "بعض الفئات غير موجودة");
+  }
+
+  // Walk down the tree (max depth is 2 today, the loop does not rely on it).
+  const all = new Set(unique);
+  let frontier = unique;
+  while (frontier.length > 0) {
+    const kids = await prisma.lessonCategory.findMany({
+      where: { parentId: { in: frontier } },
+      select: { id: true },
+    });
+    frontier = kids.map((k) => k.id).filter((id) => !all.has(id));
+    for (const id of frontier) all.add(id);
+  }
+  const categoryIds = [...all];
+
+  const result = await prisma.$transaction(async (tx) => {
+    const lessons = await tx.lesson.deleteMany({
+      where: { categoryId: { in: categoryIds } },
+    });
+    const categories = await tx.lessonCategory.deleteMany({
+      where: { id: { in: categoryIds } },
+    });
+    return { categories: categories.count, lessons: lessons.count };
+  });
+  res.json(result);
+});
+
 /* ---------- Lessons ---------- */
 
 lessonsAdminRouter.get("/lessons", async (req, res) => {
@@ -118,6 +167,24 @@ lessonsAdminRouter.patch("/lessons/:id", async (req, res) => {
     if (isP2025(e)) throw new ApiError(404, "Lesson not found");
     throw e;
   }
+});
+
+/**
+ * Bulk delete of lessons — checkboxes inside a folder (owner request
+ * 2026-11-14). Signs and videos go with them through the database's own
+ * ON DELETE CASCADE. All or nothing, same as /categories/delete.
+ */
+lessonsAdminRouter.post("/lessons/delete", async (req, res) => {
+  const { ids } = bulkIdsSchema.parse(req.body);
+  const unique = [...new Set(ids)];
+  const deleted = await prisma.$transaction(async (tx) => {
+    const found = await tx.lesson.count({ where: { id: { in: unique } } });
+    if (found !== unique.length) {
+      throw new ApiError(404, "بعض الدروس غير موجودة");
+    }
+    return tx.lesson.deleteMany({ where: { id: { in: unique } } });
+  });
+  res.json({ deleted: deleted.count });
 });
 
 /* ---------- Signs (image + name + audio flashcards) ---------- */

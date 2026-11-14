@@ -25,6 +25,7 @@ import {
   IconFolder,
   IconFolderPlus,
   IconPhoto,
+  IconTrash,
   IconVideo,
   IconVideoPlus,
   IconVolume,
@@ -96,7 +97,21 @@ export function LessonsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Sign | null>(null);
 
+  // Checkbox selections for bulk delete (owner request 2026-11-14): folders on
+  // page 1 (and legacy sub-folders on page 2), lessons on page 2.
+  const [selectedCats, setSelectedCats] = useState<number[]>([]);
+  const [selectedLessons, setSelectedLessons] = useState<number[]>([]);
+  const [bulkDelete, setBulkDelete] = useState<"cats" | "lessons" | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const currentCat = path.length > 0 ? path[path.length - 1]! : null;
+
+  // A selection belongs to the page it was made on — never carry ticks into
+  // another folder, where they would delete things the admin cannot see.
+  useEffect(() => {
+    setSelectedCats([]);
+    setSelectedLessons([]);
+  }, [currentCat, selectedLesson]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -425,6 +440,81 @@ export function LessonsPage() {
     categories.filter((c) => (c.parentId ?? null) === id);
   const visibleCats = childrenOf(currentCat?.id ?? null);
 
+  // ---- bulk delete ----------------------------------------------------------
+
+  const toggleIn =
+    (set: (fn: (prev: number[]) => number[]) => void) =>
+    (id: number, on: boolean) =>
+      set((prev) => (on ? [...prev, id] : prev.filter((x) => x !== id)));
+  const toggleCat = toggleIn(setSelectedCats);
+  const toggleLesson = toggleIn(setSelectedLessons);
+
+  // What a folder delete really takes with it: the server also removes legacy
+  // sub-folders and their lessons, so the confirm counts them too.
+  const catsBeingDeleted = (() => {
+    const all = new Set(selectedCats);
+    let frontier = selectedCats;
+    while (frontier.length > 0) {
+      frontier = categories
+        .filter((c) => c.parentId != null && frontier.includes(c.parentId))
+        .map((c) => c.id)
+        .filter((id) => !all.has(id));
+      for (const id of frontier) all.add(id);
+    }
+    return categories.filter((c) => all.has(c.id));
+  })();
+  const lessonsInDeletedCats = catsBeingDeleted.reduce(
+    (n, c) => n + (c._count?.lessons ?? 0),
+    0,
+  );
+  const lessonsBeingDeleted = lessons.filter((l) =>
+    selectedLessons.includes(l.id),
+  );
+  const signsInDeletedLessons = lessonsBeingDeleted.reduce(
+    (n, l) => n + (l._count?.signs ?? 0),
+    0,
+  );
+  const videosInDeletedLessons = lessonsBeingDeleted.reduce(
+    (n, l) => n + (l._count?.videos ?? 0),
+    0,
+  );
+
+  const removeSelected = async () => {
+    if (!bulkDelete) return;
+    setDeleting(true);
+    try {
+      if (bulkDelete === "cats") {
+        const r = await api<{ categories: number; lessons: number }>(
+          "/admin/categories/delete",
+          { method: "POST", json: { ids: selectedCats } },
+        );
+        notifySuccess(
+          "تم الحذف",
+          `حُذفت ${r.categories} فئة و${r.lessons} درس — اضغط «نشر» لتحديث التطبيقات`,
+        );
+        setSelectedCats([]);
+      } else {
+        const r = await api<{ deleted: number }>("/admin/lessons/delete", {
+          method: "POST",
+          json: { ids: selectedLessons },
+        });
+        notifySuccess(
+          "تم الحذف",
+          `حُذف ${r.deleted} درس — اضغط «نشر» لتحديث التطبيقات`,
+        );
+        setSelectedLessons([]);
+        if (currentCat) await loadLessons(currentCat.id);
+      }
+      setBulkDelete(null);
+      // Folder cards show lesson counts, so both deletes refresh them.
+      await loadCategories();
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // ---- breadcrumb ---------------------------------------------------------
 
   const crumbs = [
@@ -693,21 +783,43 @@ export function LessonsPage() {
             </Card>
           )}
           {visibleCats.length > 0 && (
+            <SelectionBar
+              total={visibleCats.length}
+              selected={selectedCats.length}
+              onToggleAll={(on) =>
+                setSelectedCats(on ? visibleCats.map((c) => c.id) : [])
+              }
+              onDelete={() => setBulkDelete("cats")}
+            />
+          )}
+          {visibleCats.length > 0 && (
             <SimpleGrid cols={{ base: 2, sm: 3, lg: 4 }} spacing="md">
               {visibleCats.map((c) => (
                 <Card
                   key={c.id}
                   padding="lg"
                   style={{ cursor: "pointer" }}
+                  bg={
+                    selectedCats.includes(c.id)
+                      ? "var(--mantine-color-red-light)"
+                      : undefined
+                  }
                   onClick={() => setPath([...path, c])}
                 >
                   <Group justify="space-between" align="flex-start">
                     <IconFolder size={22} color="var(--zinc-500)" stroke={1.75} />
-                    {c.isPremium && (
-                      <Badge size="sm" color="grape" variant="light">
-                        مدفوع
-                      </Badge>
-                    )}
+                    <Group gap="xs">
+                      {c.isPremium && (
+                        <Badge size="sm" color="grape" variant="light">
+                          مدفوع
+                        </Badge>
+                      )}
+                      <SelectBox
+                        label={`تحديد «${c.title}»`}
+                        checked={selectedCats.includes(c.id)}
+                        onChange={(on) => toggleCat(c.id, on)}
+                      />
+                    </Group>
                   </Group>
                   <Text fw={600} mt="sm" lineClamp={2}>
                     {c.title}
@@ -727,12 +839,29 @@ export function LessonsPage() {
               <Text fw={600} fz="sm" mt="md">
                 الدروس
               </Text>
+              <SelectionBar
+                total={lessons.length}
+                selected={selectedLessons.length}
+                onToggleAll={(on) =>
+                  setSelectedLessons(on ? lessons.map((l) => l.id) : [])
+                }
+                onDelete={() => setBulkDelete("lessons")}
+              />
               <SimpleGrid cols={{ base: 3, sm: 4, lg: 6 }} spacing="md">
                 {lessons.map((l) => (
                   <Card
                     key={l.id}
                     padding="md"
-                    style={{ cursor: "pointer", textAlign: "center" }}
+                    style={{
+                      cursor: "pointer",
+                      textAlign: "center",
+                      position: "relative",
+                    }}
+                    bg={
+                      selectedLessons.includes(l.id)
+                        ? "var(--mantine-color-red-light)"
+                        : undefined
+                    }
                     onClick={() => openLesson(l)}
                   >
                     {/* Mirrors the app: the cover IS the card (owner sketch). */}
@@ -756,6 +885,18 @@ export function LessonsPage() {
                     <Text size="xs" c="dimmed">
                       {l._count?.signs ?? 0} علامة
                     </Text>
+                    {/* LAST child on purpose: Mantine only bleeds a Card.Section
+                        to the top edge while it is the FIRST child. Absolute,
+                        so it still sits over the cover's top-left corner. */}
+                    <div
+                      style={{ position: "absolute", top: 8, left: 8, zIndex: 1 }}
+                    >
+                      <SelectBox
+                        label={`تحديد «${l.title}»`}
+                        checked={selectedLessons.includes(l.id)}
+                        onChange={(on) => toggleLesson(l.id, on)}
+                      />
+                    </div>
                   </Card>
                 ))}
               </SimpleGrid>
@@ -1081,6 +1222,122 @@ export function LessonsPage() {
           </Button>
         </Group>
       </Modal>
+
+      <Modal
+        opened={bulkDelete !== null}
+        onClose={() => !deleting && setBulkDelete(null)}
+        title={
+          bulkDelete === "cats" ? "حذف الفئات المحددة" : "حذف الدروس المحددة"
+        }
+        centered
+      >
+        <Stack gap="sm">
+          {bulkDelete === "cats" ? (
+            <Text size="sm">
+              سيتم حذف {selectedCats.length} فئة نهائياً مع كل ما بداخلها:{" "}
+              <b>{lessonsInDeletedCats} درس</b> وكل علاماتها وفيديوهاتها
+              {catsBeingDeleted.length > selectedCats.length
+                ? `، و${catsBeingDeleted.length - selectedCats.length} قسم فرعي قديم`
+                : ""}
+              . لا يمكن التراجع عن هذا الإجراء.
+            </Text>
+          ) : (
+            <Text size="sm">
+              سيتم حذف {selectedLessons.length} درس نهائياً مع{" "}
+              <b>{signsInDeletedLessons} علامة</b> و
+              <b>{videosInDeletedLessons} فيديو</b>. لا يمكن التراجع عن هذا
+              الإجراء.
+            </Text>
+          )}
+          <Text size="xs" c="dimmed">
+            {(bulkDelete === "cats"
+              ? catsBeingDeleted.filter((c) => selectedCats.includes(c.id))
+              : lessonsBeingDeleted
+            )
+              .slice(0, 8)
+              .map((x) => x.title)
+              .join("، ")}
+            {(bulkDelete === "cats" ? selectedCats : selectedLessons).length > 8
+              ? " …"
+              : ""}
+          </Text>
+          <Text size="xs" c="dimmed">
+            اضغط «نشر» بعد الحذف لتحديث التطبيقات.
+          </Text>
+        </Stack>
+        <Group justify="flex-end" mt="lg">
+          <Button
+            variant="default"
+            disabled={deleting}
+            onClick={() => setBulkDelete(null)}
+          >
+            إلغاء
+          </Button>
+          <Button
+            color="red"
+            loading={deleting}
+            onClick={() => void removeSelected()}
+          >
+            حذف نهائي
+          </Button>
+        </Group>
+      </Modal>
     </Stack>
+  );
+}
+
+/** A card's checkbox. Its clicks must not reach the card, which opens on click. */
+function SelectBox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (on: boolean) => void;
+  label: string;
+}) {
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <Checkbox
+        aria-label={label}
+        checked={checked}
+        onChange={(e) => onChange(e.currentTarget.checked)}
+      />
+    </div>
+  );
+}
+
+/** «تحديد الكل» + the red delete button, above a selectable grid. */
+function SelectionBar({
+  total,
+  selected,
+  onToggleAll,
+  onDelete,
+}: {
+  total: number;
+  selected: number;
+  onToggleAll: (on: boolean) => void;
+  onDelete: () => void;
+}) {
+  const all = total > 0 && selected === total;
+  return (
+    <Group justify="space-between">
+      <Checkbox
+        label="تحديد الكل"
+        checked={all}
+        indeterminate={selected > 0 && !all}
+        onChange={(e) => onToggleAll(e.currentTarget.checked)}
+      />
+      <Button
+        size="xs"
+        color="red"
+        variant={selected > 0 ? "filled" : "default"}
+        leftSection={<IconTrash size={14} />}
+        disabled={selected === 0}
+        onClick={onDelete}
+      >
+        {selected > 0 ? `حذف (${selected})` : "حذف"}
+      </Button>
+    </Group>
   );
 }

@@ -160,3 +160,8 @@ export const updateSignSchema = z.strictObject({
 export const reorderIdsSchema = z.strictObject({
   orderedIds: z.array(z.number().int().positive()).min(1).max(500),
 });
+
+/** Body of the bulk-delete routes (checkbox selections on the lessons page). */
+export const bulkIdsSchema = z.strictObject({
+  ids: z.array(z.number().int().positive()).min(1).max(200),
+});
