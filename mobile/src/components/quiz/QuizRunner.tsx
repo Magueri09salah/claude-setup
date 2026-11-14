@@ -332,7 +332,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
               }
             >
               <Icon
-                name={audioPlaying ? "volumeOff" : "volume"}
+                name={audioPlaying ? "volume" : "volumeOff"}
                 size={22}
                 color={colors.text}
               />
@@ -472,7 +472,10 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             </Pressable>
           )}
           {/* One button, two jobs: it silences the reading while it is playing
-              and plays it again from the start once it has stopped. */}
+              and plays it again from the start once it has stopped. The ICON
+              shows the current STATE (🔊 = playing, 🔇 = silent), not the
+              action — owner decision 2026-11-14. The label still names the
+              action, which is what a screen reader should announce. */}
           <Pressable
             onPress={audioPlaying ? stopAudio : replay}
             hitSlop={10}
@@ -483,7 +486,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             }
           >
             <Icon
-              name={audioPlaying ? "volumeOff" : "volume"}
+              name={audioPlaying ? "volume" : "volumeOff"}
               size={18}
               color={colors.text}
             />
