@@ -9,7 +9,11 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -147,7 +151,14 @@ export function ImageViewer({ uri, visible, onClose, title }: Props) {
       supportedOrientations={["portrait", "landscape"]}
       statusBarTranslucent
     >
-      <View style={styles.screen}>
+      {/* REQUIRED, not decoration (owner report 2026-11-14: pinch and
+          double-tap did nothing on Android, so «إعادة الضبط» had nothing to
+          undo). An Android Modal is its own native window, outside the
+          GestureHandlerRootView in app/_layout.tsx, and gesture-handler only
+          receives touches through a root view above it — see
+          RNGestureHandlerRootView.kt, "modals are outside RN hierarchy". Any
+          other <Modal> holding a GestureDetector needs the same wrapper. */}
+      <GestureHandlerRootView style={styles.screen}>
         <View style={styles.bar}>
           <Pressable onPress={close} hitSlop={10} style={styles.barButton}>
             <Icon name="close" size={22} color={colors.text} />
@@ -196,7 +207,7 @@ export function ImageViewer({ uri, visible, onClose, title }: Props) {
             قرّب بإصبعين أو انقر مرتين للتكبير · اسحب للتحريك
           </Text>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
