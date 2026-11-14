@@ -4,7 +4,13 @@ import {
   setAudioModeAsync,
   type AudioPlayer,
 } from "expo-audio";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -259,13 +265,27 @@ export function QuizRunner({ source }: { source: QuizSource }) {
     </>
   );
 
+  // The overlays sit OUTSIDE both layouts, at one fixed place in the tree.
+  // Inside them they were the 2nd child in landscape and the 10th in portrait,
+  // so every rotation made React unmount the open ImageViewer and mount a new
+  // one — and its unmount cleanup calls unlockAsync(). That is how «أفقي» got
+  // undone the instant it took effect: lock landscape → quiz switches layout →
+  // viewer remounts → lock released → phone back upright (owner report
+  // 2026-11-14). Turning the phone by hand also flashed it and lost the zoom.
+  const withOverlays = (layout: ReactElement) => (
+    <>
+      {layout}
+      {overlays}
+    </>
+  );
+
   /* ---------------------------- LANDSCAPE ----------------------------
      Three bands, exactly like the exam terminal the owner referenced:
      a left rail of non-answer controls · header + picture · answer column.
      Everything is sized from the space that is actually available, so nothing
      can spill off the screen the way fixed heights did.                     */
   if (isWide) {
-    return (
+    return withOverlays(
       <ScreenBackground style={styles.screen}>
         <View
           style={[
@@ -398,13 +418,12 @@ export function QuizRunner({ source }: { source: QuizSource }) {
             />
           </View>
         </View>
-        {overlays}
-      </ScreenBackground>
+      </ScreenBackground>,
     );
   }
 
   /* ----------------------------- PORTRAIT ----------------------------- */
-  return (
+  return withOverlays(
     <ScreenBackground style={styles.screen}>
       <View
         style={[styles.topBar, { marginTop: Math.max(insets.top, space.md) }]}
@@ -562,9 +581,7 @@ export function QuizRunner({ source }: { source: QuizSource }) {
           onClear={quiz.clear}
         />
       </View>
-
-      {overlays}
-    </ScreenBackground>
+    </ScreenBackground>,
   );
 }
 
