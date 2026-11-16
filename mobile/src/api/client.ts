@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { getDeviceId } from "../auth/deviceId";
 import { API_URL } from "../config";
 
 // Security checklist: tokens live in expo-secure-store ONLY, never AsyncStorage.
@@ -41,8 +42,21 @@ export class ApiError extends Error {
 // One phone per candidate account (API modules/auth/session.ts): a login on
 // another phone makes the server answer 401 with this code.
 export const SESSION_REPLACED = "SESSION_REPLACED";
+// First phone wins (2026-11-16): the account is tied to another phone. At
+// login it arrives as a 403 whose message the form shows as is.
+export const DEVICE_BOUND = "DEVICE_BOUND";
 
-export type SessionEndReason = "replaced" | "expired";
+export type SessionEndReason = "replaced" | "bound" | "expired";
+
+/**
+ * The phone id the server ties a candidate account to, as a header. Empty if it
+ * cannot be read: the server then treats this like an older app, which can
+ * still sign into an account that is not tied yet.
+ */
+async function deviceHeader(): Promise<Record<string, string>> {
+  const id = await getDeviceId().catch(() => null);
+  return id ? { "X-Device-Id": id } : {};
+}
 type SessionEndListener = (reason: SessionEndReason) => void;
 const sessionEndListeners = new Set<SessionEndListener>();
 
@@ -129,7 +143,9 @@ async function refreshSession(): Promise<void> {
   if (!refreshToken) throw new ApiError(401, "Session expired");
   const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    // The id here is what ties an account to the phone already signed in when
+    // this version arrives, before anyone else can log in with it.
+    headers: { "Content-Type": "application/json", ...(await deviceHeader()) },
     body: JSON.stringify({ refreshToken }),
   });
   // Only a 401 means the session is over. A 429 (the /auth/* limit is per IP,
@@ -139,7 +155,11 @@ async function refreshSession(): Promise<void> {
     const body = (await res.json().catch(() => ({}))) as { code?: string };
     await clearSession();
     const reason: SessionEndReason =
-      body.code === SESSION_REPLACED ? "replaced" : "expired";
+      body.code === SESSION_REPLACED
+        ? "replaced"
+        : body.code === DEVICE_BOUND
+          ? "bound"
+          : "expired";
     for (const listener of sessionEndListeners) listener(reason);
     throw new ApiError(401, "Session expired", body.code);
   }
@@ -172,6 +192,8 @@ export async function apiFetch(
 ): Promise<Response> {
   const headers: Record<string, string> = { ...opts.headers };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  // Login and register are where the server ties the account to this phone.
+  if (path.startsWith("/auth/")) Object.assign(headers, await deviceHeader());
   let body: string | undefined;
   if (opts.json !== undefined) {
     headers["Content-Type"] = "application/json";

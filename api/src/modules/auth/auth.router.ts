@@ -9,6 +9,7 @@ import {
   registerSchema,
 } from "./auth.schemas";
 import * as authService from "./auth.service";
+import { readDeviceId } from "./session";
 
 export const authRouter = Router();
 
@@ -31,13 +32,13 @@ authRouter.delete("/me", requireAuth, async (req, res) => {
 
 authRouter.post("/register", async (req, res) => {
   const input = registerSchema.parse(req.body);
-  const result = await authService.register(input);
+  const result = await authService.register(input, readDeviceId(req));
   res.status(201).json(result);
 });
 
 authRouter.post("/login", async (req, res) => {
   const input = loginSchema.parse(req.body);
-  const result = await authService.login(input);
+  const result = await authService.login(input, readDeviceId(req));
   res.json(result);
 });
 
@@ -56,7 +57,7 @@ authRouter.post("/forgot/reset", async (req, res) => {
 
 authRouter.post("/refresh", async (req, res) => {
   const { refreshToken } = refreshSchema.parse(req.body);
-  const result = await authService.refresh(refreshToken);
+  const result = await authService.refresh(refreshToken, readDeviceId(req));
   res.json(result);
 });
 

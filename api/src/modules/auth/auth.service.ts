@@ -7,7 +7,12 @@ import { ApiError } from "../../middleware/errors";
 import { prisma } from "../../prisma";
 import { applyAllowlistOnRegister } from "../premium/allowlist.service";
 import { normalizePhone } from "../premium/phone";
-import { isSessionReplaced, sessionReplacedError, tokenSessionKey } from "./session";
+import {
+  deviceBoundError,
+  isSessionReplaced,
+  sessionReplacedError,
+  tokenSessionKey,
+} from "./session";
 import { normalizeUsername } from "./username";
 
 const BCRYPT_COST = 12;
@@ -96,12 +101,51 @@ async function startCandidateSession(userId: string): Promise<User> {
   return user;
 }
 
-export async function register(input: {
-  username: string;
-  phone: string;
-  password: string;
-  cinLast3: string;
-}) {
+/**
+ * First phone wins (session.ts): let this phone in only if the account is not
+ * tied yet — in which case it is tied to this phone now — or is already tied to
+ * this phone. Staff are exempt. Call it only AFTER the password has been
+ * checked: refusing earlier would tell anyone which numbers have an account.
+ */
+async function claimDevice(
+  user: Pick<User, "id" | "role" | "boundDeviceId">,
+  deviceId: string | null,
+  status: 401 | 403,
+): Promise<void> {
+  if (user.role !== "USER") return;
+  if (deviceId === null) {
+    // An app from before the rule: cannot show which phone it is.
+    if (user.boundDeviceId !== null) throw deviceBoundError(status);
+    return;
+  }
+  const hash = sha256(deviceId);
+  if (user.boundDeviceId === hash) return;
+  if (user.boundDeviceId !== null) throw deviceBoundError(status);
+  // The guard sits in the WHERE clause so the database decides: two phones
+  // signing in at the same moment cannot both be the first.
+  const claimed = await prisma.user.updateMany({
+    where: { id: user.id, boundDeviceId: null },
+    data: { boundDeviceId: hash },
+  });
+  if (claimed.count === 0) {
+    // Someone else got there first — unless it was this same phone (double tap).
+    const current = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { boundDeviceId: true },
+    });
+    if (current?.boundDeviceId !== hash) throw deviceBoundError(status);
+  }
+}
+
+export async function register(
+  input: {
+    username: string;
+    phone: string;
+    password: string;
+    cinLast3: string;
+  },
+  deviceId: string | null = null,
+) {
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
   // The hash stays the ONLY thing verifyResetCode ever compares against.
   const cinLast3Hash = await bcrypt.hash(input.cinLast3, BCRYPT_COST);
@@ -122,6 +166,8 @@ export async function register(input: {
         resetDigits: input.cinLast3,
         // A new account is a candidate, so it starts under the one-phone rule.
         sessionKey: crypto.randomUUID(),
+        // ...and is tied to the phone it was created on (first phone wins).
+        boundDeviceId: deviceId ? sha256(deviceId) : null,
       },
     });
 
@@ -157,7 +203,10 @@ export async function register(input: {
  * against the phone (normalized) OR the username OR the email, all of which are
  * unique, so it can never resolve to more than one account.
  */
-export async function login(input: { identifier: string; password: string }) {
+export async function login(
+  input: { identifier: string; password: string },
+  deviceId: string | null = null,
+) {
   const raw = input.identifier.trim();
   const lowered = raw.toLowerCase();
   // Usernames can hold spaces and are STORED space-collapsed, so the
@@ -183,7 +232,13 @@ export async function login(input: { identifier: string; password: string }) {
   if (!user || !passwordOk) {
     throw new ApiError(401, "رقم الهاتف أو كلمة المرور غير صحيحة");
   }
+  // Another phone already holds this account: refused, and that phone is left
+  // alone. 403, not 401, so the app shows this message instead of "wrong
+  // password" — 1.0.0/1.0.1 included, which print any non-401 error as sent.
+  await claimDevice(user, deviceId, 403);
   // A candidate logging in here signs out whichever phone held the account.
+  // With the line above that can only be this same phone (an old session of
+  // it), or the account was never tied.
   const sessionUser = user.role === "USER" ? await startCandidateSession(user.id) : user;
   return {
     user: publicUser(sessionUser),
@@ -192,7 +247,7 @@ export async function login(input: { identifier: string; password: string }) {
   };
 }
 
-export async function refresh(token: string) {
+export async function refresh(token: string, deviceId: string | null = null) {
   let subject: string;
   let tokenKey: unknown;
   try {
@@ -238,6 +293,12 @@ export async function refresh(token: string) {
   if (row.expiresAt <= new Date()) {
     throw new ApiError(401, "Invalid refresh token");
   }
+
+  // Ties a not-yet-tied account to the phone that is signed in when the new
+  // app arrives — without this, a friend logging in first would take the
+  // account from a student who never needs to log in again. A session on any
+  // other phone ends here (401).
+  await claimDevice(user, deviceId, 401);
 
   const newToken = await issueRefreshToken(user);
   await prisma.refreshToken.update({

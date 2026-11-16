@@ -71,6 +71,12 @@ model User {
   // since the rule shipped, so those sessions keep working until the next
   // login. Staff accounts never get one: the rule is for candidates only.
   sessionKey   String?
+  // FIRST phone wins (owner decision 2026-11-16, see auth/session.ts): the
+  // sha256 of the phone id the account is tied to. Set by the first login or
+  // registration that sends one; a login from any other phone is refused with
+  // «هذا الحساب مرتبط بهاتف آخر». Logging out does NOT clear it. NULL = not
+  // tied yet (no login from an app that sends the id). Staff never get one.
+  boundDeviceId String?
   role         Role      @default(USER)
   isPremium    Boolean   @default(false)
   premiumUntil DateTime?

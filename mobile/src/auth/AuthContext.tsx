@@ -76,10 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (router.canDismiss()) router.dismissAll();
         Alert.alert(
           "تم تسجيل خروجك",
-          // Only one phone can hold a candidate account (2026-11-02).
+          // Only one phone can hold a candidate account (2026-11-02), and
+          // since 2026-11-16 it is the first one that signed in.
           reason === "replaced"
             ? "تم تسجيل الدخول إلى حسابك من هاتف آخر."
-            : "انتهت جلستك. سجّل الدخول من جديد للوصول إلى حسابك.",
+            : reason === "bound"
+              ? "هذا الحساب مرتبط بهاتف آخر."
+              : "انتهت جلستك. سجّل الدخول من جديد للوصول إلى حسابك.",
           [
             { text: "لاحقاً", style: "cancel" },
             { text: "تسجيل الدخول", onPress: () => router.push("/login") },
