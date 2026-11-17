@@ -26,6 +26,7 @@ const MAP = {
   // features
   exam: "traffic-light",
   car: "car",
+  steering: "steering",
   trophy: "trophy",
   sign: "sign-caution",
   // Licence categories (Morocco): A = دراجة نارية, D = حافلة, C = شاحنة
