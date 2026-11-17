@@ -104,7 +104,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/exam")}
           />
           <FeatureCard
-            title="الدروس النظرية"
+            title="الدروس التطبيقية"
             subtitle="قواعد السير مشروحة بالدارجة"
             icon="lessons"
             accent={colors.lessons}
@@ -123,7 +123,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/vehicles")}
           />
           <FeatureCard
-            title="الدروس التطبيقية"
+            title="الدروس النظرية"
             subtitle="فيديوهات السياقة العملية"
             icon="video"
             accent={colors.exam}

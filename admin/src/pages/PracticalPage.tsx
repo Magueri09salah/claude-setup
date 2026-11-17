@@ -227,7 +227,7 @@ export function PracticalPage() {
   return (
     <Stack>
       <Group justify="space-between" align="center">
-        <Title order={3}>الشق التطبيقي</Title>
+        <Title order={3}>الدروس النظرية</Title>
         <Button leftSection={<IconVideoPlus size={16} />} onClick={openModal}>
           فيديو جديد
         </Button>
@@ -583,7 +583,7 @@ export function PracticalPage() {
         centered
       >
         <Text size="sm">
-          سيُحذف «{deleteTarget?.title}» نهائياً من الشق التطبيقي.
+          سيُحذف «{deleteTarget?.title}» نهائياً من الدروس النظرية.
         </Text>
         <Group justify="flex-end" mt="lg">
           <Button variant="default" onClick={() => setDeleteTarget(null)}>

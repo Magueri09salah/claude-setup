@@ -712,7 +712,7 @@ export function LessonsPage() {
     ? { title: "العلامات", hint: `علامات درس «${selectedLesson.title}»` }
     : currentCat
       ? { title: "الدروس", hint: `دروس فئة «${currentCat.title}»` }
-      : { title: "الفئات", hint: "اختر فئة لعرض دروسها" };
+      : { title: "الدروس التطبيقية", hint: "اختر فئة لعرض دروسها" };
 
   return (
     <Stack>

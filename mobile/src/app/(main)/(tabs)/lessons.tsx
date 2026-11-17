@@ -62,7 +62,7 @@ export default function LessonsHomeScreen() {
     <ScreenBackground style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, styles.titleFlex]}>الدروس النظرية</Text>
+          <Text style={[styles.title, styles.titleFlex]}>الدروس التطبيقية</Text>
         </View>
 
         {categories.length === 0 ? (

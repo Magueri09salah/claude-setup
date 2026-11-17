@@ -107,7 +107,7 @@ export default function PracticalScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Icon name="back" size={26} color={colors.text} />
           </Pressable>
-          <Text style={[styles.title, styles.titleFlex]}>الدروس التطبيقية</Text>
+          <Text style={[styles.title, styles.titleFlex]}>الدروس النظرية</Text>
         </View>
 
         {active && (
@@ -135,7 +135,7 @@ export default function PracticalScreen() {
             <Icon name="alert" size={30} color={colors.textDim} />
             <Text style={styles.stateTitle}>تعذّر تحميل الفيديوهات</Text>
             <Text style={styles.stateText}>
-              الدروس التطبيقية تحتاج اتصالاً بالإنترنت — تحقق من الاتصال وحاول
+              الدروس النظرية تحتاج اتصالاً بالإنترنت — تحقق من الاتصال وحاول
               مجدداً.
             </Text>
             <PressableScale onPress={() => void load()} style={styles.retry}>
