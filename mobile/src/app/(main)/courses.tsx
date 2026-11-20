@@ -49,9 +49,9 @@ const STATUS_LABEL: Record<MyRequest["status"], string> = {
 
 /**
  * "التسجيل في الدروس" — the candidate picks the city where they want to take
- * driving lessons, then contacts the school on WhatsApp. The request is also
- * recorded server-side so the owner sees the lead in the admin panel even when
- * the chat never gets sent.
+ * driving lessons, then contacts the school on WhatsApp. Open to guests. For a
+ * signed-in candidate the request is also recorded server-side, so the owner
+ * sees the lead in the admin panel even when the chat never gets sent.
  */
 export default function CoursesScreen() {
   const { user } = useAuth();
@@ -91,24 +91,23 @@ export default function CoursesScreen() {
 
   const send = async () => {
     if (!city) return;
-    // Guest mode (owner decision 2026-11-12): the lead is only worth something
-    // with a name and a phone on it in the panel, so a guest creates an account
-    // first. register.tsx comes straight back here — the city stays picked, one
-    // more press sends it.
-    if (!user) {
-      router.push({ pathname: "/register", params: { next: "courses" } });
-      return;
+    // A GUEST goes straight to WhatsApp (client request 2026-11-20, reverses
+    // the 2026-11-12 "create an account first"): someone who only wants driving
+    // lessons must not need an account. Nothing is recorded for them —
+    // POST /course-requests requires an account, so the panel's طلبات التسجيل
+    // never sees a guest; the chat itself carries the sender's number.
+    if (user) {
+      setSending(true);
+      // Record the lead first, but never let a failure here block the chat —
+      // WhatsApp is the channel that actually matters to the candidate.
+      try {
+        await api("/course-requests", { method: "POST", json: { city } });
+        loadMine();
+      } catch {
+        // ignored on purpose (offline, server down…)
+      }
+      setSending(false);
     }
-    setSending(true);
-    // Record the lead first, but never let a failure here block the chat —
-    // WhatsApp is the channel that actually matters to the candidate.
-    try {
-      await api("/course-requests", { method: "POST", json: { city } });
-      loadMine();
-    } catch {
-      // ignored on purpose (offline, server down…)
-    }
-    setSending(false);
 
     const number = support?.coursesWhatsappNumber ?? support?.whatsappNumber;
     if (!number) {

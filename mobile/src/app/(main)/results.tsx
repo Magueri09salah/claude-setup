@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useOpenLocked } from "@/auth/useOpenLocked";
 import { lastAdStatus } from "@/ads/interstitial";
 import { Icon } from "@/components/Icon";
@@ -88,6 +88,22 @@ export default function ResultsScreen() {
     else router.replace(`/quiz/${series.id}`);
   };
 
+  // Asks first (client request 2026-11-20): every way out of restart REPLACES
+  // this screen, and results can only be reached right after a series, so one
+  // stray tap on the big yellow button cost the candidate the corrections they
+  // were about to read. "لا" — or tapping outside — stays here.
+  const confirmRestart = () => {
+    Alert.alert(
+      isMock ? "امتحان تجريبي جديد؟" : "إعادة السلسلة؟",
+      "ستغادر صفحة النتيجة ولن تتمكن من رؤية تصحيح هذه المحاولة.",
+      [
+        { text: "لا", style: "cancel" },
+        { text: "نعم", onPress: restart },
+      ],
+      { cancelable: true },
+    );
+  };
+
   return (
     <ScreenBackground style={styles.screen}>
       <ScrollView
@@ -165,7 +181,7 @@ export default function ResultsScreen() {
 
         <View style={styles.actions}>
           <PressableScale
-            onPress={restart}
+            onPress={confirmRestart}
             style={[styles.actionButton, { backgroundColor: colors.lessons }]}
           >
             <Icon name="restart" size={18} color={colors.onAccent} />
