@@ -6,6 +6,7 @@ import {
   Card,
   Group,
   Modal,
+  Pagination,
   Skeleton,
   Stack,
   Table,
@@ -44,6 +45,13 @@ function termLabel(
   return { text: `${days} يوم متبقٍ`, color: "teal" };
 }
 
+/**
+ * Rows per page (owner request 2026-11-24, same as المستخدمون). The whole
+ * list is still fetched and filtered here — only the TABLE is paged, so the
+ * counters and both exports keep covering every number the filters match.
+ */
+const PAGE_SIZE = 100;
+
 interface AddResult {
   added: string[];
   invalid: string[];
@@ -67,6 +75,7 @@ export function AllowlistPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   // WhatsApp contact shown in the app instead of a payment screen — it lives
   // here because this page is the other half of the same loop: they message,
   // you add their number below.
@@ -199,6 +208,20 @@ export function AllowlistPage() {
   const claimed = visible.filter((e) => e.claimedAt).length;
   const filtersOn = !!(from || to || query);
 
+  // Clamped at render rather than in an effect: a delete that empties the
+  // last page simply shows the new last page, with no blank flash first.
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount);
+  const pageRows = visible.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  const firstRow = visible.length === 0 ? 0 : (current - 1) * PAGE_SIZE + 1;
+  const lastRow = Math.min(current * PAGE_SIZE, visible.length);
+
+  const goToPage = (p: number) => {
+    setPage(p);
+    // The pager sits under 100 rows; the next page should start at its top.
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const exportColumns: ExportColumn<AllowlistEntry>[] = [
     { header: "الرقم", value: (e) => e.phone, width: 16 },
     { header: "المجموعة", value: (e) => e.note ?? "", width: 28 },
@@ -329,21 +352,30 @@ export function AllowlistPage() {
             placeholder="رقم · اسم مستخدم · مجموعة"
             leftSection={<IconSearch size={16} />}
             value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
+            onChange={(e) => {
+              setSearch(e.currentTarget.value);
+              setPage(1);
+            }}
             w={260}
           />
           <TextInput
             type="date"
             label="أُضيف من"
             value={from}
-            onChange={(e) => setFrom(e.currentTarget.value)}
+            onChange={(e) => {
+              setFrom(e.currentTarget.value);
+              setPage(1);
+            }}
             w={170}
           />
           <TextInput
             type="date"
             label="إلى"
             value={to}
-            onChange={(e) => setTo(e.currentTarget.value)}
+            onChange={(e) => {
+              setTo(e.currentTarget.value);
+              setPage(1);
+            }}
             w={170}
           />
           {filtersOn && (
@@ -353,6 +385,7 @@ export function AllowlistPage() {
                 setSearch("");
                 setFrom("");
                 setTo("");
+                setPage(1);
               }}
             >
               مسح الفلاتر
@@ -406,7 +439,7 @@ export function AllowlistPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {visible.map((e) => (
+              {pageRows.map((e) => (
                 <Table.Tr key={e.id}>
                   <Table.Td>
                     <Text size="sm" dir="ltr" ta="left">
@@ -482,6 +515,23 @@ export function AllowlistPage() {
               ))}
             </Table.Tbody>
           </Table>
+
+          {/* Words, not "1–100": in this RTL page a dash between two numbers
+              is laid out right-to-left and would read "100–1". */}
+          <Group justify="space-between" mt="md">
+            <Text size="sm" c="dimmed">
+              عرض {firstRow} إلى {lastRow} من أصل {visible.length}
+            </Text>
+            {pageCount > 1 && (
+              <Pagination
+                total={pageCount}
+                value={current}
+                onChange={goToPage}
+                siblings={1}
+                boundaries={1}
+              />
+            )}
+          </Group>
         </Card>
       )}
 
