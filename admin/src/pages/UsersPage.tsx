@@ -5,6 +5,7 @@ import {
   Checkbox,
   Group,
   Modal,
+  Pagination,
   SegmentedControl,
   SimpleGrid,
   Stack,
@@ -53,6 +54,22 @@ function expiryLabel(u: AdminUser): { text: string; color: string } {
   return { text: `${d} يوم متبقٍ`, color: d <= 14 ? "orange" : "dimmed" };
 }
 
+/**
+ * Rows per page (owner request 2026-11-24). The page used to ask for ONE
+ * page of 500 and nothing after it, so past 500 accounts the rest were simply
+ * unreachable from the panel.
+ */
+const PAGE_SIZE = 100;
+/** The API's own pageSize cap — the exports read every page at this size. */
+const EXPORT_PAGE_SIZE = 500;
+
+interface UsersResponse {
+  users: AdminUser[];
+  total: number;
+  /** Every account matching the search, whatever the page and status tab. */
+  counts: Record<UserStatus, number>;
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("ar-MA", {
@@ -69,8 +86,16 @@ export function UsersPage() {
   const isAdmin = useAuth().user?.role === "ADMIN";
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<Record<UserStatus, number>>({
+    paid: 0,
+    expired: 0,
+    pending: 0,
+    free: 0,
+  });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | UserStatus>("all");
+  const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
   const [target, setTarget] = useState<AdminUser | null>(null);
   // Ids, not rows: the list is reloaded after every action and object identity
   // would not survive it.
@@ -78,23 +103,40 @@ export function UsersPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const usersUrl = useCallback(
+    (p: number, size: number) => {
+      const params = new URLSearchParams({
+        status,
+        page: String(p),
+        pageSize: String(size),
+      });
+      if (search.trim()) params.set("search", search.trim());
+      return `/admin/users?${params.toString()}`;
+    },
+    [search, status],
+  );
+
   const load = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ status, pageSize: "500" });
-      if (search.trim()) params.set("search", search.trim());
-      const r = await api<{ users: AdminUser[]; total: number }>(
-        `/admin/users?${params.toString()}`,
-      );
+      const r = await api<UsersResponse>(usersUrl(page, PAGE_SIZE));
+      // Past the end — the last rows of the last page were just deleted, or a
+      // renewal moved them out of the status tab. Step back to the new last
+      // page; changing `page` reloads by itself.
+      if (r.users.length === 0 && page > 1) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+        return;
+      }
       setUsers(r.users);
       setTotal(r.total);
-      // A filter or search change can hide a ticked row. Dropping it here is
-      // what stops the trash button from deleting people the owner can no
-      // longer see.
+      setCounts(r.counts);
+      // A filter, search or PAGE change can hide a ticked row. Dropping it
+      // here is what stops the trash button from deleting people the owner
+      // can no longer see.
       setSelected((prev) => prev.filter((id) => r.users.some((u) => u.id === id)));
     } catch (e) {
       notifyError(e);
     }
-  }, [search, status]);
+  }, [usersUrl, page]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), 250);
@@ -162,14 +204,37 @@ export function UsersPage() {
     }
   };
 
-  const counts = {
-    paid: users.filter((u) => u.status === "paid").length,
-    expired: users.filter((u) => u.status === "expired").length,
-    free: users.filter((u) => u.status === "free").length,
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const firstRow = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastRow = Math.min(page * PAGE_SIZE, total);
+
+  const goToPage = (p: number) => {
+    setPage(p);
+    // The pager sits under 100 rows; the next page should start at its top.
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Exports exactly what the table shows, so a filtered view exports the
-  // filtered rows rather than silently dumping everyone.
+  // Exports follow the current status tab and search, but across EVERY page —
+  // the table shows 100 rows at a time, an export of "page 3" is never what is
+  // wanted. Read at the API's maximum page size; deduped by id because a
+  // registration landing mid-export shifts every later row down by one.
+  const runExport = async (to: (rows: AdminUser[]) => void) => {
+    setExporting(true);
+    try {
+      const byId = new Map<string, AdminUser>();
+      for (let p = 1; ; p++) {
+        const r = await api<UsersResponse>(usersUrl(p, EXPORT_PAGE_SIZE));
+        for (const u of r.users) byId.set(u.id, u);
+        if (r.users.length < EXPORT_PAGE_SIZE || p * EXPORT_PAGE_SIZE >= r.total) break;
+      }
+      to([...byId.values()]);
+    } catch (e) {
+      notifyError(e);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const exportColumns: ExportColumn<AdminUser>[] = [
     { header: "اسم المستخدم", value: (u) => u.username ?? "", width: 26 },
     { header: "البريد الإلكتروني", value: (u) => u.email ?? "", width: 30 },
@@ -200,16 +265,22 @@ export function UsersPage() {
           <Button
             variant="default"
             leftSection={<IconFileSpreadsheet size={16} />}
-            disabled={users.length === 0}
-            onClick={() => exportExcel("المستخدمون", exportColumns, users)}
+            disabled={total === 0}
+            loading={exporting}
+            onClick={() =>
+              void runExport((rows) => exportExcel("المستخدمون", exportColumns, rows))
+            }
           >
             Excel
           </Button>
           <Button
             variant="default"
             leftSection={<IconPrinter size={16} />}
-            disabled={users.length === 0}
-            onClick={() => exportPdf("المستخدمون", exportColumns, users)}
+            disabled={total === 0}
+            loading={exporting}
+            onClick={() =>
+              void runExport((rows) => exportPdf("المستخدمون", exportColumns, rows))
+            }
           >
             PDF
           </Button>
@@ -252,7 +323,10 @@ export function UsersPage() {
             placeholder="بحث باسم المستخدم أو الهاتف…"
             leftSection={<IconSearch size={16} />}
             value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
+            onChange={(e) => {
+              setSearch(e.currentTarget.value);
+              setPage(1);
+            }}
             w={300}
           />
           <Group>
@@ -271,7 +345,10 @@ export function UsersPage() {
             )}
             <SegmentedControl
               value={status}
-              onChange={(v) => setStatus(v as typeof status)}
+              onChange={(v) => {
+                setStatus(v as typeof status);
+                setPage(1);
+              }}
               data={[
                 { value: "all", label: "الكل" },
                 { value: "paid", label: "مشترك" },
@@ -411,6 +488,25 @@ export function UsersPage() {
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
+
+        {total > 0 && (
+          <Group justify="space-between" mt="md">
+            {/* Words, not "1–100": in this RTL page a dash between two numbers
+                is laid out right-to-left and would read "100–1". */}
+            <Text size="sm" c="dimmed">
+              عرض {firstRow} إلى {lastRow} من أصل {total}
+            </Text>
+            {pageCount > 1 && (
+              <Pagination
+                total={pageCount}
+                value={page}
+                onChange={goToPage}
+                siblings={1}
+                boundaries={1}
+              />
+            )}
+          </Group>
+        )}
       </Card>
 
       <Modal

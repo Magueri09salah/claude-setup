@@ -41,7 +41,12 @@ usersAdminRouter.get("/users", async (req, res) => {
 
   const users = await prisma.user.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    // The id tie-break keeps the order IDENTICAL between two requests: the
+    // panel pages through this list 100 rows at a time (owner request
+    // 2026-11-24), and accounts sharing a createdAt (the username backfill,
+    // bulk imports) could otherwise swap places between page 1 and page 2 —
+    // one person shown twice, another never.
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
     include: {
       payments: { orderBy: { createdAt: "desc" } },
       _count: { select: { devices: true } },
@@ -87,6 +92,12 @@ usersAdminRouter.get("/users", async (req, res) => {
     };
   });
 
+  // The counter cards, over EVERY account matching the search — not the page
+  // on screen, and not the status tab (picking «منتهي» must not zero the
+  // «مشترك» card). Counted here because the panel only ever holds one page.
+  const counts = { paid: 0, expired: 0, pending: 0, free: 0 };
+  for (const r of rows) counts[r.status] += 1;
+
   const filtered =
     q.status === "all" ? rows : rows.filter((r) => r.status === q.status);
   const total = filtered.length;
@@ -96,6 +107,7 @@ usersAdminRouter.get("/users", async (req, res) => {
     total,
     page: q.page,
     pageSize: q.pageSize,
+    counts,
   });
 });
 
